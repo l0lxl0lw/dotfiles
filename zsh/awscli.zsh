@@ -1,6 +1,15 @@
 export PATH=/usr/local/bin/:$PATH
-autoload bashcompinit && bashcompinit
-autoload -Uz compinit && compinit
+
+# Load and initialize completion system with caching (much faster)
+autoload -Uz compinit bashcompinit
+typeset -i updated_at=$(date +'%j' -r ~/.zcompdump 2>/dev/null || stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null || echo 0)
+if [ $(date +'%j') != $updated_at ]; then
+  compinit -i
+else
+  compinit -C -i
+fi
+bashcompinit
+
 complete -C $(which aws_completer) aws
 
 
