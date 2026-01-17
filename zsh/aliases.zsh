@@ -43,6 +43,9 @@ alias sa='screen -r'
 # EMACS ALIAS
 alias e='emacs'
 
+# CLAUDE ALIAS
+alias c='claude'
+
 # USE PYTHON3
 alias python='/usr/bin/python3'
 alias pip='/usr/bin/pip3'
