@@ -49,14 +49,14 @@ claude_merge_config() {
   rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
   for repo in "$public_repo" "$private_repo"; do
     [[ -d "$repo/skills" ]] && \
-      find "$repo/skills" -mindepth 1 -maxdepth 1 -type d -exec ln -sf {} "$claude_dir/skills/" \;
+      find "$repo/skills" -mindepth 1 -maxdepth 1 -type d -exec ln -sfn {} "$claude_dir/skills/" \;
   done
 
   # Merge agents (.md files)
   rm -rf "$claude_dir/agents" && mkdir -p "$claude_dir/agents"
   for repo in "$public_repo" "$private_repo"; do
     [[ -d "$repo/agents" ]] && \
-      find "$repo/agents" -maxdepth 1 -name "*.md" -exec ln -sf {} "$claude_dir/agents/" \;
+      find "$repo/agents" -maxdepth 1 -name "*.md" -exec ln -sfn {} "$claude_dir/agents/" \;
   done
 
   # Render mcp.json from templates + .env secrets
