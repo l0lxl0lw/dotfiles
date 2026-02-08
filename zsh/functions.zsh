@@ -39,11 +39,11 @@ _ca() {
 }
 compdef _ca ca
 
-# Merge Claude skills/agents from public + private repos
+# Merge Claude skills/agents/mcp from public + private repos
 claude_merge_config() {
   local claude_dir="$HOME/.claude"
   local public_repo="$HOME/workspace/claude-config"
-  local private_repo="$HOME/workspace/private"
+  local private_repo="$HOME/workspace/private/claude"
 
   # Merge skills (directories)
   rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
@@ -58,5 +58,23 @@ claude_merge_config() {
     [[ -d "$repo/agents" ]] && \
       find "$repo/agents" -maxdepth 1 -name "*.md" -exec ln -sf {} "$claude_dir/agents/" \;
   done
+
+  # Render mcp.json from templates + .env secrets
+  for repo in "$public_repo" "$private_repo"; do
+    [[ -f "$repo/.env" ]] && set -a && source "$repo/.env" && set +a
+  done
+
+  local merged="{}"
+  for repo in "$public_repo" "$private_repo"; do
+    if [[ -f "$repo/mcp.json.tpl" ]]; then
+      local rendered
+      rendered=$(envsubst < "$repo/mcp.json.tpl")
+      merged=$(echo "$merged" "$rendered" | jq -s '.[0] * .[1]')
+    fi
+  done
+
+  if [[ "$merged" != "{}" ]]; then
+    echo "$merged" | jq . > "$claude_dir/mcp.json"
+  fi
 }
 claude_merge_config
