@@ -55,7 +55,7 @@ claude_merge_config() {
   local claude_dir="$HOME/.claude"
   local public_repo="$HOME/workspace/claude-config"
   local private_repo="$HOME/workspace/private/claude"
-  local youtube_repo="$HOME/workspace/youtube-agents"
+  local youtube_repo="$HOME/workspace/youtube-agents/claude"
 
   # Merge skills (directories)
   rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
