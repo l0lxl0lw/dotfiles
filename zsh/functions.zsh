@@ -56,17 +56,18 @@ claude_merge_config() {
   local public_repo="$HOME/workspace/claude-config"
   local private_repo="$HOME/workspace/private/claude"
   local youtube_repo="$HOME/workspace/youtube-agents/claude"
+  local yt_channels_repo="$HOME/workspace/yt-channels/.claude"
 
   # Merge skills (directories)
   rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
-  for repo in "$public_repo" "$private_repo" "$youtube_repo"; do
+  for repo in "$public_repo" "$private_repo" "$youtube_repo" "$yt_channels_repo"; do
     [[ -d "$repo/skills" ]] && \
       find "$repo/skills" -mindepth 1 -maxdepth 1 -type d -exec ln -sfn {} "$claude_dir/skills/" \;
   done
 
   # Merge agents (.md files and agent directories)
   rm -rf "$claude_dir/agents" && mkdir -p "$claude_dir/agents"
-  for repo in "$public_repo" "$private_repo" "$youtube_repo"; do
+  for repo in "$public_repo" "$private_repo" "$youtube_repo" "$yt_channels_repo"; do
     [[ -d "$repo/agents" ]] && \
       find "$repo/agents" -maxdepth 1 -name "*.md" -exec ln -sfn {} "$claude_dir/agents/" \;
     [[ -d "$repo/agents" ]] && \
@@ -74,12 +75,12 @@ claude_merge_config() {
   done
 
   # Render mcp.json from templates + .env secrets
-  for repo in "$public_repo" "$private_repo" "$youtube_repo"; do
+  for repo in "$public_repo" "$private_repo" "$youtube_repo" "$yt_channels_repo"; do
     [[ -f "$repo/.env" ]] && set -a && source "$repo/.env" && set +a
   done
 
   local merged="{}"
-  for repo in "$public_repo" "$private_repo" "$youtube_repo"; do
+  for repo in "$public_repo" "$private_repo" "$youtube_repo" "$yt_channels_repo"; do
     if [[ -f "$repo/mcp.json.tpl" ]]; then
       local rendered
       rendered=$(envsubst < "$repo/mcp.json.tpl")
