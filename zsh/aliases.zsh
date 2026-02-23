@@ -45,7 +45,7 @@ alias e='emacs'
 
 # CLAUDE CODE ALIAS
 alias cc='claude'
-alias cct='claude --dangerously-skip-permissions'
+alias cct='claude --dangerously-skip-permissions --chrome'
 
 # USE PYTHON3
 alias python='/usr/bin/python3'
