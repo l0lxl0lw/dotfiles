@@ -88,5 +88,22 @@ claude_merge_config() {
   if [[ "$merged" != "{}" ]]; then
     echo "$merged" | jq . > "$claude_dir/mcp.json"
   fi
+
+  # Merge hooks (symlink executable scripts)
+  mkdir -p "$claude_dir/hooks"
+  for repo in "$public_repo"; do
+    [[ -d "$repo/hooks" ]] && \
+      find "$repo/hooks" -maxdepth 1 -type f -exec ln -sfn {} "$claude_dir/hooks/" \;
+  done
+
+  # Patch statusLine into settings.json if hook exists
+  if [[ -f "$claude_dir/hooks/statusline.sh" ]]; then
+    chmod +x "$claude_dir/hooks/statusline.sh"
+    if [[ -f "$claude_dir/settings.json" ]]; then
+      local updated
+      updated=$(jq '.statusLine = {"type": "command", "command": "sh ~/.claude/hooks/statusline.sh"}' "$claude_dir/settings.json")
+      echo "$updated" > "$claude_dir/settings.json"
+    fi
+  fi
 }
 claude_merge_config
