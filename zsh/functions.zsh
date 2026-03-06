@@ -50,6 +50,42 @@ _ca() {
 }
 compdef _ca ca
 
+# Claude --agent shortcuts with tab completion
+cca() { claude --agent "$@"; }
+ccta() { claude --dangerously-skip-permissions --chrome --agent "$@"; }
+
+_claude_agents() {
+  local -a usr_vals proj_vals
+  local global_dir="$HOME/.claude/agents"
+  local project_dir=".claude/agents"
+
+  if [[ -d "$global_dir" ]]; then
+    for f in "$global_dir"/*.md(N); do
+      usr_vals+=("${${f:t}%.md}")
+    done
+    for d in "$global_dir"/*(N/); do
+      usr_vals+=("${d:t}")
+    done
+  fi
+
+  if [[ -d "$project_dir" ]]; then
+    for f in "$project_dir"/*.md(N); do
+      proj_vals+=("${${f:t}%.md}")
+    done
+    for d in "$project_dir"/*(N/); do
+      proj_vals+=("${d:t}")
+    done
+  fi
+
+  local -a usr_disp proj_disp
+  for v in "${usr_vals[@]}"; do usr_disp+=($'\e[32m'"$v"$'\e[0m'); done
+  for v in "${proj_vals[@]}"; do proj_disp+=($'\e[36m'"$v"$'\e[0m'); done
+
+  (( ${#usr_vals} )) && compadd -l -V usr -X '== User Agents ==' -d usr_disp -a usr_vals
+  (( ${#proj_vals} )) && compadd -l -V proj -X '== Project Agents ==' -d proj_disp -a proj_vals
+}
+compdef _claude_agents cca ccta
+
 # Merge Claude skills/agents/mcp from public + private repos
 claude_merge_config() {
   local claude_dir="$HOME/.claude"
