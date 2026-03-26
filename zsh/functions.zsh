@@ -87,11 +87,15 @@ claude_merge_config() {
   local claude_dir="$HOME/.claude"
   local public_repo="$HOME/workspace/claude-config"
 
-  # Merge skills (directories)
+  # Merge skills (find SKILL.md recursively, symlink parent dirs flat)
   rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
   for repo in "$public_repo"; do
-    [[ -d "$repo/skills" ]] && \
-      find "$repo/skills" -mindepth 1 -maxdepth 1 -type d -exec ln -sfn {} "$claude_dir/skills/" \;
+    [[ -d "$repo/skills" ]] || continue
+    find "$repo/skills" -name "SKILL.md" -type f | while read -r f; do
+      local skill_dir="${f%/SKILL.md}"
+      local skill_name="${skill_dir##*/}"
+      ln -sfn "$skill_dir" "$claude_dir/skills/$skill_name"
+    done
   done
 
   # Merge agents (recursively mirror directory structure with symlinked .md files)
