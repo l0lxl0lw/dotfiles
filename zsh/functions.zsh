@@ -51,8 +51,8 @@ _ca() {
 compdef _ca ca
 
 # Claude --agent shortcuts with tab completion
-cca() { claude --agent "$@"; }
-ccta() { claude --dangerously-skip-permissions --chrome --agent "$@"; }
+cca() { claude --agent "${@##*/}"; }
+ccta() { claude --dangerously-skip-permissions --chrome --agent "${@##*/}"; }
 
 _claude_agents() {
   local -a usr_vals proj_vals
@@ -60,20 +60,16 @@ _claude_agents() {
   local project_dir=".claude/agents"
 
   if [[ -d "$global_dir" ]]; then
-    for f in "$global_dir"/*.md(N); do
-      usr_vals+=("${${f:t}%.md}")
-    done
-    for d in "$global_dir"/*(N/); do
-      usr_vals+=("${d:t}")
+    for f in "$global_dir"/**/*.md(N); do
+      local rel="${f#$global_dir/}"
+      usr_vals+=("${rel%.md}")
     done
   fi
 
   if [[ -d "$project_dir" ]]; then
-    for f in "$project_dir"/*.md(N); do
-      proj_vals+=("${${f:t}%.md}")
-    done
-    for d in "$project_dir"/*(N/); do
-      proj_vals+=("${d:t}")
+    for f in "$project_dir"/**/*.md(N); do
+      local rel="${f#$project_dir/}"
+      proj_vals+=("${rel%.md}")
     done
   fi
 
