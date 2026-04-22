@@ -45,6 +45,8 @@ alias e='emacs'
 
 # CLAUDE CODE ALIAS
 alias cc='claude'
+alias cca='claude --chrome --permission-mode auto'
+alias ccp='claude --chrome --permission-mode plan'
 alias cct='claude --dangerously-skip-permissions --chrome'
 
 # USE PYTHON3

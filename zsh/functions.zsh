@@ -51,7 +51,7 @@ _ca() {
 compdef _ca ca
 
 # Claude --agent shortcuts with tab completion
-cca() { claude --agent "${@##*/}"; }
+ccaa() { claude --chrome --permission-mode auto --agent "${@##*/}"; }
 ccta() { claude --dangerously-skip-permissions --chrome --agent "${@##*/}"; }
 
 _claude_agents() {
@@ -80,7 +80,7 @@ _claude_agents() {
   (( ${#usr_vals} )) && compadd -l -V usr -X '== User Agents ==' -d usr_disp -a usr_vals
   (( ${#proj_vals} )) && compadd -l -V proj -X '== Project Agents ==' -d proj_disp -a proj_vals
 }
-compdef _claude_agents cca ccta
+compdef _claude_agents ccaa ccta
 
 # Merge Claude skills/agents/mcp from public + private repos
 claude_merge_config() {
