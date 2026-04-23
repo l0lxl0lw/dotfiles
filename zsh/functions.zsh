@@ -3,6 +3,39 @@ chpwd() {
   ls
 }
 
+# open a PR to main from the current branch (assumes commits are already pushed)
+gpr() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gpr <pr-title>"
+    return 1
+  fi
+  local branch
+  branch=$(git branch --show-current)
+  if [[ -z "$branch" ]]; then
+    echo "Not on a branch (detached HEAD?)."
+    return 1
+  fi
+  if [[ "$branch" == "main" || "$branch" == "master" ]]; then
+    echo "Refusing to PR from $branch. Switch to a feature branch first (e.g. gcb my-feature)."
+    return 1
+  fi
+  gh pr create --title "$1" --body "" --base main
+}
+
+# git checkout branch: switch to existing remote branch, or create a new one
+gcb() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: gcb <branch-name>"
+    return 1
+  fi
+  git fetch origin
+  if git show-ref --verify --quiet "refs/remotes/origin/$1"; then
+    git switch "$1"
+  else
+    git switch -c "$1"
+  fi
+}
+
 # Claude agent selector
 ca() {
   local agents_dir="$HOME/.claude/agents"
