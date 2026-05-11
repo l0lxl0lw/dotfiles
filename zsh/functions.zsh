@@ -178,4 +178,4 @@ claude_merge_config() {
     fi
   fi
 }
-claude_merge_config
+# claude_merge_config  # disabled: was overwriting ~/.claude/settings.json on every shell start. Run manually if needed.
