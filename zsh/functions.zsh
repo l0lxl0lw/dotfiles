@@ -36,6 +36,16 @@ gcb() {
   fi
 }
 
+# after PR merged: switch to default branch, pull, delete the merged feature branch
+gdone() {
+  local branch base="${1:-main}"
+  branch=$(git branch --show-current)
+  git checkout "$base" && git pull --rebase --autostash --prune
+  if [[ -n "$branch" && "$branch" != "$base" ]]; then
+    git branch -d "$branch"   # safe delete, refuses if unmerged
+  fi
+}
+
 # Claude agent selector
 ca() {
   local agents_dir="$HOME/.claude/agents"
