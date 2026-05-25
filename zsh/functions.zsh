@@ -37,7 +37,7 @@ gcb() {
 }
 
 # after PR merged: switch to default branch, pull, delete the merged feature branch
-gdone() {
+gsync() {
   local branch base="${1:-main}"
   branch=$(git branch --show-current)
   git checkout "$base" && git pull --rebase --autostash --prune
