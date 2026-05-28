@@ -34,6 +34,12 @@ Markdown — this skill is only for teaching documents.)
    of this matters. Define terms on first use. Lead with the "what is this and why care" before
    mechanism.
 4. **Self-contained means self-contained.** If you embed JS, keep it tiny and inline. Prefer no JS.
+   Small interaction helpers (collapsible code, a TOC scrollspy, tab toggles) are fine when they
+   serve the explanation and have no external deps.
+5. **Match form to content, and don't ship slop.** There is no house template — pick the layout and
+   visual language that fit *this* content (see Process). A bland single-column page with one blue
+   accent and system fonts is the failure mode. The examples earn their keep precisely because they
+   vary: serif display type, distinct palettes, sidebars, grids, collapsibles. Inherit that.
 
 ## Process
 
@@ -44,16 +50,40 @@ Create one TodoWrite item per step.
    you investigate, reuse that.)
 2. **Find the spine.** Decide the single mental model the reader must walk away with. Everything in
    the page serves that. Write the one-sentence "if you remember one thing" up top.
-3. **Plan the visuals.** Pick 1–4 diagrams that each carry a distinct idea: e.g. a flow diagram, a
-   structure/box diagram, a before→after, a sequence. A diagram that only restates the prose is
-   waste — cut it.
-4. **Pick the output path** (see below) and the slug.
-5. **Write the HTML.** Start from `template.html` in this skill's directory (read it, copy its
-   structure). Fill the sections. Author each SVG by hand. Keep prose tight; let visuals carry load.
-6. **Self-contain check.** Grep the file for `http://`, `https://`, `src=`, `<link`, `@import`,
+3. **Pick a template from `examples/` — this is mandatory, not optional.** There is no generic
+   scaffold to fall back on; the 20 files in `examples/` *are* the templates. Read
+   `examples/README.md` (the gallery with a "use when" per file), choose the 1–2 whose shape fits
+   what this content must *do* (teach a concept, map a codebase, compare options, report an incident,
+   present as slides, …), then **actually open and read those files**. Don't write from memory of
+   what an explainer "usually" looks like.
+   - mental model / concept → `15-research-concept-explainer.html`
+   - a feature, its parts + usage → `14-research-feature-explainer.html`
+   - unfamiliar codebase / call flow → `04-code-understanding.html`
+   - a process / decision / state machine → `13-flowchart-diagram.html`
+   - visual-heavy, little prose → `10-svg-illustrations.html`
+   - paced reveal / presentation → `09-slide-deck.html`
+   - proposed work, phases, tasks → `16-implementation-plan.html`
+   - metrics / status snapshot → `11-status-report.html`
+   - postmortem / timeline → `12-incident-report.html`
+   - comparing approaches → `01-exploration-code-approaches.html`
+
+   If none fit cleanly, combine two — but still base the visual language on a real example, never on
+   a from-scratch generic page.
+4. **Plan the visuals.** Pick 1–4 diagrams that each carry a distinct idea: a flow, a structure/box
+   diagram, a before→after, a sequence. A diagram that only restates the prose is waste — cut it.
+5. **Pick the output path** (see below) and the slug.
+6. **Write the HTML, building on the chosen example.** Copy the example as your starting point and
+   adapt it to the real content: keep its layout, palette, type choices, and component patterns;
+   replace its fictional "Acme" content with the real material. The output should look like a sibling
+   of that example, not like a generic AI explainer. Author each SVG by hand; keep prose tight.
+   - **Optional:** for a long page that benefits from a jump-menu, paste in the floating sidebar from
+     `floating-toc.html` (auto-builds from your `<h2>`/`<h3>`, scrollspy, hides below 1160px) and
+     retheme its colors to match. Skip it for slide decks, short pages, or layouts with a sidebar.
+   - Never copy an example's fictional content; pull in nothing external.
+7. **Self-contain check.** Grep the file for `http://`, `https://`, `src=`, `<link`, `@import`,
    `url(` — any external reference fails the skill. Inline data-URIs are acceptable only if
    unavoidable.
-7. **Open it.** Print the absolute path. On macOS offer `open <path>`. Summarize in one line what
+8. **Open it.** Print the absolute path. On macOS offer `open <path>`. Summarize in one line what
    the page teaches.
 
 ## Output location
@@ -79,6 +109,10 @@ Create one TodoWrite item per step.
 - A newcomer reads top-to-bottom once and can explain the concept back.
 - Removing any diagram would lose information that the prose doesn't already give.
 - The file opens offline with no broken anything.
-- It looks intentional — consistent spacing, readable measure (~65ch), works light and dark.
+- It looks intentional and **distinct** — clearly built on its chosen example's design, not the
+  generic single-column-blue-accent-system-font look. If you can't tell which example it descends
+  from, you skipped step 3.
 
-See `template.html` (in this skill directory) for the starting scaffold.
+Files in this skill dir:
+- `examples/` — the 20 templates (whole-page formats) + `README.md` gallery for picking one. **Start here.**
+- `floating-toc.html` — optional drop-in jump-menu sidebar for long pages.
