@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- TITLE: replace with the concept name -->
+<title>How X Works</title>
+<style>
+  /* Self-contained. No web fonts, no external CSS. System font stack only. */
+  :root {
+    --bg: #fbfbfa;
+    --fg: #1c1c1e;
+    --muted: #5c5c66;
+    --line: #d9d9de;
+    --accent: #2f6df6;
+    --accent-soft: #e6efff;
+    --card: #ffffff;
+    --warn-bg: #fff5e6;
+    --warn-line: #f0c66b;
+    --measure: 68ch;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --fg: #e8e8ea;
+      --muted: #9a9aa4;
+      --line: #2e2e36;
+      --accent: #6fa0ff;
+      --accent-soft: #1e2740;
+      --card: #1e1e24;
+      --warn-bg: #2b2415;
+      --warn-line: #6b5524;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: var(--measure); margin: 0 auto; padding: 4rem 1.25rem 6rem; }
+  /* full-width breakout for diagrams */
+  .wide { max-width: 1000px; }
+  header.hero { margin-bottom: 2.5rem; }
+  .kicker { color: var(--accent); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; }
+  h1 { font-size: 2.2rem; line-height: 1.15; margin: .3rem 0 1rem; }
+  h2 { font-size: 1.45rem; margin: 3rem 0 .75rem; }
+  h3 { font-size: 1.1rem; margin: 1.75rem 0 .4rem; }
+  p, li { color: var(--fg); }
+  .lede { font-size: 1.2rem; color: var(--muted); }
+  a { color: var(--accent); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em;
+         background: var(--accent-soft); padding: .12em .4em; border-radius: 5px; }
+  /* "remember one thing" callout */
+  .keystone {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.5rem 0;
+  }
+  .keystone strong { display: block; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); margin-bottom: .25rem; }
+  .note { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--radius); padding: .85rem 1.1rem; margin: 1.25rem 0; }
+  /* diagram figure */
+  figure { margin: 2rem 0; }
+  figure svg { width: 100%; height: auto; display: block; background: var(--card);
+               border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+  figcaption { color: var(--muted); font-size: .92rem; margin-top: .6rem; text-align: center; }
+  /* shared SVG element styling — diagrams use these classes + currentColor so they theme automatically */
+  .d-box { fill: var(--card); stroke: var(--accent); stroke-width: 1.5; }
+  .d-box-soft { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .d-label { fill: var(--fg); font: 600 14px -apple-system, sans-serif; }
+  .d-sub { fill: var(--muted); font: 12px ui-monospace, monospace; }
+  .d-flow { stroke: var(--accent); stroke-width: 2; fill: none; }
+  footer { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <!-- KICKER: one short category label -->
+    <div class="kicker">Explainer</div>
+    <h1>How X Works</h1>
+    <!-- LEDE: one plain sentence a total newcomer understands -->
+    <p class="lede">A one-sentence plain-language summary of what this is and why anyone should care.</p>
+  </header>
+
+  <!-- THE SPINE: the single thing to remember -->
+  <div class="keystone">
+    <strong>If you remember one thing</strong>
+    The single mental model the reader should walk away with.
+  </div>
+
+  <h2>What problem does this solve?</h2>
+  <p>Start with the "why", in everyday terms, before any mechanism. Define every term on first use.</p>
+
+  <h2>The big picture</h2>
+  <p>Introduce the overall shape before details. Then show it:</p>
+
+  <!-- ===================================================================
+       DIAGRAM 1 — FLOW. Replace contents. Each box/arrow must be labelled.
+       role="img" + <title>/<desc> for accessibility. viewBox scales it.
+  ==================================================================== -->
+  <figure class="wide">
+    <svg viewBox="0 0 760 180" role="img" aria-labelledby="d1t d1d">
+      <title id="d1t">Flow from source to result</title>
+      <desc id="d1d">A links to B which produces C.</desc>
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+      <!-- stage A -->
+      <rect class="d-box" x="20"  y="55" width="180" height="70" rx="10"/>
+      <text class="d-label" x="110" y="85"  text-anchor="middle">Source</text>
+      <text class="d-sub"   x="110" y="105" text-anchor="middle">where it starts</text>
+      <!-- arrow -->
+      <line class="d-flow" x1="200" y1="90" x2="290" y2="90" marker-end="url(#arrow)"/>
+      <!-- stage B -->
+      <rect class="d-box-soft" x="290" y="55" width="180" height="70" rx="10"/>
+      <text class="d-label" x="380" y="85"  text-anchor="middle">Transform</text>
+      <text class="d-sub"   x="380" y="105" text-anchor="middle">what happens</text>
+      <!-- arrow -->
+      <line class="d-flow" x1="470" y1="90" x2="560" y2="90" marker-end="url(#arrow)"/>
+      <!-- stage C -->
+      <rect class="d-box" x="560" y="55" width="180" height="70" rx="10"/>
+      <text class="d-label" x="650" y="85"  text-anchor="middle">Result</text>
+      <text class="d-sub"   x="650" y="105" text-anchor="middle">what you get</text>
+    </svg>
+    <figcaption>Figure 1 — caption stating the one idea this diagram proves.</figcaption>
+  </figure>
+
+  <h2>How it actually works</h2>
+  <p>Now the mechanism, step by step, each step grounded in the diagram above. Use <code>code</code> for real names/paths so the reader can find them.</p>
+
+  <h3>A detail worth its own picture</h3>
+  <!-- ===================================================================
+       DIAGRAM 2 — STRUCTURE / NESTING. Example: a containment diagram.
+  ==================================================================== -->
+  <figure class="wide">
+    <svg viewBox="0 0 760 220" role="img" aria-labelledby="d2t d2d">
+      <title id="d2t">Structure diagram</title>
+      <desc id="d2d">An outer container holding inner parts.</desc>
+      <rect class="d-box" x="30" y="20" width="700" height="180" rx="12"/>
+      <text class="d-label" x="50" y="48">Container</text>
+      <rect class="d-box-soft" x="60"  y="70" width="190" height="100" rx="8"/>
+      <text class="d-label" x="155" y="125" text-anchor="middle">Part A</text>
+      <rect class="d-box-soft" x="285" y="70" width="190" height="100" rx="8"/>
+      <text class="d-label" x="380" y="125" text-anchor="middle">Part B</text>
+      <rect class="d-box-soft" x="510" y="70" width="190" height="100" rx="8"/>
+      <text class="d-label" x="605" y="125" text-anchor="middle">Part C</text>
+    </svg>
+    <figcaption>Figure 2 — what this structure shows.</figcaption>
+  </figure>
+
+  <div class="note">
+    <strong>Gotcha:</strong> call out the non-obvious caveat a newcomer would trip on.
+  </div>
+
+  <h2>So what?</h2>
+  <p>Close by tying the mechanism back to the "why" from the top. What can the reader now do or decide?</p>
+
+  <footer>
+    Generated explainer — self-contained, opens offline.
+  </footer>
+
+</div>
+</body>
+</html>
