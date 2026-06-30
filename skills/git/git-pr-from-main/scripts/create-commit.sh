@@ -48,7 +48,7 @@ if git diff --cached --quiet; then
     echo ""
     echo "Stage files first with:"
     echo "  git add <files>"
-    echo "  or: bash ~/.claude/skills/sync-main-and-commit/scripts/stage-files.sh --all"
+    echo "  or: bash ~/.claude/skills/git-pr-from-main/scripts/stage-files.sh --all"
     exit 1
 fi
 
@@ -61,11 +61,3 @@ git log --oneline -1
 echo ""
 echo "=== CURRENT STATUS ==="
 git status --short
-
-# Show unpushed count
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
-if [[ -n "$UPSTREAM" ]]; then
-    UNPUSHED=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
-    echo ""
-    echo "You have $UNPUSHED unpushed commit(s). Push when ready with: git push"
-fi

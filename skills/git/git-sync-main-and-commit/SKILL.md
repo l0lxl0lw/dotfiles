@@ -1,5 +1,5 @@
 ---
-name: sync-main-and-commit
+name: git-sync-main-and-commit
 description: On a feature branch with uncommitted changes, pull the latest default branch into local main, merge main into the feature branch (resolving conflicts), then commit the user's work and push. Use when the user is on a branch, has uncommitted changes, and someone else has advanced main.
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Read, Edit
@@ -11,7 +11,7 @@ Sync the latest default branch into your feature branch, resolve any merge confl
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/sync-main-and-commit/scripts/`:
+Helper scripts in `~/.claude/skills/git-sync-main-and-commit/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
@@ -27,7 +27,7 @@ Helper scripts in `~/.claude/skills/sync-main-and-commit/scripts/`:
 
 1. Run the analysis script from the repo root:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/sync-main-and-commit/scripts/analyze-state.sh'
+   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-sync-main-and-commit/scripts/analyze-state.sh'
    ```
    Output includes:
    - Current branch (must NOT be the default branch)
@@ -37,7 +37,7 @@ Helper scripts in `~/.claude/skills/sync-main-and-commit/scripts/`:
    - Any existing unresolved merge state
 
 2. Refuse to proceed if:
-   - Current branch IS the default branch — tell the user to use `push-to-main` or `pr-from-main`.
+   - Current branch IS the default branch — tell the user to use `git-push-to-main` or `git-pr-from-main`.
    - Repo is already in a conflicted merge — tell the user to finish or abort that merge first (`git merge --continue` or `git merge --abort`).
    - Local default branch has diverged from `origin/<default>` (has commits that aren't upstream) — bail out and tell the user: "Your local `<default>` has unpushed commits; this skill won't overwrite them. Push/rebase your `<default>` first, or sync manually."
 
@@ -45,7 +45,7 @@ Helper scripts in `~/.claude/skills/sync-main-and-commit/scripts/`:
 
 3. If there are uncommitted changes (tracked OR untracked):
    ```bash
-   git stash push -u -m "sync-main-and-commit autostash"
+   git stash push -u -m "git-sync-main-and-commit autostash"
    ```
    Record that a stash was created. If there are no uncommitted changes, skip this phase and note that the skill will still sync main into the branch (no final commit to make at the end).
 
@@ -107,11 +107,11 @@ Helper scripts in `~/.claude/skills/sync-main-and-commit/scripts/`:
 
 13. Stage:
     ```bash
-    bash ~/.claude/skills/sync-main-and-commit/scripts/stage-files.sh --all
+    bash ~/.claude/skills/git-sync-main-and-commit/scripts/stage-files.sh --all
     ```
 14. Commit:
     ```bash
-    bash ~/.claude/skills/sync-main-and-commit/scripts/create-commit.sh "commit message here"
+    bash ~/.claude/skills/git-sync-main-and-commit/scripts/create-commit.sh "commit message here"
     ```
     Script rejects AI attribution.
 

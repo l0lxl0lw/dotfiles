@@ -1,5 +1,5 @@
 ---
-name: push-to-main
+name: git-push-to-main
 description: Commit current changes on the default branch (main/master) and push to remote. Use when the user is on main, has verified their changes work, and wants to ship directly without a PR.
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Read, Edit
@@ -11,7 +11,7 @@ Commit current changes on the default branch and push directly to remote. For ve
 
 ## Scripts
 
-This skill includes helper scripts in `~/.claude/skills/push-to-main/scripts/`:
+This skill includes helper scripts in `~/.claude/skills/git-push-to-main/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
@@ -24,14 +24,14 @@ This skill includes helper scripts in `~/.claude/skills/push-to-main/scripts/`:
 ### Phase 0: Verify On Default Branch
 
 1. Check current branch. If it is NOT the default branch (`main` or `master`), **stop immediately** and tell the user:
-   > "This skill only runs on the default branch. You're on `<branch>`. Use `pr-from-main` if you want a PR, `sync-main-and-commit` if you want to sync main into this branch, or `commit-local-changes` for a plain branch commit."
+   > "This skill only runs on the default branch. You're on `<branch>`. Use `git-pr-from-main` if you want a PR, `git-sync-main-and-commit` if you want to sync main into this branch, or `git-commit-local-changes` for a plain branch commit."
    Do not proceed.
 
 ### Phase 1: Analyze Repository State
 
 2. Run the analysis script **from the repo root**:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/push-to-main/scripts/analyze-changes.sh'
+   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-push-to-main/scripts/analyze-changes.sh'
    ```
 
    This outputs:
@@ -68,20 +68,20 @@ This skill includes helper scripts in `~/.claude/skills/push-to-main/scripts/`:
 
 7. Stage files:
    ```bash
-   bash ~/.claude/skills/push-to-main/scripts/stage-files.sh --all
+   bash ~/.claude/skills/git-push-to-main/scripts/stage-files.sh --all
    ```
    Or stage specific files:
    ```bash
-   bash ~/.claude/skills/push-to-main/scripts/stage-files.sh file1.js file2.js
+   bash ~/.claude/skills/git-push-to-main/scripts/stage-files.sh file1.js file2.js
    ```
 
 8. Create commit with the user-confirmed message:
    ```bash
-   bash ~/.claude/skills/push-to-main/scripts/create-commit.sh "commit message here"
+   bash ~/.claude/skills/git-push-to-main/scripts/create-commit.sh "commit message here"
    ```
    Or amend previous commit (for squash):
    ```bash
-   bash ~/.claude/skills/push-to-main/scripts/create-commit.sh "updated message" --amend
+   bash ~/.claude/skills/git-push-to-main/scripts/create-commit.sh "updated message" --amend
    ```
    The script will refuse any message containing AI attribution (`Co-Authored-By`, `Generated with Claude Code`, etc.).
 

@@ -1,5 +1,5 @@
 ---
-name: pr-from-main
+name: git-pr-from-main
 description: Wrap current default-branch changes into a new feature branch with a single commit and open a GitHub pull request. Use when the user is on main/master and wants their work reviewed as a PR instead of pushed directly.
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit
@@ -11,7 +11,7 @@ Take uncommitted changes on the default branch, move them to a new feature branc
 
 ## Scripts
 
-This skill includes helper scripts in `~/.claude/skills/pr-from-main/scripts/`:
+This skill includes helper scripts in `~/.claude/skills/git-pr-from-main/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
@@ -24,14 +24,14 @@ This skill includes helper scripts in `~/.claude/skills/pr-from-main/scripts/`:
 ### Phase 0: Verify On Default Branch
 
 1. Check current branch. If it is NOT the default branch (`main` or `master`), **stop immediately** and tell the user:
-   > "This skill only runs on the default branch. You're on `<branch>`. If you already have a feature branch with commits and want to open a PR for it, do it manually with `gh pr create`. Use `commit-local-changes` + `gh pr create` for branch-local commit workflows."
+   > "This skill only runs on the default branch. You're on `<branch>`. If you already have a feature branch with commits and want to open a PR for it, do it manually with `gh pr create`. Use `git-commit-local-changes` + `gh pr create` for branch-local commit workflows."
    Do not proceed.
 
 ### Phase 1: Analyze Repository State
 
 2. Run the analysis script **from the repo root**:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/pr-from-main/scripts/analyze-changes.sh'
+   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-pr-from-main/scripts/analyze-changes.sh'
    ```
 
    This outputs:
@@ -67,16 +67,16 @@ This skill includes helper scripts in `~/.claude/skills/pr-from-main/scripts/`:
 
 9. Stage files:
    ```bash
-   bash ~/.claude/skills/pr-from-main/scripts/stage-files.sh --all
+   bash ~/.claude/skills/git-pr-from-main/scripts/stage-files.sh --all
    ```
    Or stage specific files:
    ```bash
-   bash ~/.claude/skills/pr-from-main/scripts/stage-files.sh file1.js file2.js
+   bash ~/.claude/skills/git-pr-from-main/scripts/stage-files.sh file1.js file2.js
    ```
 
 10. Create the single commit with the user-confirmed message:
     ```bash
-    bash ~/.claude/skills/pr-from-main/scripts/create-commit.sh "commit message here"
+    bash ~/.claude/skills/git-pr-from-main/scripts/create-commit.sh "commit message here"
     ```
     The script rejects AI attribution.
 
@@ -129,7 +129,7 @@ This skill includes helper scripts in `~/.claude/skills/pr-from-main/scripts/`:
 ## Rules
 
 - Run only from the default branch — refuse in Phase 0 otherwise
-- Single commit: this skill creates exactly one commit on the new branch. If the user wants multiple commits or additional iterations, they should use `commit-local-changes` from that branch afterward.
+- Single commit: this skill creates exactly one commit on the new branch. If the user wants multiple commits or additional iterations, they should use `git-commit-local-changes` from that branch afterward.
 - NEVER push or create the PR without asking the user for confirmation first
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits OR in the PR body — the commit script will reject attribution in commits, and the same rule applies to the PR body (do not include it)
 - NEVER force push to `main` or `master`

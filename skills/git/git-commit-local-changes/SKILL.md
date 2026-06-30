@@ -1,5 +1,5 @@
 ---
-name: commit-local-changes
+name: git-commit-local-changes
 description: Analyze uncommitted changes and create a commit, with options to squash or stack on existing unpushed commits.
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Read, Edit
@@ -11,7 +11,7 @@ Analyze uncommitted changes and create a commit.
 
 ## Scripts
 
-This skill includes helper scripts in `~/.claude/skills/commit-local-changes/scripts/`:
+This skill includes helper scripts in `~/.claude/skills/git-commit-local-changes/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
@@ -25,7 +25,7 @@ This skill includes helper scripts in `~/.claude/skills/commit-local-changes/scr
 
 1. Run the analysis script **from the repo root** to get full picture:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/commit-local-changes/scripts/analyze-changes.sh'
+   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-commit-local-changes/scripts/analyze-changes.sh'
    ```
 
    This outputs:
@@ -62,20 +62,20 @@ This skill includes helper scripts in `~/.claude/skills/commit-local-changes/scr
 
 6. Stage files:
    ```bash
-   bash ~/.claude/skills/commit-local-changes/scripts/stage-files.sh --all
+   bash ~/.claude/skills/git-commit-local-changes/scripts/stage-files.sh --all
    ```
    Or stage specific files:
    ```bash
-   bash ~/.claude/skills/commit-local-changes/scripts/stage-files.sh file1.js file2.js
+   bash ~/.claude/skills/git-commit-local-changes/scripts/stage-files.sh file1.js file2.js
    ```
 
 7. Create commit with the user-confirmed message:
    ```bash
-   bash ~/.claude/skills/commit-local-changes/scripts/create-commit.sh "commit message here"
+   bash ~/.claude/skills/git-commit-local-changes/scripts/create-commit.sh "commit message here"
    ```
    Or amend previous commit (for squash):
    ```bash
-   bash ~/.claude/skills/commit-local-changes/scripts/create-commit.sh "updated message" --amend
+   bash ~/.claude/skills/git-commit-local-changes/scripts/create-commit.sh "updated message" --amend
    ```
    The script will refuse any message containing AI attribution.
 

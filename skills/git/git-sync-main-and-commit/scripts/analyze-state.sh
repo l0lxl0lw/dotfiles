@@ -32,7 +32,7 @@ echo ""
 if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
     echo "ERROR: Currently on the default branch ($DEFAULT_BRANCH)."
     echo "This skill is for syncing main INTO a feature branch."
-    echo "Use push-to-main or pr-from-main instead."
+    echo "Use git-push-to-main or git-pr-from-main instead."
     exit 2
 fi
 
