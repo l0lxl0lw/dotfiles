@@ -1,14 +1,17 @@
 # Codex Config
 
 Tracked config for the [Codex CLI](https://github.com/openai/codex), symlinked into
-`~/.codex/` by `codex_merge_config` (in `../zsh/functions.zsh`).
+`~/.codex/` by `codex_merge_config` (in `~/dotfiles/zsh/functions.zsh`).
 
 ```
-dotfiles/codex/
+dotfiles/ai/codex/
 ├── AGENTS.md            -> ~/.codex/AGENTS.md     # global instructions, every session
 ├── config.toml.managed  -> spliced into ~/.codex/config.toml between markers
-└── skills/              -> ~/.codex/skills/<name> # one symlink per skill, flattened
+└── skills/              -> ~/.codex/skills/<name> # Codex-local skills, flattened
 ```
+
+`codex_merge_config` also imports cross-tool skills from `../shared/skills/` into the
+same flattened Codex namespace. Codex-local skills win on name collisions.
 
 ## Settings (status line, etc.)
 
@@ -114,7 +117,7 @@ the working config is left alone. A copy of the previous file is kept at
 Codex uses the same `SKILL.md` format as Claude Code:
 
 ```
-codex/skills/<skill-name>/SKILL.md
+ai/codex/skills/<skill-name>/SKILL.md
 ```
 
 ```yaml
@@ -131,12 +134,25 @@ their directory basename when linked, same as the Claude side.
 
 Then run `codex_merge_config`, or just launch `codex` — the shell wrapper syncs first.
 
+## Shared Skills
+
+Codex imports shared skills from:
+
+- `ai/shared/skills`
+
+Shared skills currently include the git workflows, Impeccable design skills, OMC planning
+skills, integrations, community skills, and utilities.
+
+If a shared skill needs Codex-specific behavior, add a skill with the same basename
+under `ai/codex/skills/`; the local Codex version takes precedence and the shared one is
+skipped during sync.
+
 ## How it loads
 
 `~/.codex/skills` is a shared namespace: our symlinks sit next to Codex's own `.system/`
 and bundled runtime directories, which are real dirs and are never touched. Codex resolves
-symlinked skills normally — verified with `codex debug prompt-input`, which lists a linked
-skill exactly like a bundled one and reports its real path.
+symlinked skills normally. Shared skills are symlinked directly from their source
+directories, so editing their contents updates both tools immediately.
 
 Sync runs from a `codex()` shell wrapper rather than a hook, because Codex has no hook
 mechanism (`codex --help` exposes `plugin` and `mcp`, nothing session-scoped). The wrapper

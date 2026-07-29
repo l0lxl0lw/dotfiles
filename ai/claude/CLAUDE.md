@@ -4,30 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-The `claude/` directory of [dotfiles](https://github.com/l0lxl0lw/dotfiles) — custom skills, agent personas, hooks, and a system prompts reference collection. Source of truth for `~/.claude/`; the `claude_merge_config` zsh function symlinks its contents there.
+The `ai/claude/` directory of [dotfiles](https://github.com/l0lxl0lw/dotfiles) — custom skills, agent personas, hooks, and a system prompts reference collection. Source of truth for `~/.claude/`; the `claude_merge_config` zsh function symlinks its contents there.
 
 Previously lived in its own repo at `l0lxl0lw/claude-config`, merged into dotfiles (with history) in July 2026.
 
 ## Architecture
 
 ```
-dotfiles/claude/
+dotfiles/ai/claude/
 ├── CLAUDE.md              # This file — guidance when working in this directory
-├── skills/                # Custom skills (symlinked to ~/.claude/skills)
-│   ├── impeccable/            # Design skills from pbakaus/impeccable
-│   ├── omc/                   # Planning skills from oh-my-claudecode
-│   ├── community/             # Skills from individual repos
-│   ├── git/                   # Custom git workflow skills
-│   ├── integrations/          # Custom integration skills
-│   └── utilities/             # Custom utility skills
+├── skills/                # Claude-specific skill overrides, if needed
 ├── agents/                # Agent personas (.md files with frontmatter)
 ├── hooks/                 # Shell hooks (statusline.sh = context progress bar)
 └── prompts/               # Read-only reference collection of system prompts (Anthropic, Google, OpenAI, etc.)
+
+dotfiles/ai/shared/
+└── skills/
+    ├── community/         # Skills from individual repos
+    ├── git/               # Custom git workflow skills
+    ├── impeccable/        # Design skills from pbakaus/impeccable
+    ├── integrations/      # Custom integration skills
+    ├── omc/               # Planning skills from oh-my-claudecode
+    └── utilities/         # Custom utility skills
 ```
 
 **Integration flow**: The `claude_merge_config()` zsh function (in `~/dotfiles/zsh/functions.zsh`) reads this directory and links it into `~/.claude/`:
 
-- **skills** — finds every `SKILL.md` and symlinks its parent dir flat to `~/.claude/skills/<name>`
+- **skills** — finds every `SKILL.md` in `ai/claude/skills` and `ai/shared/skills`, then symlinks its parent dir flat to `~/.claude/skills/<name>`; `ai/claude/skills` is only for Claude-specific overrides
 - **agents** — mirrors the dir tree, symlinks each `.md`
 - **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then points `statusLine` at `statusline.sh` in `settings.json`
 
@@ -39,13 +42,16 @@ Caveats worth knowing:
 - `~/.claude/skills` is shared with gstack, which installs its skills as real directories. Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
 - `deploy.sh` only handles `.zshrc`/`.vimrc`/`.tmux.conf` — it does **not** touch `~/.claude/`. The dotfiles repo is auto-pulled daily by `zsh/zshrc.conf`.
 - The merge function only sets `statusLine` in `settings.json`, and only when the value differs. Everything else in `~/.claude/settings.json` is hand-maintained and untracked.
-- `~/.claude/CLAUDE.md` is a standalone, untracked file. It does **not** import this one — this file is directory-scoped documentation, loaded by Claude Code when the working directory is inside `~/dotfiles/claude`.
+- `~/.claude/CLAUDE.md` is a standalone, untracked file. It does **not** import this one — this file is directory-scoped documentation, loaded by Claude Code when the working directory is inside `~/dotfiles/ai/claude`.
 
 ## Adding Content
 
 ### Skills
 
-Create `skills/<category>/<skill-name>/SKILL.md` with YAML frontmatter:
+Create shared skills in `../shared/skills/<category>/<skill-name>/SKILL.md`.
+Use `skills/<category>/<skill-name>/SKILL.md` only for Claude-specific overrides.
+
+Every `SKILL.md` starts with YAML frontmatter:
 
 ```yaml
 ---
@@ -56,7 +62,7 @@ allowed-tools: Bash, Read       # Optional: restrict tool access
 ---
 ```
 
-Skills can include helper scripts in `skills/<category>/<skill-name>/scripts/`.
+Skills can include helper scripts in `<skill-name>/scripts/`.
 
 ### Agents
 
@@ -76,7 +82,7 @@ After adding either, run `claude_merge_config` to create the symlink.
 
 - Skill names use kebab-case directories; agent names use kebab-case `.md` files
 - The `prompts/` directory is a reference archive — organized by provider (Anthropic, Google, OpenAI, xAI, Perplexity, Misc). Read-only, not loaded by Claude Code
-- `skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario. Skills are named for **what they do**; the branch they require is enforced in their first phase.
+- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario. Skills are named for **what they do**; the branch they require is enforced in their first phase.
 
   | Skill | Runs on | Does |
   |---|---|---|

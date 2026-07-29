@@ -3,7 +3,7 @@
 ## Setup
 - run `./deploy.sh` initially — writes `source` stubs into `~/.zshrc`, `~/.vimrc`, `~/.tmux.conf`
 - open a new shell, then run `claude_merge_config` and `codex_merge_config` once
-- install the Claude `SessionStart` hook so renames self-heal — see [claude/README.md](claude/README.md#setup)
+- install the Claude `SessionStart` hook so renames self-heal — see [ai/claude/README.md](ai/claude/README.md#setup)
   (`~/.claude/settings.json` is machine-local and not tracked here)
 
 ## Layout
@@ -11,8 +11,9 @@
 | Path | What |
 |------|------|
 | `zsh/` | shell config; `zshrc.conf` is the entry point, sources every other `*.zsh` |
-| `claude/` | Claude Code skills, agents, hooks, and a system-prompt reference archive — see [claude/README.md](claude/README.md) |
-| `codex/` | Codex CLI skills and global `AGENTS.md` — see [codex/README.md](codex/README.md) |
+| `ai/claude/` | Claude Code skills, agents, hooks, and a system-prompt reference archive — see [ai/claude/README.md](ai/claude/README.md) |
+| `ai/codex/` | Codex CLI skills and global `AGENTS.md` — see [ai/codex/README.md](ai/codex/README.md) |
+| `ai/shared/` | Skills shared by Claude, Codex, and future agent tools |
 | `vim/` `tmux/` `emacs/` | editor and multiplexer config (`emacs/` is manual, not wired into `deploy.sh`) |
 
 Both agent configs are symlinked into their user-level directories (`~/.claude`, `~/.codex`)

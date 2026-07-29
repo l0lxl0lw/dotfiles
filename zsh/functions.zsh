@@ -184,32 +184,36 @@ _agentcfg_link() {
   ln -sfn "$target" "$dst" && (( _AGENTCFG_LINKED++ ))
 }
 
-# _agentcfg_sync_skills <src-skills-dir> <dest-skills-dir>
-# Both Claude and Codex discover skills as <dir>/<name>/SKILL.md, so the source
+# _agentcfg_sync_skill_sources <dest-skills-dir> <src-skills-dir>...
+# Both Claude and Codex discover skills as <dir>/<name>/SKILL.md, so each source
 # tree may nest them under categories and they get flattened to their basename.
-# No-op if src is missing -- otherwise an absent source would prune every link
+# Missing sources are skipped -- otherwise an absent source would prune every link
 # and put nothing back, which is the data loss this design exists to prevent.
-_agentcfg_sync_skills() {
-  local src="$1" dst="$2" f key parent nested
+_agentcfg_sync_skill_sources() {
+  local dst="$1" src f key parent nested
   local -A want
-  [[ -d "$src" ]] || return 0
+  shift
+  (( $# )) || return 0
   mkdir -p "$dst"
 
-  for f in "$src"/**/SKILL.md(N-.); do
-    # Ignore a SKILL.md nested inside another skill (examples, templates)
-    nested=0; parent="${f:h:h}"
-    while [[ "$parent" == "$src"/?* ]]; do
-      [[ -f "$parent/SKILL.md" ]] && { nested=1; break }
-      parent="${parent:h}"
-    done
-    (( nested )) && continue
+  for src in "$@"; do
+    [[ -d "$src" ]] || continue
+    for f in "$src"/**/SKILL.md(N-.); do
+      # Ignore a SKILL.md nested inside another skill (examples, templates)
+      nested=0; parent="${f:h:h}"
+      while [[ "$parent" == "$src"/?* ]]; do
+        [[ -f "$parent/SKILL.md" ]] && { nested=1; break }
+        parent="${parent:h}"
+      done
+      (( nested )) && continue
 
-    key="${f:h:t}"
-    if (( ${+want[$key]} )); then
-      echo "  duplicate skill '$key': keeping ${want[$key]}, ignoring ${f:h}" >&2
-      (( _AGENTCFG_SKIPPED++ )); continue
-    fi
-    want[$key]="${f:h}"
+      key="${f:h:t}"
+      if (( ${+want[$key]} )); then
+        echo "  duplicate skill '$key': keeping ${want[$key]}, ignoring ${f:h}" >&2
+        (( _AGENTCFG_SKIPPED++ )); continue
+      fi
+      want[$key]="${f:h}"
+    done
   done
 
   for f in "$dst"/*(N@); do
@@ -222,6 +226,11 @@ _agentcfg_sync_skills() {
   done
 }
 
+# _agentcfg_sync_skills <src-skills-dir> <dest-skills-dir>
+_agentcfg_sync_skills() {
+  _agentcfg_sync_skill_sources "$2" "$1"
+}
+
 # Silent when there was nothing to do. claude_merge_config runs from a
 # SessionStart hook and anything it prints lands in the session as context.
 _agentcfg_report() {
@@ -230,7 +239,7 @@ _agentcfg_report() {
   return 0
 }
 
-# Link ~/dotfiles/claude into ~/.claude (skills, agents, hooks, statusline).
+# Link ~/dotfiles/ai/claude into ~/.claude (skills, agents, hooks, statusline).
 # Wired into the Claude Code SessionStart hook in ~/.claude/settings.json, so a
 # skill added or renamed here is picked up at the start of the next session
 # instead of silently dangling. Also fine to invoke by hand.
@@ -239,7 +248,7 @@ claude_merge_config() {
   setopt extended_glob
 
   local claude_dir="$HOME/.claude"
-  local repo="$HOME/dotfiles/claude"
+  local repo="$HOME/dotfiles/ai/claude"
   if [[ ! -d "$repo" ]]; then
     echo "claude_merge_config: $repo not found" >&2
     return 1
@@ -251,7 +260,10 @@ claude_merge_config() {
   _agentcfg_reset
 
   # Skills. ~/.claude/skills is shared with gstack, which installs real dirs.
-  _agentcfg_sync_skills "$repo/skills" "$claude_dir/skills"
+  # Claude-local skills win by name; ai/shared/skills holds cross-tool skills.
+  _agentcfg_sync_skill_sources "$claude_dir/skills" \
+    "$repo/skills" \
+    "$HOME/dotfiles/ai/shared/skills"
 
   # Agents: mirror the repo tree, symlinking each .md
   if [[ -d "$repo/agents" ]]; then
@@ -317,7 +329,7 @@ claude_merge_config() {
   _agentcfg_report claude_merge_config
 }
 
-# Link ~/dotfiles/codex into ~/.codex (skills, AGENTS.md).
+# Link ~/dotfiles/ai/codex into ~/.codex (skills, AGENTS.md).
 #
 # Codex has no hook mechanism, so this is driven by the codex() wrapper below --
 # it runs just before the binary launches, which costs nothing on shells that
@@ -327,7 +339,7 @@ codex_merge_config() {
   setopt extended_glob
 
   local codex_dir="$HOME/.codex"
-  local repo="$HOME/dotfiles/codex"
+  local repo="$HOME/dotfiles/ai/codex"
   [[ -d "$repo" ]] || { echo "codex_merge_config: $repo not found" >&2; return 1 }
   # Don't create ~/.codex; its absence means Codex isn't installed here.
   [[ -d "$codex_dir" ]] || return 0
@@ -336,7 +348,11 @@ codex_merge_config() {
 
   # Skills. ~/.codex/skills also holds Codex's own .system/ and any bundled
   # runtime dirs as real directories -- same situation as gstack, left alone.
-  _agentcfg_sync_skills "$repo/skills" "$codex_dir/skills"
+  #
+  # Codex-local skills win by name; ai/shared/skills holds cross-tool skills.
+  _agentcfg_sync_skill_sources "$codex_dir/skills" \
+    "$repo/skills" \
+    "$HOME/dotfiles/ai/shared/skills"
 
   # Global instructions: one file, Codex's equivalent of ~/.claude/CLAUDE.md.
   [[ -f "$repo/AGENTS.md" ]] && \

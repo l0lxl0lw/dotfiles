@@ -2,38 +2,14 @@
 
 Global Claude Code configuration — custom skills and agents synced across machines.
 
-> **Lives in**: [`~/dotfiles/claude`](https://github.com/l0lxl0lw/dotfiles). The `claude_merge_config` zsh function in `~/dotfiles/zsh/functions.zsh` symlinks this directory into `~/.claude/`. Formerly the standalone `l0lxl0lw/claude-config` repo, merged into dotfiles in July 2026.
+> **Lives in**: [`~/dotfiles/ai/claude`](https://github.com/l0lxl0lw/dotfiles). The `claude_merge_config` zsh function in `~/dotfiles/zsh/functions.zsh` symlinks this directory into `~/.claude/`. Formerly the standalone `l0lxl0lw/claude-config` repo, merged into dotfiles in July 2026.
 
 ## Structure
 
 ```
-dotfiles/claude/
+dotfiles/ai/claude/
 ├── CLAUDE.md              # Guidance when working in this directory
-├── skills/                # Custom skills (symlinked to ~/.claude/skills)
-│   ├── impeccable/                # 21 design skills from pbakaus/impeccable
-│   │   ├── frontend-design/      #   Core design skill (+ 7 reference docs)
-│   │   └── adapt/ animate/ ...   #   20 specialized design skills
-│   ├── omc/                       # 3 skills from oh-my-claudecode
-│   │   ├── plan/                  #   Strategic planning workflow
-│   │   ├── ralph/                 #   Iterative task completion loop
-│   │   └── ralplan/               #   Multi-agent planning consensus
-│   ├── community/                 # Skills from individual repos
-│   │   ├── excalidraw-diagram-generator/  # from github/awesome-copilot
-│   │   └── humanizer/            #   from blader/humanizer
-│   ├── git/                       # Custom git workflow skills
-│   │   ├── git-commit-local-changes/ #   Commit on current branch, no push
-│   │   ├── git-push-to-main/         #   On main: commit + push directly
-│   │   ├── git-pr-from-main/         #   On main: wrap into feature branch + PR
-│   │   └── git-sync-main-and-commit/ #   On branch: sync main, merge, commit, push
-│   ├── integrations/              # Custom integration skills
-│   │   ├── elevenlabs/
-│   │   ├── notion/
-│   │   └── remotion/
-│   └── utilities/                 # Custom utility skills
-│       ├── load-memory/ save-memory/
-│       ├── make-html/
-│       ├── update-diagram/
-│       └── readme/
+├── skills/                # Claude-specific skill overrides, if needed
 ├── agents/                # Specialized AI agent personas
 │   ├── architecture/      # Architect agents (system, backend, frontend)
 │   ├── communication/     # Learning guide, technical writer
@@ -44,9 +20,22 @@ dotfiles/claude/
 └── prompts/               # System prompts collection (reference)
     ├── Anthropic/ Google/ OpenAI/
     └── Perplexity/ Proton/ xAI/ Misc/
+
+dotfiles/ai/shared/
+└── skills/
+    ├── community/         # Skills from individual repos
+    ├── git/               # Custom git workflow skills
+    ├── impeccable/        # Design skills from pbakaus/impeccable
+    ├── integrations/      # Custom integration skills
+    ├── omc/               # Planning skills from oh-my-claudecode
+    └── utilities/         # Custom utility skills
 ```
 
-gstack installs its own skills separately into `~/.claude/skills` as real directories. They aren't tracked here; `claude_merge_config` leaves them alone.
+`claude_merge_config` imports both `ai/claude/skills` and `ai/shared/skills`, flattening each
+skill directory into `~/.claude/skills/<name>`. Put new portable skills in `ai/shared/skills`;
+use `ai/claude/skills` only for Claude-specific overrides. gstack installs its own skills
+separately into `~/.claude/skills` as real directories. They aren't tracked here;
+`claude_merge_config` leaves them alone.
 
 ## Status line
 
@@ -266,7 +255,7 @@ my-project/
 ## How It Works
 
 1. **Auto-sync**: `~/dotfiles/zsh/zshrc.conf` pulls the dotfiles repo from GitHub daily
-2. **Skills**: `claude_merge_config` symlinks each `skills/**/SKILL.md` parent dir flat to `~/.claude/skills/<name>`
+2. **Skills**: `claude_merge_config` symlinks each tool-local or shared `skills/**/SKILL.md` parent dir flat to `~/.claude/skills/<name>`
 3. **Agents**: each `agents/**/*.md` is symlinked into a mirrored tree under `~/.claude/agents`, and invoked automatically by Claude Code when a task matches their descriptions
 4. **Hooks**: `hooks/statusline.sh` is symlinked into `~/.claude/hooks` and wired into `settings.json` as the statusline command
 
