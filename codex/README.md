@@ -28,18 +28,29 @@ status_line = [
 status_line_use_colors = true
 ```
 
-Full set of item ids, verified present in codex-cli 0.146.0 by scanning the binary:
+Full set of item ids, read out of the codex-cli 0.146.0 binary with their own descriptions:
 
-| Context | Usage |
+| id | renders |
 |---|---|
-| `current-dir` `project-root` `project-name` `git-branch` | `context-used` `context-remaining` `context-window-size` |
-| `thread-title` `thread-id` `session-id` | `used-tokens` `total-input-tokens` `total-output-tokens` |
-| `run-state` `task-progress` `model-with-reasoning` | `five-hour-limit` `weekly-limit` `codex-version` |
+| `app-name` `project-name` `current-dir` `project-root` | app name; project name (falls back to dir name); cwd |
+| `git-branch` | current branch (omitted when unavailable) |
+| `run-state` `task-progress` `thread-title` `thread-id` `session-id` | Ready/Working/Thinking; latest `update_plan` progress; thread identity |
+| `model-name` `model-with-reasoning` | model, with or without reasoning level |
+| `context-used` `context-remaining` `context-window-size` | context window (omitted when unknown) |
+| `used-tokens` `total-input-tokens` `total-output-tokens` | session tokens (`used-tokens` omitted when zero) |
+| `five-hour-limit` `daily-limit` `weekly-limit` `monthly-limit` `annual-limit` | that specific usage window |
+| `usage-limit` `secondary-usage-limit` | primary / secondary limit, whichever window the plan reports |
+| `codex-version` | app version |
 
-`model-name` circulates in docs and gists but does **not** exist in 0.146.0. Codex treats an
-unknown id as a warning ("status line configuration contains unknown item identifiers"), not
-a startup failure — so a typo degrades quietly. The parse check below will not catch it,
-because unknown ids are valid TOML; only the id list above is authoritative.
+**Every usage-limit item is "omitted when unavailable."** Codex reads these from API response
+headers — nothing is cached on disk — so an item silently disappears when the account isn't
+reporting that window. A missing `five-hour-limit` usually means exactly that, not a
+misconfiguration. `usage-limit` / `secondary-usage-limit` are the plan-agnostic alternative:
+they render whatever limits the account actually has, labelled `primary` / `secondary`.
+
+An unknown id is not a startup failure — Codex warns about "unknown item identifiers" in the
+TUI and carries on. Neither `codex doctor` nor the parse check below catches it, since
+unknown ids are still valid TOML. The table above is the authoritative list for this version.
 
 ### Why splice rather than symlink or profile
 
