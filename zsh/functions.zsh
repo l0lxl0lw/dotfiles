@@ -127,10 +127,17 @@ compdef _claude_agents ccaa ccta
 
 # Symlink Claude skills/agents/hooks from ~/dotfiles/claude into ~/.claude.
 #
-# Surgical by design: it only ever deletes symlinks that point back into a
-# managed root. Real directories (gstack installs its skills as real dirs) and
-# foreign symlinks (caveman points at ~/.agents/skills) are left untouched.
-# Idempotent -- safe to run as often as you like.
+# Surgical by design, on two axes:
+#
+#   * It only ever deletes symlinks that point back into a managed root. Real
+#     directories (gstack installs its skills as real dirs) and symlinks owned
+#     by other installers are left untouched.
+#   * It converges rather than rebuilds -- a link that is already correct is
+#     not touched. So the steady state is zero writes and no window in which a
+#     concurrently running Claude session sees a missing skill.
+#
+# Silent when nothing changed, which makes it safe to wire into a SessionStart
+# hook. Idempotent.
 claude_merge_config() {
   emulate -L zsh          # glob qualifiers work regardless of caller's options
   setopt extended_glob
@@ -149,8 +156,8 @@ claude_merge_config() {
   # True if $1 is a symlink whose target lies under a managed root. Reads the
   # literal link target rather than testing -e, so broken links still match and
   # get cleaned up -- ${1:A} resolves a dangling link to itself and would miss
-  # them entirely. Relative targets (caveman's ../../.agents/...) are made
-  # absolute lexically, without touching the filesystem.
+  # them entirely. Relative targets (other installers write links like
+  # ../../elsewhere/skills/x) are made absolute lexically, no filesystem access.
   _ccm_is_managed() {
     [[ -L "$1" ]] || return 1
     local target root
@@ -163,9 +170,27 @@ claude_merge_config() {
     return 1
   }
 
-  local f name rel dest parent nested removed=0 linked=0 skipped=0
-  local -A seen
+  local f key dest parent nested removed=0 linked=0 skipped=0
+  local -A want_s want_a want_h
   local -a emptied
+
+  # Link $2 -> $1 only if it isn't already exactly that. Refuses to touch a
+  # real file/dir, or a symlink some other installer owns.
+  _ccm_link() {
+    local target="$1" dst="$2" what="$3"
+    if [[ -L "$dst" ]]; then
+      if _ccm_is_managed "$dst"; then
+        [[ "$(readlink "$dst")" == "$target" ]] && return 0   # already correct
+      else
+        echo "claude_merge_config: $what -- $dst is a symlink owned by something else, leaving it" >&2
+        (( skipped++ )); return 1
+      fi
+    elif [[ -e "$dst" ]]; then
+      echo "claude_merge_config: $what -- $dst already exists and is not a symlink, leaving it" >&2
+      (( skipped++ )); return 1
+    fi
+    ln -sfn "$target" "$dst" && (( linked++ ))
+  }
 
   # Each section is guarded on its source dir. Without that, a section missing
   # from the repo would prune every managed link and put nothing back -- the
@@ -174,9 +199,6 @@ claude_merge_config() {
   # Skills: every SKILL.md's parent dir, flattened to ~/.claude/skills/<name>
   if [[ -d "$repo/skills" ]]; then
     mkdir -p "$claude_dir/skills"
-    for f in "$claude_dir"/skills/*(N@); do
-      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
-    done
     for f in "$repo"/skills/**/SKILL.md(N-.); do
       # Ignore a SKILL.md nested inside another skill (examples, templates)
       nested=0; parent="${f:h:h}"
@@ -186,36 +208,38 @@ claude_merge_config() {
       done
       (( nested )) && continue
 
-      name="${f:h:t}"
-      dest="$claude_dir/skills/$name"
-      if (( ${+seen[$name]} )); then
-        echo "claude_merge_config: duplicate skill '$name' -- keeping ${seen[$name]}, ignoring ${f:h}" >&2
+      key="${f:h:t}"
+      if (( ${+want_s[$key]} )); then
+        echo "claude_merge_config: duplicate skill '$key' -- keeping ${want_s[$key]}, ignoring ${f:h}" >&2
         (( skipped++ )); continue
       fi
-      seen[$name]="${f:h}"
-      if [[ -e "$dest" && ! -L "$dest" ]]; then
-        echo "claude_merge_config: skipping skill '$name' -- $dest is a real directory (owned by another installer)" >&2
-        (( skipped++ )); continue
-      fi
-      ln -sfn "${f:h}" "$dest" && (( linked++ ))
+      want_s[$key]="${f:h}"
+    done
+
+    for f in "$claude_dir"/skills/*(N@); do
+      _ccm_is_managed "$f" || continue
+      (( ${+want_s[${f:t}]} )) && continue
+      rm -f -- "$f"; (( removed++ ))
+    done
+    for key in ${(ko)want_s}; do
+      _ccm_link "${want_s[$key]}" "$claude_dir/skills/$key" "skill '$key'"
     done
   fi
 
   # Agents: mirror the repo tree, symlinking each .md
   if [[ -d "$repo/agents" ]]; then
     mkdir -p "$claude_dir/agents"
+    for f in "$repo"/agents/**/*.md(N-.); do want_a[${f#"$repo"/agents/}]="$f"; done
+
     for f in "$claude_dir"/agents/**/*(N@); do
-      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
+      _ccm_is_managed "$f" || continue
+      (( ${+want_a[${f#"$claude_dir"/agents/}]} )) && continue
+      rm -f -- "$f"; (( removed++ ))
     done
-    for f in "$repo"/agents/**/*.md(N-.); do
-      rel="${f#"$repo"/agents/}"
-      dest="$claude_dir/agents/$rel"
-      if [[ -e "$dest" && ! -L "$dest" ]]; then
-        echo "claude_merge_config: skipping agent '$rel' -- $dest is not a symlink" >&2
-        (( skipped++ )); continue
-      fi
+    for key in ${(ko)want_a}; do
+      dest="$claude_dir/agents/$key"
       mkdir -p "${dest:h}"
-      ln -sfn "$f" "$dest" && (( linked++ ))
+      _ccm_link "${want_a[$key]}" "$dest" "agent '$key'"
     done
     # Drop category dirs left empty by a rename, deepest first. rmdir refuses
     # non-empty dirs, and (N/) never matches a symlink, so this cannot descend
@@ -224,25 +248,24 @@ claude_merge_config() {
     for f in "${(Oa)emptied[@]}"; do rmdir "$f" 2>/dev/null; done
   fi
 
-  # Hooks: top-level files only. ~/.claude/hooks also holds real, plugin-owned
-  # files (caveman-*.js) that settings.json depends on -- never overwrite one.
+  # Hooks: top-level files only. ~/.claude/hooks can also hold real,
+  # plugin-owned scripts that settings.json depends on -- never overwrite one.
   if [[ -d "$repo/hooks" ]]; then
     mkdir -p "$claude_dir/hooks"
+    for f in "$repo"/hooks/*(N-.); do want_h[${f:t}]="$f"; done
+
     for f in "$claude_dir"/hooks/*(N@); do
-      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
+      _ccm_is_managed "$f" || continue
+      (( ${+want_h[${f:t}]} )) && continue
+      rm -f -- "$f"; (( removed++ ))
     done
-    for f in "$repo"/hooks/*(N-.); do
-      dest="$claude_dir/hooks/${f:t}"
-      if [[ -e "$dest" && ! -L "$dest" ]]; then
-        echo "claude_merge_config: skipping hook '${f:t}' -- $dest is a real file (plugin-owned)" >&2
-        (( skipped++ )); continue
-      fi
-      [[ -x "$f" ]] || chmod +x "$f"    # fix the source, and only if wrong
-      ln -sfn "$f" "$dest" && (( linked++ ))
+    for key in ${(ko)want_h}; do
+      [[ -x "${want_h[$key]}" ]] || chmod +x "${want_h[$key]}"  # fix source, only if wrong
+      _ccm_link "${want_h[$key]}" "$claude_dir/hooks/$key" "hook '$key'"
     done
   fi
 
-  unset -f _ccm_is_managed
+  unset -f _ccm_is_managed _ccm_link
 
   # Point settings.json at the statusline hook. Only writes when the value
   # actually differs, and stages through a temp file that is validated as JSON
@@ -266,6 +289,12 @@ claude_merge_config() {
     fi
   fi
 
-  echo "claude_merge_config: $linked linked, $removed stale removed, $skipped skipped"
+  # Silent when there was nothing to do -- this runs from a SessionStart hook,
+  # and anything printed there lands in the session as context.
+  (( linked || removed || skipped )) && \
+    echo "claude_merge_config: $linked linked, $removed stale removed, $skipped skipped"
+  return 0
 }
-# Not run on shell start -- invoke by hand after editing ~/dotfiles/claude.
+# Run from the Claude Code SessionStart hook in ~/.claude/settings.json, so a
+# skill added or renamed here is picked up at the start of the next session
+# rather than silently dangling. Also fine to invoke by hand.

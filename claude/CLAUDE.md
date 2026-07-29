@@ -33,10 +33,10 @@ dotfiles/claude/
 
 Caveats worth knowing:
 
-- The function is **not run on shell start**. Run `claude_merge_config` by hand after adding or renaming a skill or agent. Editing the *contents* of an existing skill needs no re-run — the symlinks make it live immediately.
-- Renaming a skill/agent directory here without re-running the function leaves a broken symlink in `~/.claude`, and the skill silently stops working.
+- The function runs from a **`SessionStart` hook** in `~/.claude/settings.json`, so a skill added or renamed here is picked up at the start of the next Claude Code session. Editing the *contents* of an existing skill needs no re-run at all — the symlinks make it live immediately. Run it by hand to apply a rename without restarting.
+- It **converges rather than rebuilds**: a link that is already correct is not touched, so the steady state is zero writes and no window where a concurrent session sees a missing skill. It prints nothing when there was nothing to do — anything a `SessionStart` hook prints lands in the session as context.
 - Cleanup is surgical: the function only deletes symlinks that point back into this directory (or the legacy `~/workspace/claude-config` path). Real directories and symlinks owned by other installers are left alone.
-- `~/.claude/skills` is shared with two other installers — gstack (real directories) and caveman (symlinks into `~/.agents/skills`). Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
+- `~/.claude/skills` is shared with gstack, which installs its skills as real directories. Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
 - `deploy.sh` only handles `.zshrc`/`.vimrc`/`.tmux.conf` — it does **not** touch `~/.claude/`. The dotfiles repo is auto-pulled daily by `zsh/zshrc.conf`.
 - The merge function only sets `statusLine` in `settings.json`, and only when the value differs. Everything else in `~/.claude/settings.json` is hand-maintained and untracked.
 - `~/.claude/CLAUDE.md` is a standalone, untracked file. It does **not** import this one — this file is directory-scoped documentation, loaded by Claude Code when the working directory is inside `~/dotfiles/claude`.

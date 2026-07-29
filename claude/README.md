@@ -46,7 +46,7 @@ dotfiles/claude/
     └── Perplexity/ Proton/ xAI/ Misc/
 ```
 
-gstack installs its own skills separately into `~/.claude/skills` as real directories, and caveman installs its own as symlinks into `~/.agents/skills`. Neither is tracked here; `claude_merge_config` leaves both alone.
+gstack installs its own skills separately into `~/.claude/skills` as real directories. They aren't tracked here; `claude_merge_config` leaves them alone.
 
 ## Skills
 
@@ -211,12 +211,26 @@ Because it symlinks, editing a skill's contents takes effect immediately. Adding
 ## Setup
 
 1. Clone dotfiles to `~/dotfiles` and run `./deploy.sh`
-2. Open a new shell, then run:
+2. Open a new shell, then run `claude_merge_config` once
+3. Wire it into a `SessionStart` hook so renames self-heal. `~/.claude/settings.json` is
+   not tracked in this repo (it holds machine-local paths and personal toggles), so this
+   step is manual on a new machine:
+
    ```bash
-   claude_merge_config
+   jq '.hooks.SessionStart = [{"hooks":[{
+         "type": "command",
+         "command": "zsh -c '"'"'source ~/dotfiles/zsh/functions.zsh 2>/dev/null; claude_merge_config'"'"'",
+         "timeout": 10,
+         "statusMessage": "Syncing Claude config from dotfiles..."
+       }]}]' ~/.claude/settings.json > /tmp/s.json \
+     && jq -e . /tmp/s.json >/dev/null && mv /tmp/s.json ~/.claude/settings.json
    ```
 
-The function is deliberately not run on shell start. It is safe to re-run at any time — it only removes symlinks it owns, and leaves skills installed by gstack and caveman untouched.
+Why a `SessionStart` hook and not shell startup: it fires once per Claude session instead of
+once per shell, at the only moment the result matters. It costs ~0.3s, and the function is
+silent and writes nothing when everything is already correct.
+
+Safe to re-run at any time — it only removes symlinks it owns, and leaves gstack's skills alone.
 
 ## Adding Content
 
