@@ -1,14 +1,14 @@
 # Claude Config
 
-Global Claude Code configuration repository - custom skills and agents synced across machines.
+Global Claude Code configuration — custom skills and agents synced across machines.
 
-> **Pulled by**: [`~/dotfiles`](https://github.com/l0lxl0lw/dotfiles) — the dotfiles repo clones/pulls this repo and loads its agents and skills into the shell environment.
+> **Lives in**: [`~/dotfiles/claude`](https://github.com/l0lxl0lw/dotfiles). The `claude_merge_config` zsh function in `~/dotfiles/zsh/functions.zsh` symlinks this directory into `~/.claude/`. Formerly the standalone `l0lxl0lw/claude-config` repo, merged into dotfiles in July 2026.
 
 ## Structure
 
 ```
-claude-config/
-├── CLAUDE.md              # Global instructions (imported by ~/.claude/CLAUDE.md)
+dotfiles/claude/
+├── CLAUDE.md              # Guidance when working in this directory
 ├── skills/                # Custom skills (symlinked to ~/.claude/skills)
 │   ├── impeccable/                # 21 design skills from pbakaus/impeccable
 │   │   ├── frontend-design/      #   Core design skill (+ 7 reference docs)
@@ -17,23 +17,21 @@ claude-config/
 │   │   ├── plan/                  #   Strategic planning workflow
 │   │   ├── ralph/                 #   Iterative task completion loop
 │   │   └── ralplan/               #   Multi-agent planning consensus
-│   ├── gstack/                    # 37 skills from l0lxl0lw/gstack (browse, ship, etc.)
-│   │   ├── browse/ ship/ review/  #   Browser QA, ship workflow, PR review
-│   │   └── ...                    #   See README "gstack" section
 │   ├── community/                 # Skills from individual repos
 │   │   ├── excalidraw-diagram-generator/  # from github/awesome-copilot
 │   │   └── humanizer/            #   from blader/humanizer
 │   ├── git/                       # Custom git workflow skills
-│   │   ├── commit-local-changes/     #   Commit on current branch, no push
-│   │   ├── push-to-main/             #   On main: commit + push directly
-│   │   ├── pr-from-main/             #   On main: wrap into feature branch + PR
-│   │   └── sync-main-and-commit/     #   On branch: sync main, merge, commit, push
+│   │   ├── git-commit-local-changes/ #   Commit on current branch, no push
+│   │   ├── git-push-to-main/         #   On main: commit + push directly
+│   │   ├── git-pr-from-main/         #   On main: wrap into feature branch + PR
+│   │   └── git-sync-main-and-commit/ #   On branch: sync main, merge, commit, push
 │   ├── integrations/              # Custom integration skills
 │   │   ├── elevenlabs/
 │   │   ├── notion/
 │   │   └── remotion/
 │   └── utilities/                 # Custom utility skills
 │       ├── load-memory/ save-memory/
+│       ├── make-html/
 │       ├── update-diagram/
 │       └── readme/
 ├── agents/                # Specialized AI agent personas
@@ -43,11 +41,12 @@ claude-config/
 │   ├── planning/          # Analyst, planner, requirements
 │   ├── research/          # Deep research, tech stack
 │   └── review/            # Critic, security engineer
-├── prompts/               # System prompts collection (reference)
-│   ├── Anthropic/ Google/ OpenAI/
-│   ├── Perplexity/ Proton/ xAI/ Misc/
-└── context/               # Additional context files
+└── prompts/               # System prompts collection (reference)
+    ├── Anthropic/ Google/ OpenAI/
+    └── Perplexity/ Proton/ xAI/ Misc/
 ```
+
+gstack installs its own skills separately into `~/.claude/skills` as real directories, and caveman installs its own as symlinks into `~/.agents/skills`. Neither is tracked here; `claude_merge_config` leaves both alone.
 
 ## Skills
 
@@ -55,11 +54,11 @@ claude-config/
 
 | Skill | Description | Model Invocable |
 |-------|-------------|-----------------|
-| `/push-to-main` | On the default branch: commit + push directly to remote | No |
-| `/pr-from-main` | On the default branch: wrap changes into a feature branch with one commit and open a PR | No |
-| `/sync-main-and-commit` | On a feature branch: pull latest main, merge it in, resolve conflicts, commit & push | No |
-| `/commit-local-changes` | Analyze uncommitted changes and create a commit (no push, no PR) | No |
-| `/make-resume` | Generate tailored resume and cover letter from job description | Yes |
+| `/git-push-to-main` | On the default branch: commit + push directly to remote | No |
+| `/git-pr-from-main` | On the default branch: wrap changes into a feature branch with one commit and open a PR | No |
+| `/git-sync-main-and-commit` | On a feature branch: pull latest main, merge it in, resolve conflicts, commit & push | No |
+| `/git-commit-local-changes` | Analyze uncommitted changes and create a commit (no push, no PR) | No |
+| `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
 | `/readme` | Read README in current directory and execute instructions | Yes |
 | `/update-diagram` | Scan codebase and update existing diagram files | Yes |
 | `/notion` | Search, read, create, and manage Notion workspace content | Yes |
@@ -104,6 +103,8 @@ Design-focused skills for building polished, production-grade interfaces.
 ### gstack — [l0lxl0lw/gstack](https://github.com/l0lxl0lw/gstack)
 
 Browser automation, QA, planning reviews, shipping workflow, and safety guardrails. Requires the gstack toolchain installed at `~/.hermes/skills/gstack/` (skills invoke binaries from there).
+
+**Not tracked in this repo** — gstack installs these itself as real directories under `~/.claude/skills`. Listed here for reference only. They were vendored here once and removed in commit `281e58a`.
 
 | Skill | Description |
 |-------|-------------|
@@ -188,7 +189,7 @@ Specialized AI agent personas that provide focused expertise for different devel
 | **Global** | `~/dotfiles` → `~/.claude/skills` & `~/.claude/agents` | Shared across all projects (this repo) |
 | **Project-specific** | `.claude/skills/` & `.claude/agents/` within a project | Scoped to that project only |
 
-The [`dotfiles`](https://github.com/l0lxl0lw/dotfiles) repo pulls this `claude-config` repo and loads its global agents/skills into the shell. For project-specific customizations, add skills and agents directly inside the project:
+For project-specific customizations, add skills and agents directly inside the project:
 
 ```
 my-project/
@@ -200,22 +201,22 @@ my-project/
 
 ## How It Works
 
-1. **Auto-sync**: Pulls from GitHub daily via `~/dotfiles/zsh/zshrc.conf`
-2. **Global context**: `~/.claude/CLAUDE.md` imports this repo's `CLAUDE.md` using `@path` syntax
-3. **Skills**: `~/.claude/skills` symlinks to this repo's `skills/`
-4. **Agents**: Invoked automatically by Claude Code when specialized tasks match their descriptions
+1. **Auto-sync**: `~/dotfiles/zsh/zshrc.conf` pulls the dotfiles repo from GitHub daily
+2. **Skills**: `claude_merge_config` symlinks each `skills/**/SKILL.md` parent dir flat to `~/.claude/skills/<name>`
+3. **Agents**: each `agents/**/*.md` is symlinked into a mirrored tree under `~/.claude/agents`, and invoked automatically by Claude Code when a task matches their descriptions
+4. **Hooks**: `hooks/statusline.sh` is symlinked into `~/.claude/hooks` and wired into `settings.json` as the statusline command
+
+Because it symlinks, editing a skill's contents takes effect immediately. Adding or renaming one requires re-running `claude_merge_config`.
 
 ## Setup
 
-1. Clone this repo to `~/workspace/claude-config`
-2. Add to `~/.claude/CLAUDE.md`:
-   ```markdown
-   @~/workspace/claude-config/CLAUDE.md
-   ```
-3. Symlink skills:
+1. Clone dotfiles to `~/dotfiles` and run `./deploy.sh`
+2. Open a new shell, then run:
    ```bash
-   ln -s ~/workspace/claude-config/skills ~/.claude/skills
+   claude_merge_config
    ```
+
+The function is deliberately not run on shell start. It is safe to re-run at any time — it only removes symlinks it owns, and leaves skills installed by gstack and caveman untouched.
 
 ## Adding Content
 
@@ -239,7 +240,8 @@ my-project/
   category: analysis|quality|planning
   ---
   ```
-- **Context files**: Add to `context/` and import with `@~/workspace/claude-config/context/filename.md`
+
+Run `claude_merge_config` after adding either, to create the symlink.
 
 ## Skill Sources
 

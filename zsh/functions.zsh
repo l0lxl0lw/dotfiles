@@ -125,67 +125,147 @@ _claude_agents() {
 }
 compdef _claude_agents ccaa ccta
 
-# Merge Claude skills/agents/mcp from public + private repos
+# Symlink Claude skills/agents/hooks from ~/dotfiles/claude into ~/.claude.
+#
+# Surgical by design: it only ever deletes symlinks that point back into a
+# managed root. Real directories (gstack installs its skills as real dirs) and
+# foreign symlinks (caveman points at ~/.agents/skills) are left untouched.
+# Idempotent -- safe to run as often as you like.
 claude_merge_config() {
+  emulate -L zsh          # glob qualifiers work regardless of caller's options
+  setopt extended_glob
+
   local claude_dir="$HOME/.claude"
-  local public_repo="$HOME/workspace/claude-config"
+  local repo="$HOME/dotfiles/claude"
+  # Roots we claim ownership of. The second is the pre-migration location, kept
+  # so the first run after the move reaps its own stale links.
+  local -a managed_roots=("$repo" "$HOME/workspace/claude-config")
 
-  # Merge skills (find SKILL.md recursively, symlink parent dirs flat)
-  rm -rf "$claude_dir/skills" && mkdir -p "$claude_dir/skills"
-  for repo in "$public_repo"; do
-    [[ -d "$repo/skills" ]] || continue
-    find "$repo/skills" -name "SKILL.md" -type f | while read -r f; do
-      local skill_dir="${f%/SKILL.md}"
-      local skill_name="${skill_dir##*/}"
-      ln -sfn "$skill_dir" "$claude_dir/skills/$skill_name"
-    done
-  done
-
-  # Merge agents (recursively mirror directory structure with symlinked .md files)
-  rm -rf "$claude_dir/agents" && mkdir -p "$claude_dir/agents"
-  for repo in "$public_repo"; do
-    [[ -d "$repo/agents" ]] || continue
-    find "$repo/agents" -name "*.md" | while read -r f; do
-      local rel="${f#$repo/agents/}"
-      local dir="$claude_dir/agents/${rel%/*}"
-      [[ "$rel" == */* ]] && mkdir -p "$dir"
-      ln -sfn "$f" "$claude_dir/agents/$rel"
-    done
-  done
-
-  # Render mcp.json from templates + .env secrets
-  for repo in "$public_repo"; do
-    [[ -f "$repo/.env" ]] && set -a && source "$repo/.env" && set +a
-  done
-
-  local merged="{}"
-  for repo in "$public_repo"; do
-    if [[ -f "$repo/mcp.json.tpl" ]]; then
-      local rendered
-      rendered=$(envsubst < "$repo/mcp.json.tpl")
-      merged=$(echo "$merged" "$rendered" | jq -s '.[0] * .[1]')
-    fi
-  done
-
-  if [[ "$merged" != "{}" ]]; then
-    echo "$merged" | jq . > "$claude_dir/mcp.json"
+  if [[ ! -d "$repo" ]]; then
+    echo "claude_merge_config: $repo not found" >&2
+    return 1
   fi
 
-  # Merge hooks (symlink executable scripts)
-  mkdir -p "$claude_dir/hooks"
-  for repo in "$public_repo"; do
-    [[ -d "$repo/hooks" ]] && \
-      find "$repo/hooks" -maxdepth 1 -type f -exec ln -sfn {} "$claude_dir/hooks/" \;
-  done
+  # True if $1 is a symlink whose target lies under a managed root. Reads the
+  # literal link target rather than testing -e, so broken links still match and
+  # get cleaned up -- ${1:A} resolves a dangling link to itself and would miss
+  # them entirely. Relative targets (caveman's ../../.agents/...) are made
+  # absolute lexically, without touching the filesystem.
+  _ccm_is_managed() {
+    [[ -L "$1" ]] || return 1
+    local target root
+    target=$(readlink "$1")
+    [[ "$target" == /* ]] || target="${1:h}/$target"
+    target="${target:a}"
+    for root in $managed_roots; do
+      [[ "$target" == "$root"/* ]] && return 0
+    done
+    return 1
+  }
 
-  # Patch statusLine into settings.json if hook exists
-  if [[ -f "$claude_dir/hooks/statusline.sh" ]]; then
-    chmod +x "$claude_dir/hooks/statusline.sh"
-    if [[ -f "$claude_dir/settings.json" ]]; then
-      local updated
-      updated=$(jq '.statusLine = {"type": "command", "command": "sh ~/.claude/hooks/statusline.sh"}' "$claude_dir/settings.json")
-      echo "$updated" > "$claude_dir/settings.json"
+  local f name rel dest parent nested removed=0 linked=0 skipped=0
+  local -A seen
+  local -a emptied
+
+  # Each section is guarded on its source dir. Without that, a section missing
+  # from the repo would prune every managed link and put nothing back -- the
+  # same data loss as the rm -rf this replaced, just quieter.
+
+  # Skills: every SKILL.md's parent dir, flattened to ~/.claude/skills/<name>
+  if [[ -d "$repo/skills" ]]; then
+    mkdir -p "$claude_dir/skills"
+    for f in "$claude_dir"/skills/*(N@); do
+      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
+    done
+    for f in "$repo"/skills/**/SKILL.md(N-.); do
+      # Ignore a SKILL.md nested inside another skill (examples, templates)
+      nested=0; parent="${f:h:h}"
+      while [[ "$parent" == "$repo"/skills/?* ]]; do
+        [[ -f "$parent/SKILL.md" ]] && { nested=1; break }
+        parent="${parent:h}"
+      done
+      (( nested )) && continue
+
+      name="${f:h:t}"
+      dest="$claude_dir/skills/$name"
+      if (( ${+seen[$name]} )); then
+        echo "claude_merge_config: duplicate skill '$name' -- keeping ${seen[$name]}, ignoring ${f:h}" >&2
+        (( skipped++ )); continue
+      fi
+      seen[$name]="${f:h}"
+      if [[ -e "$dest" && ! -L "$dest" ]]; then
+        echo "claude_merge_config: skipping skill '$name' -- $dest is a real directory (owned by another installer)" >&2
+        (( skipped++ )); continue
+      fi
+      ln -sfn "${f:h}" "$dest" && (( linked++ ))
+    done
+  fi
+
+  # Agents: mirror the repo tree, symlinking each .md
+  if [[ -d "$repo/agents" ]]; then
+    mkdir -p "$claude_dir/agents"
+    for f in "$claude_dir"/agents/**/*(N@); do
+      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
+    done
+    for f in "$repo"/agents/**/*.md(N-.); do
+      rel="${f#"$repo"/agents/}"
+      dest="$claude_dir/agents/$rel"
+      if [[ -e "$dest" && ! -L "$dest" ]]; then
+        echo "claude_merge_config: skipping agent '$rel' -- $dest is not a symlink" >&2
+        (( skipped++ )); continue
+      fi
+      mkdir -p "${dest:h}"
+      ln -sfn "$f" "$dest" && (( linked++ ))
+    done
+    # Drop category dirs left empty by a rename, deepest first. rmdir refuses
+    # non-empty dirs, and (N/) never matches a symlink, so this cannot descend
+    # into the repo.
+    emptied=( "$claude_dir"/agents/**/*(N/) )
+    for f in "${(Oa)emptied[@]}"; do rmdir "$f" 2>/dev/null; done
+  fi
+
+  # Hooks: top-level files only. ~/.claude/hooks also holds real, plugin-owned
+  # files (caveman-*.js) that settings.json depends on -- never overwrite one.
+  if [[ -d "$repo/hooks" ]]; then
+    mkdir -p "$claude_dir/hooks"
+    for f in "$claude_dir"/hooks/*(N@); do
+      _ccm_is_managed "$f" && { rm -f -- "$f"; (( removed++ )) }
+    done
+    for f in "$repo"/hooks/*(N-.); do
+      dest="$claude_dir/hooks/${f:t}"
+      if [[ -e "$dest" && ! -L "$dest" ]]; then
+        echo "claude_merge_config: skipping hook '${f:t}' -- $dest is a real file (plugin-owned)" >&2
+        (( skipped++ )); continue
+      fi
+      [[ -x "$f" ]] || chmod +x "$f"    # fix the source, and only if wrong
+      ln -sfn "$f" "$dest" && (( linked++ ))
+    done
+  fi
+
+  unset -f _ccm_is_managed
+
+  # Point settings.json at the statusline hook. Only writes when the value
+  # actually differs, and stages through a temp file that is validated as JSON
+  # before the move, so a jq failure can never truncate settings.json.
+  local settings="$claude_dir/settings.json"
+  local want='sh ~/.claude/hooks/statusline.sh'
+  if [[ -e "$claude_dir/hooks/statusline.sh" && -f "$settings" ]] && (( $+commands[jq] )); then
+    local have tmp
+    have=$(jq -r '.statusLine.command // ""' "$settings" 2>/dev/null)
+    if [[ "$have" != "$want" ]]; then
+      tmp=$(mktemp "${settings}.XXXXXX") || return 1
+      if jq --arg cmd "$want" \
+           '.statusLine = {"type":"command","command":$cmd}' "$settings" >"$tmp" \
+         && [[ -s "$tmp" ]] && jq -e . "$tmp" >/dev/null 2>&1; then
+        mv -f "$tmp" "$settings"
+        echo "claude_merge_config: set statusLine in settings.json"
+      else
+        rm -f -- "$tmp"
+        echo "claude_merge_config: jq failed, settings.json left untouched" >&2
+      fi
     fi
   fi
+
+  echo "claude_merge_config: $linked linked, $removed stale removed, $skipped skipped"
 }
-# claude_merge_config  # disabled: was overwriting ~/.claude/settings.json on every shell start. Run manually if needed.
+# Not run on shell start -- invoke by hand after editing ~/dotfiles/claude.
