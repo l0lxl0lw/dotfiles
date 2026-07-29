@@ -13,6 +13,37 @@ echo "=== GIT STATUS ==="
 git status
 echo ""
 
+CURRENT_BRANCH=$(git branch --show-current)
+echo "=== BRANCH ==="
+echo "Current branch: $CURRENT_BRANCH"
+echo ""
+
+# Fetch so the behind-check below reflects reality, not a stale remote ref
+echo "=== FETCHING ORIGIN ==="
+git fetch origin --quiet 2>&1 || echo "WARNING: git fetch failed"
+echo "(done)"
+echo ""
+
+# Behind the remote default branch? A bare 'git push' would be rejected.
+echo "=== BEHIND origin/$CURRENT_BRANCH? ==="
+BEHIND=0
+if git rev-parse --verify --quiet "origin/$CURRENT_BRANCH" >/dev/null 2>&1; then
+    BEHIND=$(git rev-list --count "HEAD..origin/$CURRENT_BRANCH" 2>/dev/null || echo "0")
+    if [[ "$BEHIND" -gt 0 ]]; then
+        echo "BLOCKER: behind origin/$CURRENT_BRANCH by $BEHIND commit(s)."
+        echo "Someone else pushed. A plain 'git push' will be rejected."
+        echo "Pull with --ff-only (or --rebase if you already have local commits) before pushing."
+        echo ""
+        echo "Incoming commits:"
+        git log --oneline "HEAD..origin/$CURRENT_BRANCH"
+    else
+        echo "Up to date with origin/$CURRENT_BRANCH"
+    fi
+else
+    echo "(no origin/$CURRENT_BRANCH yet)"
+fi
+echo ""
+
 # Check for unpushed commits
 echo "=== UNPUSHED COMMITS ==="
 UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")

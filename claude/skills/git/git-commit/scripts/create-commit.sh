@@ -48,11 +48,11 @@ if git diff --cached --quiet; then
     echo ""
     echo "Stage files first with:"
     echo "  git add <files>"
-    echo "  or: bash ~/.claude/skills/git-pr-from-main/scripts/stage-files.sh --all"
+    echo "  or: bash ~/.claude/skills/git-commit/scripts/stage-files.sh --all"
     exit 1
 fi
 
-# Create commit
+# Create commit using heredoc for message (handles multi-line)
 git commit $AMEND -m "$MESSAGE"
 
 echo ""
@@ -61,3 +61,11 @@ git log --oneline -1
 echo ""
 echo "=== CURRENT STATUS ==="
 git status --short
+
+# Remind about push
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+if [[ -n "$UPSTREAM" ]]; then
+    UNPUSHED=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo "0")
+    echo ""
+    echo "You have $UNPUSHED unpushed commit(s). Push when ready with: git push"
+fi

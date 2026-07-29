@@ -76,12 +76,28 @@ After adding either, run `claude_merge_config` to create the symlink.
 
 - Skill names use kebab-case directories; agent names use kebab-case `.md` files
 - The `prompts/` directory is a reference archive — organized by provider (Anthropic, Google, OpenAI, xAI, Perplexity, Misc). Read-only, not loaded by Claude Code
-- `skills/git/` has four workflow-specific skills, each scoped to one scenario:
-  - `git-commit-local-changes` — commit on the current branch, no push (Claude proposes a message, user confirms or edits)
-  - `git-push-to-main` — only runs on the default branch; commits and pushes directly
-  - `git-pr-from-main` — only runs on the default branch; creates a feature branch with one commit and opens a PR
-  - `git-sync-main-and-commit` — only runs on a feature branch; fast-forwards local main from origin, merges main into the branch (resolves conflicts file-by-file with user confirmation), restores stashed work, commits, and pushes
-- All git skills reject AI attribution at the script level (`Co-Authored-By`, `Generated with Claude Code`, robot emoji). `create-commit.sh` will refuse the commit if the message contains any forbidden pattern.
+- `skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario. Skills are named for **what they do**; the branch they require is enforced in their first phase.
+
+  | Skill | Runs on | Does |
+  |---|---|---|
+  | `git-commit` | anywhere | Commits on the current branch. Never pushes |
+  | `git-push-branch` | feature branch | Commits and pushes; updates the open PR. Reports its CI checks |
+  | `git-push-to-main` | default branch | Pulls if behind, then commits and pushes directly |
+  | `git-branch-and-pr` | default branch | Moves the work to a new branch as one commit and opens a PR |
+  | `git-pr` | feature branch | Opens a PR for a branch that already has commits |
+  | `git-sync` | feature branch | Brings the default branch in — rebase preferred, merge as fallback. Committing and pushing are opt-in |
+  | `git-merge-pr` | feature branch | Merges the open PR once it is genuinely mergeable |
+  | `git-cleanup` | feature branch | After a verified merge: deletes the branch and refreshes the default branch |
+
+  The lifecycle: `git-branch-and-pr` or (`git-commit` → `git-pr`) → `git-push-branch` for review fixes → `git-merge-pr` → `git-cleanup`. `git-sync` slots in whenever the default branch moves.
+
+- Conventions the git skills share, worth preserving when adding another:
+  - **A gate script that exits non-zero, and a table in SKILL.md mapping every exit code to an action.** Refusals live in the script so they cannot be reasoned around.
+  - **Destructive operations require a proof-carrying flag.** `cleanup-branch.sh` refuses to run without `--merge-verified`, which is only legitimate after `verify-merged.sh` exits 0.
+  - **Never show the user git's raw `ours`/`theirs`** — they invert between merge and rebase. Say "your branch" and "main".
+  - **A `## Common mistakes` section** at the end of every SKILL.md, and a `Triggers — "phrase", "phrase"` list in the description.
+  - **A graphviz `digraph` workflow block** showing the decision points.
+- All git skills reject AI attribution at the script level (`Co-Authored-By`, `Generated with Claude Code`, robot emoji). `create-commit.sh` will refuse the commit if the message contains any forbidden pattern, and `create-pr.sh` applies the same rule to the PR title and body.
 - Every git skill shows a proposed commit message (and branch name / PR body where applicable) and waits for user confirmation or a replacement before acting.
 - Always run the analyze script from the **repo root** (not a subdirectory) so the README check works correctly.
 - `.env` and `.google-credentials.json` are gitignored

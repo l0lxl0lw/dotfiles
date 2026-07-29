@@ -32,7 +32,7 @@ echo ""
 if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
     echo "ERROR: Currently on the default branch ($DEFAULT_BRANCH)."
     echo "This skill is for syncing main INTO a feature branch."
-    echo "Use git-push-to-main or git-pr-from-main instead."
+    echo "Use git-push-to-main or git-branch-and-pr instead."
     exit 2
 fi
 
@@ -102,6 +102,40 @@ if [[ -n "$UPSTREAM" ]]; then
     echo "Upstream: $UPSTREAM"
 else
     echo "(no upstream — first push will need 'git push -u origin $CURRENT_BRANCH')"
+fi
+echo ""
+
+# Rebase eligibility — a rebase gives linear history, but it rewrites SHAs.
+# Anything that makes that rewrite expensive or dangerous disqualifies it.
+echo "=== REBASE ELIGIBILITY ==="
+DISQUALIFIED=""
+ASK=""
+
+if [[ -n "$UPSTREAM" ]]; then
+    PUSHED=$(git rev-list --count "$UPSTREAM" 2>/dev/null || echo "0")
+    if [[ "$PUSHED" -gt 0 ]]; then
+        PR_STATE=$(gh pr view "$CURRENT_BRANCH" --json state --jq '.state' 2>/dev/null || echo "")
+        if [[ "$PR_STATE" == "OPEN" ]]; then
+            DISQUALIFIED="branch is pushed AND has an open PR — a rebase needs a force-push, which can orphan review comments pinned to the old SHAs"
+        else
+            ASK="branch is already pushed — a rebase would need 'git push --force-with-lease'"
+        fi
+    fi
+fi
+
+MERGE_COMMITS=$(git log --merges --oneline "origin/$DEFAULT_BRANCH..HEAD" 2>/dev/null || echo "")
+if [[ -n "$MERGE_COMMITS" ]]; then
+    echo "Branch already contains merge commit(s):"
+    echo "$MERGE_COMMITS"
+    DISQUALIFIED="branch already contains a merge commit — rebase flattens or chokes on it"
+fi
+
+if [[ -n "$DISQUALIFIED" ]]; then
+    echo "VERDICT: MERGE — $DISQUALIFIED"
+elif [[ -n "$ASK" ]]; then
+    echo "VERDICT: ASK USER — $ASK"
+else
+    echo "VERDICT: REBASE — branch is local-only with no merge commits"
 fi
 echo ""
 

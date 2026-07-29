@@ -37,7 +37,6 @@ for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
         exit 1
     fi
 done
-# Robot emoji check (avoid embedding the literal in source)
 if echo "$MESSAGE" | grep -q $'\xf0\x9f\xa4\x96'; then
     echo "ERROR: commit message contains robot emoji — no AI attribution in git history."
     exit 1
@@ -49,7 +48,7 @@ if git diff --cached --quiet; then
     echo ""
     echo "Stage files first with:"
     echo "  git add <files>"
-    echo "  or: bash ~/.claude/skills/git-push-to-main/scripts/stage-files.sh --all"
+    echo "  or: bash ~/.claude/skills/git-pr/scripts/stage-files.sh --all"
     exit 1
 fi
 

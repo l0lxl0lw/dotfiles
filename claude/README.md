@@ -54,13 +54,55 @@ gstack installs its own skills separately into `~/.claude/skills` as real direct
 with the Codex status line in [`../codex/config.toml.managed`](../codex/config.toml.managed):
 
 ```
-~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left (↻ 3.7h) · weekly 61% left (↻ 3.1d) · Opus 5
+~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left · weekly 61% left · Opus 5 xhigh
 ```
 
 Order is location first (what changes most often), model last. Codex's status line is a
-fixed list of item ids, so it is the constrained side — it cannot render progress bars,
-reset countdowns, a second line, a different separator, or the dirty marker. This script
-stays inside what Codex can express and only adds what Codex silently omits.
+fixed list of item ids, so it is the constrained side — it cannot render progress bars, a
+second line, a different separator, or the dirty marker. This script stays inside what
+Codex can express and only adds what Codex silently omits.
+
+**The line is flat on purpose.** Every item is `label value`, separated by ` · `, nested
+nowhere. That uniformity is the thing that makes it scannable: the eye tracks one separator
+and never switches parsing modes. Reset countdowns — `5h 91% left (↻ 3.7h)` — broke it in
+three of seven items, and put two different h-quantities inside one item. On identical input
+they cost 29 of the line's 130 visible characters and 3 of its 8 numeric tokens; digits
+force a fixation each, so that is the part that actually hurt. Removed, along with the
+`(1M context)` qualifier on the model name — the line is now 101 characters and 5 numbers,
+against Codex's 86 and 3. Put a countdown in `/usage`, not here.
+
+**Two colour groups, separated by chroma.** Saturated green/gold/blue mark *where you are*
+(dir, repo, branch), following Codex. The muted green→red scale marks *how heavy things are*
+(usage items and effort). Dim grey is separators; the model is bold and uncoloured.
+
+Green and yellow therefore appear in both groups, which is only safe because the groups sit
+at different saturations — the eye separates by intensity before hue. Codex doesn't have
+this problem: its quota renders pink, so it has no green or yellow in its data channel and
+can spend them freely on location. **Don't dull a location colour toward the data scale.**
+That collapses the separation, and a green path starts reading as "quota healthy" — exactly
+what the old green branch did, back when it was byte-identical to the green `pct_color`
+returns below 40%.
+
+**Usage items are coloured whole**, not as a dim label around a bright number: `Context 12%
+used` is one green band. Colouring only the digit left it an isolated bright dot with
+nothing tying it to its label, so the eye had to travel back to read what it meant.
+
+**The scale is muted, and deliberately not the stock Dracula neons.** A whole item in
+`#50FA7B` is a wall of the brightest thing on screen, and green — the resting state — is
+what you look at ~90% of the time, so it has to recede. Saturation rises with severity
+instead: green is nearly grey-green, red stays hot enough to alarm. Don't "fix" green to
+match red's intensity; the gradient is the signal.
+
+**Model and effort mirror Codex's `model-with-reasoning`** — `Opus 5 xhigh`, from
+`.effort.level`. Effort is coloured on the *same* `pct_color` scale rather than a second
+palette (`low` green → `medium` yellow → `high` orange → `xhigh`/`max` red, unknown dim):
+higher effort burns quota faster, so it answers the same "how hot is this" question as the
+percentages, and one source of truth keeps the two from drifting. The numbers passed to
+`pct_color` in `effort_color` are just indexes into the scale, not percentages.
+
+The status line JSON also carries `.fast_mode`, `.thinking.enabled`, `.output_style.name`
+and `.cost.total_cost_usd` if any of those are ever wanted; capture the full payload by
+teeing stdin at the top of the script.
 
 **"used" vs "left" is intentional.** Context is a ceiling you fill, so it reads as *used*
 and a high number is bad. Quotas are a budget you spend down, so they read as *left* and a

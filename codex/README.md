@@ -22,8 +22,9 @@ The status line mirrors the Claude Code statusline — model, cwd, repo, branch,
 ```toml
 [tui]
 status_line = [
-  "model-with-reasoning", "current-dir", "project-name", "git-branch",
+  "current-dir", "project-name", "git-branch",
   "context-used", "five-hour-limit", "weekly-limit",
+  "model-with-reasoning",
 ]
 status_line_use_colors = true
 ```
@@ -39,14 +40,52 @@ Full set of item ids, read out of the codex-cli 0.146.0 binary with their own de
 | `context-used` `context-remaining` `context-window-size` | context window (omitted when unknown) |
 | `used-tokens` `total-input-tokens` `total-output-tokens` | session tokens (`used-tokens` omitted when zero) |
 | `five-hour-limit` `daily-limit` `weekly-limit` `monthly-limit` `annual-limit` | that specific usage window |
-| `usage-limit` `secondary-usage-limit` | primary / secondary limit, whichever window the plan reports |
 | `codex-version` | app version |
+
+**Not accepted, despite appearing in the binary:** `model-name`, `usage-limit`,
+`secondary-usage-limit`. All three have description strings compiled in — `usage-limit` even
+carries "Remaining usage on the primary usage limit (omitted when unavailable)" — but 0.146.0
+answers them with `⚠ Ignored invalid status line items`. Presence in the string table is not
+membership in the accepted id set. Confirm any addition in a running TUI: `codex debug
+prompt-input` parses an invalid id without complaint, so the pre-swap probe in
+`codex_merge_config` will not catch one either.
 
 **Every usage-limit item is "omitted when unavailable."** Codex reads these from API response
 headers — nothing is cached on disk — so an item silently disappears when the account isn't
 reporting that window. A missing `five-hour-limit` usually means exactly that, not a
-misconfiguration. `usage-limit` / `secondary-usage-limit` are the plan-agnostic alternative:
-they render whatever limits the account actually has, labelled `primary` / `secondary`.
+misconfiguration.
+
+### Why `five-hour-limit` renders nothing here
+
+Codex fills exactly two slots, from the `…-primary-window-minutes` and
+`…-secondary-window-minutes` response headers. The *server* decides which windows land in
+them; the client cannot synthesise one that wasn't sent. A named item matches on window
+duration, so `five-hour-limit` renders only when a 300-minute window actually arrives.
+
+What the server sends here, by plan:
+
+| plan | primary | secondary |
+|---|---|---|
+| `plus` | 5-hour | weekly |
+| `team` (until 2026-07) | 5-hour | weekly |
+| `team` (current) | **weekly** | *none* |
+
+Somewhere between 2026-06-04 and 2026-07-24 the server stopped sending a 5-hour window for
+Team plans, and now sends a single weekly window as `primary` with `secondary: null`.
+Verified against 159 `rate_limits` records in `~/.codex/sessions` — 5h appears in every
+record before that gap and in none after, across a `plus` → `team` change that by itself did
+not end it. So `weekly-limit` renders and `five-hour-limit` is silently omitted.
+
+`five-hour-limit` is kept in the list regardless: it costs nothing while absent and returns
+on its own if the plan ever reports that window again. The plan-agnostic `usage-limit` pair
+would have made the omission visible instead of silent, but this build rejects those ids
+(see above), so a silent gap plus this note is the available option.
+
+To check what the account is being sent right now:
+
+```sh
+grep -roh '"window_minutes":[0-9]*' ~/.codex/sessions | sort | uniq -c
+```
 
 An unknown id is not a startup failure — Codex warns about "unknown item identifiers" in the
 TUI and carries on. Neither `codex doctor` nor the parse check below catches it, since
