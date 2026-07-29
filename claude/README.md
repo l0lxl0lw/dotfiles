@@ -54,7 +54,7 @@ gstack installs its own skills separately into `~/.claude/skills` as real direct
 with the Codex status line in [`../codex/config.toml.managed`](../codex/config.toml.managed):
 
 ```
-~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left (🔄 3.7h) · weekly 61% left (🔄 3.1d) · Opus 5
+~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left (↻ 3.7h) · weekly 61% left (↻ 3.1d) · Opus 5
 ```
 
 Order is location first (what changes most often), model last. Codex's status line is a

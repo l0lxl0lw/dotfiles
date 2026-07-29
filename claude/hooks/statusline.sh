@@ -83,7 +83,9 @@ rate_item() {
   left=$((100 - used_int))
   color=$(pct_color "$used_int")
   if [ -n "$resets" ] && [ "$resets" != "null" ]; then
-    countdown=" ${comment}(🔄 $(time_until "$resets"))${reset}"
+    # ↻ rather than an emoji: emoji render in their own palette and ignore the
+    # dim comment colour, so they shout on a line meant to be scannable.
+    countdown=" ${comment}(↻ $(time_until "$resets"))${reset}"
   fi
   # Single %, not %%: the caller emits this through printf '%b', which expands
   # backslash escapes but does not treat % as a conversion.
