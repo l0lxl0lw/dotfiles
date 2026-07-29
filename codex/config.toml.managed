@@ -1,0 +1,21 @@
+[tui]
+# Mirrors the Claude Code statusline: model, cwd, repo, branch, then usage.
+#
+# Item ids verified present in codex-cli 0.146.0 by scanning the binary. Full set:
+#   current-dir  project-root  project-name  git-branch  thread-title  thread-id
+#   session-id   run-state     task-progress  model-with-reasoning
+#   context-used context-remaining  context-window-size
+#   used-tokens  total-input-tokens  total-output-tokens
+#   five-hour-limit  weekly-limit  codex-version
+# `model-name` appears in some docs but does NOT exist in 0.146.0. An unknown id
+# makes Codex warn about "unknown item identifiers" rather than fail to start.
+status_line = [
+  "model-with-reasoning",
+  "current-dir",
+  "project-name",
+  "git-branch",
+  "context-used",
+  "five-hour-limit",
+  "weekly-limit",
+]
+status_line_use_colors = true

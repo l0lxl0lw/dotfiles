@@ -342,6 +342,55 @@ codex_merge_config() {
   [[ -f "$repo/AGENTS.md" ]] && \
     _agentcfg_link "$repo/AGENTS.md" "$codex_dir/AGENTS.md" "AGENTS.md"
 
+  # Settings that have to live inside config.toml (status_line and friends).
+  #
+  # config.toml can't be a symlink to the repo: it also carries machine-local
+  # absolute paths and a [projects."..."] trust list of private repos, and Codex
+  # rewrites it. Codex has no include directive either, and `--profile` only
+  # applies when -p is passed, so it would miss the desktop app and any other
+  # entry point. So a tracked fragment gets spliced into the real file between
+  # markers instead, and re-applied on every launch -- self-healing if Codex
+  # ever overwrites it.
+  local managed="$repo/config.toml.managed"
+  local cfg="$codex_dir/config.toml"
+  local beg='# >>> dotfiles managed >>>'
+  local fin='# <<< dotfiles managed <<<'
+  if [[ -f "$managed" && -f "$cfg" ]]; then
+    local current desired tmp probe
+    current=$(awk -v b="$beg" -v e="$fin" 'index($0,b){f=1;next} index($0,e){f=0;next} f' "$cfg")
+    desired=$(<"$managed")
+    if [[ "$current" != "$desired" ]]; then
+      tmp=$(mktemp "${cfg}.XXXXXX") || return 1
+      {
+        # Strip any previous block, then drop trailing blank lines so repeated
+        # runs don't accumulate them.
+        awk -v b="$beg" -v e="$fin" 'index($0,b){f=1;next} index($0,e){f=0;next} !f' "$cfg" |
+          awk '{a[n++]=$0} END{while(n>0 && a[n-1]=="") n--; for(i=0;i<n;i++) print a[i]}'
+        print -r -- ""
+        print -r -- "$beg"
+        print -r -- "$desired"
+        print -r -- "$fin"
+      } > "$tmp"
+
+      # Prove the result is a config Codex will actually load before swapping it
+      # in. A duplicate [tui] table, say, would otherwise brick every launch.
+      # `command` is required here: bare `codex` is the wrapper below, and that
+      # would recurse.
+      probe="${tmp}.home"
+      mkdir -p "$probe" && cp "$tmp" "$probe/config.toml"
+      if CODEX_HOME="$probe" command codex debug prompt-input >/dev/null 2>&1; then
+        cp -p "$cfg" "$cfg.dotfiles.bak"
+        mv -f "$tmp" "$cfg"
+        echo "codex_merge_config: updated managed block in config.toml"
+      else
+        rm -f -- "$tmp"
+        echo "codex_merge_config: patched config.toml would not parse, left untouched" >&2
+        (( _AGENTCFG_SKIPPED++ ))
+      fi
+      rm -rf -- "$probe"
+    fi
+  fi
+
   _agentcfg_report codex_merge_config
 }
 
