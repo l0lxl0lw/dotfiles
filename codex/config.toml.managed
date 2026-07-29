@@ -9,13 +9,16 @@
 #   five-hour-limit  weekly-limit  codex-version
 # `model-name` appears in some docs but does NOT exist in 0.146.0. An unknown id
 # makes Codex warn about "unknown item identifiers" rather than fail to start.
+# Order is kept in lockstep with ../claude/hooks/statusline.sh:
+#   dir · repo · branch · Context N% used · 5h N% left · weekly N% left · model
+# Location first (what changes most often), model last.
 status_line = [
-  "model-with-reasoning",
   "current-dir",
   "project-name",
   "git-branch",
   "context-used",
   "five-hour-limit",
   "weekly-limit",
+  "model-with-reasoning",
 ]
 status_line_use_colors = true

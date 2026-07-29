@@ -48,6 +48,28 @@ dotfiles/claude/
 
 gstack installs its own skills separately into `~/.claude/skills` as real directories. They aren't tracked here; `claude_merge_config` leaves them alone.
 
+## Status line
+
+`hooks/statusline.sh` renders a single dot-separated line, deliberately kept in lockstep
+with the Codex status line in [`../codex/config.toml.managed`](../codex/config.toml.managed):
+
+```
+~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left (🔄 3.7h) · weekly 61% left (🔄 3.1d) · Opus 5
+```
+
+Order is location first (what changes most often), model last. Codex's status line is a
+fixed list of item ids, so it is the constrained side — it cannot render progress bars,
+reset countdowns, a second line, a different separator, or the dirty marker. This script
+stays inside what Codex can express and only adds what Codex silently omits.
+
+**"used" vs "left" is intentional.** Context is a ceiling you fill, so it reads as *used*
+and a high number is bad. Quotas are a budget you spend down, so they read as *left* and a
+**low** number is bad. Codex words them the same way and offers no way to change it. Note
+`pct_color` is fed the *consumed* percentage in both cases, so `8% left` renders red rather
+than green — changing one without the other inverts the colour scale.
+
+Change the order or items in both files together, or they drift.
+
 ## Skills
 
 ### Core
