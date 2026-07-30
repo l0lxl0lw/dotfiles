@@ -6,6 +6,7 @@ Cross-tool configuration consumed by both Claude and Codex.
 ai/
 └── shared/
     └── skills/
+        ├── codebase/
         ├── community/
         ├── git/
         ├── impeccable/
