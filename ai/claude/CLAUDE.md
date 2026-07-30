@@ -82,7 +82,7 @@ After adding either, run `claude_merge_config` to create the symlink.
 
 - Skill names use kebab-case directories; agent names use kebab-case `.md` files
 - The `prompts/` directory is a reference archive — organized by provider (Anthropic, Google, OpenAI, xAI, Perplexity, Misc). Read-only, not loaded by Claude Code
-- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario. Skills are named for **what they do**; the branch they require is enforced in their first phase.
+- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario, plus two read-only explainers. Skills are named for **what they do**; the branch they require is enforced in their first phase.
 
   | Skill | Runs on | Does |
   |---|---|---|
@@ -96,6 +96,15 @@ After adding either, run `claude_merge_config` to create the symlink.
   | `git-cleanup` | feature branch | After a verified merge: deletes the branch and refreshes the default branch |
 
   The lifecycle: `git-branch-and-pr` or (`git-commit` → `git-pr`) → `git-push-branch` for review fixes → `git-merge-pr` → `git-cleanup`. `git-sync` slots in whenever the default branch moves.
+
+  Two read-only skills sit beside the lifecycle rather than in it. They mutate nothing (`git-explain-branch` fetches, which only moves remote-tracking refs) and are the only model-invocable skills in this directory:
+
+  | Skill | Scope | Does |
+  |---|---|---|
+  | `git-explain-diff` | working tree | Explains staged + unstaged + **untracked** changes, grouped by behavioral change, and flags unupdated callers and accidental content |
+  | `git-explain-branch` | `merge-base..HEAD` | Explains the branch as before/after against main, then a risk pass: contracts, migrations, blast radius, and what main gained on the same files |
+
+  Both share one rendering contract — a two-column call-flow tree with descriptions pinned to column 90, and a boxed BEFORE/AFTER leaf on every changed path. It is duplicated verbatim in the two `SKILL.md` files, which say so; **change both together.**
 
 - Conventions the git skills share, worth preserving when adding another:
   - **A gate script that exits non-zero, and a table in SKILL.md mapping every exit code to an action.** Refusals live in the script so they cannot be reasoned around.

@@ -111,6 +111,8 @@ Change the order or items in both files together, or they drift.
 | `/git-pr-from-main` | On the default branch: wrap changes into a feature branch with one commit and open a PR | No |
 | `/git-sync-main-and-commit` | On a feature branch: pull latest main, merge it in, resolve conflicts, commit & push | No |
 | `/git-commit-local-changes` | Analyze uncommitted changes and create a commit (no push, no PR) | No |
+| `/git-explain-diff` | Explain the uncommitted working tree — staged, unstaged and untracked — grouped by behavioral change. Read-only | Yes |
+| `/git-explain-branch` | Explain what this branch changes vs the default branch, with a contract/migration/collision risk pass. Read-only | Yes |
 | `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
 | `/readme` | Read README in current directory and execute instructions | Yes |
 | `/update-diagram` | Scan codebase and update existing diagram files | Yes |
