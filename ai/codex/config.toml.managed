@@ -21,9 +21,18 @@
 # a 5-hour window again. The plan-agnostic `usage-limit` pair would have shown
 # whatever windows exist regardless of duration, but is not accepted here.
 #
-# Order is kept in lockstep with ../claude/hooks/statusline.sh:
+# Renders:
 #   dir · repo · branch · Context N% used · 5h N% left · weekly N% left · model
 # Location first (what changes most often), model last.
+#
+# This no longer matches ../claude/hooks/statusline.sh, and that is intentional.
+# That script now renders two lines with progress bars, short labels, "used"
+# instead of "left", always-on reset countdowns, and model and effort split into
+# two items -- none of which this fixed id list can express. Keeping them identical meant clamping
+# Claude down to what Codex can say, and the whole cost of that landed on the
+# Claude side. So the item ORDER below still mirrors the order over there
+# (location, context, quotas, model), but the rendering has diverged and should
+# be expected to. Don't "resync" by reverting that file.
 status_line = [
   "current-dir",
   "project-name",

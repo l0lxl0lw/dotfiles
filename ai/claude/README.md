@@ -39,30 +39,51 @@ separately into `~/.claude/skills` as real directories. They aren't tracked here
 
 ## Status line
 
-`hooks/statusline.sh` renders a single dot-separated line, deliberately kept in lockstep
-with the Codex status line in [`../codex/config.toml.managed`](../codex/config.toml.managed):
+`hooks/statusline.sh` renders two lines — where you are, then how much is left:
 
 ```
-~/dotfiles · dotfiles · main* · Context 29% used · 5h 91% left · weekly 61% left · Opus 5 xhigh
+~/dotfiles · dotfiles · main* · Opus 5 · xhigh
+ctx ▰▰▰▱▱▱▱▱▱▱ 34%  ·  5h ▰▰▰▰▱▱▱▱▱▱ 38% ↻3.1h  ·  wk ▰▰▱▱▱▱▱▱▱▱ 19% ↻4.2d
 ```
 
-Order is location first (what changes most often), model last. Codex's status line is a
-fixed list of item ids, so it is the constrained side — it cannot render progress bars, a
-second line, a different separator, or the dirty marker. This script stays inside what
-Codex can express and only adds what Codex silently omits.
+**It no longer mirrors Codex, on purpose.** It used to be kept in lockstep with
+[`../codex/config.toml.managed`](../codex/config.toml.managed), item for item, so the two
+tools read identically. Codex's status line is a fixed list of item ids: it cannot render a
+bar, a second line, a different separator, or the dirty marker. Matching it meant Claude
+could not either — and the cost of that was paid entirely on the Claude side, where a
+percentage alone gives you a *number to read* rather than a *shape to glance at*. Codex
+keeps its single flat line; this one now spends the second line it can afford. **Don't
+"restore parity" by deleting the bars.**
 
-**The line is flat on purpose.** Every item is `label value`, separated by ` · `, nested
-nowhere. That uniformity is the thing that makes it scannable: the eye tracks one separator
-and never switches parsing modes. Reset countdowns — `5h 91% left (↻ 3.7h)` — broke it in
-three of seven items, and put two different h-quantities inside one item. On identical input
-they cost 29 of the line's 130 visible characters and 3 of its 8 numeric tokens; digits
-force a fixation each, so that is the part that actually hurt. Removed, along with the
-`(1M context)` qualifier on the model name — the line is now 101 characters and 5 numbers,
-against Codex's 86 and 3. Put a countdown in `/usage`, not here.
+**The split is by kind, not by width.** Nothing on line 1 is a quantity; nothing on line 2
+is a place. Line 1 keeps the old ordering — location first (what changes most often), model
+last. Line 2 leads with context, the meter that moves fastest and the only one you can act
+on inside a single session.
+
+**Everything on line 2 reads as consumed**, where the quotas used to read `91% left`. A bar
+fills as you spend, so `left` would point a bar and its own number in opposite directions —
+a track four cells full labelled `62%`. Codex says "left" and cannot be changed; this is the
+wording half of the same divergence.
+
+**Countdowns are always on.** Every quota meter that reports a `resets_at` appends a dim
+`↻1.8h`, at any usage. They were briefly gated at 60% — the orange boundary in `pct_color`,
+so the colour change and the countdown fired together and the countdown *appearing* was
+itself the signal — but that hid the number precisely when you want it, which is *before*
+starting something big, not once you are already deep into the window. A fixed slot you can
+read at a glance beats a surprise; severity is carried by the bar and its colour, and the
+countdown is plain schedule. This is what the flat single-line version couldn't afford at
+all: countdowns cost 29 of the old line's 130 characters and 3 of its 8 numeric tokens, and
+put two different h-quantities inside one item (`5h … 3.7h`). Line 2 has the room.
+
+**Two separator widths, deliberately.** Line 1 items are single tokens and pack tight at
+` · `. Line 2 items are three-part composites — label, bar, number — that run together at
+one space, so they get `  ·  `. Two widths on one screen is a real cost; it buys the meters
+reading as three units rather than nine loose tokens.
 
 **Two colour groups, separated by chroma.** Saturated green/gold/blue mark *where you are*
 (dir, repo, branch), following Codex. The muted green→red scale marks *how heavy things are*
-(usage items and effort). Dim grey is separators; the model is bold and uncoloured.
+(meters and effort). Dim grey is separators, empty bar cells, and countdowns; the model is
+bold and uncoloured.
 
 Green and yellow therefore appear in both groups, which is only safe because the groups sit
 at different saturations — the eye separates by intensity before hue. Codex doesn't have
@@ -72,18 +93,36 @@ That collapses the separation, and a green path starts reading as "quota healthy
 what the old green branch did, back when it was byte-identical to the green `pct_color`
 returns below 40%.
 
-**Usage items are coloured whole**, not as a dim label around a bright number: `Context 12%
-used` is one green band. Colouring only the digit left it an isolated bright dot with
-nothing tying it to its label, so the eye had to travel back to read what it meant.
+**Meters are coloured whole, except the empty track.** Label, filled cells and number all
+take the severity colour; only the `▱` run stays dim. That is the one place the rule bends,
+and it has to — an empty run in the item colour reads as filled and the bar stops being a
+bar. What the rule is guarding against is the older mistake of a dim label wrapped around a
+bright number, which left the digit an isolated dot with nothing tying it to its label. A
+band with a dim track through it doesn't have that problem. **At 0% the dim branch must win
+at cell zero**, or an empty bar renders in the item colour and reads full.
 
 **The scale is muted, and deliberately not the stock Dracula neons.** A whole item in
 `#50FA7B` is a wall of the brightest thing on screen, and green — the resting state — is
-what you look at ~90% of the time, so it has to recede. Saturation rises with severity
-instead: green is nearly grey-green, red stays hot enough to alarm. Don't "fix" green to
-match red's intensity; the gradient is the signal.
+what you look at ~90% of the time, so it has to recede. Ten-cell bars multiply that ink
+three ways over, so this matters *more* now than it did when the line was numbers only.
+Saturation rises with severity instead: green is nearly grey-green, red stays hot enough to
+alarm. Don't "fix" green to match red's intensity; the gradient is the signal.
 
-**Model and effort mirror Codex's `model-with-reasoning`** — `Opus 5 xhigh`, from
-`.effort.level`. Effort is coloured on the *same* `pct_color` scale rather than a second
+**Two bar details that look like bugs and aren't.** Fill floors, except that any nonzero
+usage claims at least one cell — 4% flooring to an empty track would render "barely started"
+and "not started" identically, and those are the two states the bar exists to tell apart.
+And the bar is built by string concatenation rather than `printf | tr ' ' '▰'`: BSD `tr` is
+byte-oriented and maps the space onto the *first byte* of a multibyte glyph, which is
+mojibake. `time_until` likewise uses integer arithmetic rather than `bc` — one fractional
+digit is the most it ever shows, which isn't worth a second hard dependency on a script that
+runs on every render.
+
+**Model and effort come from Codex's `model-with-reasoning`, but render as two items** —
+`Opus 5 · xhigh`, effort from `.effort.level`. Codex prints them as one token because that
+id is indivisible; here they take the same ` · ` as everything else on line 1, since they
+are two independent facts (one you picked, one you can change mid-session) and a bare space
+made the effort read as a suffix of the model name. Effort is coloured on the *same*
+`pct_color` scale rather than a second
 palette (`low` green → `medium` yellow → `high` orange → `xhigh`/`max` red, unknown dim):
 higher effort burns quota faster, so it answers the same "how hot is this" question as the
 percentages, and one source of truth keeps the two from drifting. The numbers passed to

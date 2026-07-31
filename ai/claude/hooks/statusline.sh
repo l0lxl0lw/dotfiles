@@ -2,32 +2,20 @@
 
 # Claude Code status line.
 #
-# Deliberately mirrors the Codex CLI status line configured in
-# ../../codex/config.toml.managed, so the two tools read identically:
+#   ~/dotfiles · dotfiles · main* · Opus 5 · high
+#   ctx ▰▰▰▱▱▱▱▱▱▱ 34%  ·  5h ▰▰▰▰▱▱▱▱▱▱ 38% ↻3.1h  ·  wk ▰▰▱▱▱▱▱▱▱▱ 19% ↻4.2d
 #
-#   dir · repo · branch · Context N% used · 5h N% left · weekly N% left · model
+# This USED to mirror the Codex CLI status line in ../../codex/config.toml.managed
+# item for item, so the two tools read identically. That constraint is now
+# deliberately dropped, and the split is the whole design: Codex's status line is
+# a fixed list of item ids, so it cannot render a bar, a second line, or a
+# different separator -- matching it meant Claude could not either, and a
+# percentage alone gives you a number to read rather than a shape to glance at.
+# Codex keeps its single flat line; this one takes the two lines it can afford.
+# Don't "restore parity" by deleting the bars -- that trade was made on purpose.
 #
-# Codex's status line is a fixed list of item ids -- it cannot render progress
-# bars, a second line, or a different separator. So this script stays inside what
-# Codex can express, and only adds what Codex silently omits (the dirty marker,
-# a clickable repo link).
-#
-# The line is a flat list: every item is `label value` separated by ` · `, with
-# no nesting anywhere. That uniformity is what makes it scannable -- the eye
-# locks onto the separator and never has to switch parsing modes. Reset
-# countdowns "(↻ 2.5h)" used to hang off the two quota items and were the whole
-# reason to break that rule: three of seven items carried a second grouping
-# level, and "5h ... (↻ 2.5h)" put two different h-quantities inside one item.
-# On identical input they also cost 29 of the line's 130 visible characters and 3
-# of its 8 numeric tokens -- digits force a fixation each, so that is the cost
-# that actually lands. Dropped, along with the parenthetical in the model name,
-# putting the line at 101 characters and 5 numbers against Codex's 86 and 3. If
-# a countdown is ever wanted back, it belongs in /usage, not here.
-#
-# On "used" vs "left": context is a ceiling you fill, so it reads as used and a
-# high number is bad. Quotas are a budget you spend down, so they read as left
-# and a LOW number is bad -- note pct_color is fed the used value in both cases.
-# This matches Codex, which words them the same way and cannot be changed.
+# Line 1 is where you are, line 2 is how much is left. The split is by kind, not
+# by width: nothing on line 1 is a quantity, nothing on line 2 is a place.
 #
 # Requires: jq
 
@@ -39,8 +27,8 @@ pct_int=0
 
 if command -v jq &>/dev/null && [ -n "$input" ]; then
   display_name=$(printf '%s' "$input" | jq -r '.model.display_name // empty' 2>/dev/null)
-  # "Opus 5 (1M context)" -> "Opus 5". The qualifier is the third nested group on
-  # a line whose whole point is that it has none, and it never changes mid-session.
+  # "Opus 5 (1M context)" -> "Opus 5". The qualifier never changes mid-session,
+  # so it is ink spent on the one thing that cannot tell you anything new.
   [ -n "$display_name" ] && model_name="${display_name%% (*}"
 
   # Codex prints "gpt-5.5 medium" via model-with-reasoning; .effort.level is the
@@ -54,7 +42,9 @@ if command -v jq &>/dev/null && [ -n "$input" ]; then
   fi
 
   five_hr=$(printf '%s' "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null)
+  five_hr_resets=$(printf '%s' "$input" | jq -r '.rate_limits.five_hour.resets_at // empty' 2>/dev/null)
   seven_day=$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
+  seven_day_resets=$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)
 fi
 
 # Dracula theme (true color).
@@ -62,8 +52,8 @@ fi
 # Hue carries meaning here, so each one gets exactly one job:
 #
 #   green / gold / blue   where you are -- dir, repo, branch (following Codex)
-#   green..red scale      how heavy things are -- usage items and effort
-#   comment (dim)         separators
+#   green..red scale      how heavy things are -- meters and effort
+#   comment (dim)         separators, empty bar cells, reset countdowns
 #   bold, no hue          the model
 #
 # Location hues copy Codex's. Note Codex can spend green and yellow there only
@@ -84,22 +74,31 @@ comment="\033[38;2;98;114;164m"
 bold="\033[1m"
 reset="\033[0m"
 
-# Codex joins items with " · " and offers no way to change it.
+# Line 1 items are single tokens and pack tight. Line 2 items are three-part
+# composites (label, bar, number) that run into each other at one space, so they
+# get more air. Two separator widths on one screen is a real cost; it buys the
+# meters reading as three units instead of nine loose tokens.
 sep=" ${comment}·${reset} "
+sep2="  ${comment}·${reset}  "
 
+bar_width=10
+
+# Countdowns render on every quota meter that reports a reset time, at any usage.
+# They used to stay hidden until 60% (the orange boundary in pct_color) so that
+# the countdown APPEARING was itself the signal -- but that made the number you
+# most want when deciding whether to start something big ("how long until this
+# window rolls over?") the one you could not see until you were already deep into
+# the window. A fixed slot you can read at a glance beats a surprise. Severity is
+# still carried by the bar and its colour; the countdown is now plain schedule.
 # Colour by percentage CONSUMED, green -> yellow -> orange -> red.
-#
-# The whole item takes this colour -- "Context 12% used" is one green band, not a
-# dim label wrapped around a bright number. Colouring only the digit made the
-# number an isolated bright dot with nothing tying it to its label, so the eye
-# had to travel back to read what it meant. One band per item groups them.
 #
 # These are muted, not the stock Dracula neons (#50FA7B and friends). A whole
 # item in #50FA7B is a wall of the brightest thing on screen, and the resting
 # state -- green -- is what you look at ~90% of the time, so it has to recede.
-# Saturation therefore rises with severity: green is nearly grey-green, red stays
-# hot enough to alarm. That gradient is doing real work; don't flatten it by
-# "fixing" green to match red's intensity.
+# Ten-cell bars multiply that ink three ways over, so this matters MORE here than
+# it did when the line was numbers only. Saturation therefore rises with
+# severity: green is nearly grey-green, red stays hot enough to alarm. That
+# gradient is doing real work; don't flatten it by "fixing" green to match red.
 pct_color() {
   local val=$1
   if   [ "$val" -ge 80 ]; then printf '\033[38;2;224;108;108m'  # red
@@ -123,21 +122,89 @@ effort_color() {
   esac
 }
 
-# "<label> N% left" for a quota. Args: label, used_pct
-# Displays remaining, but colours by consumed so red still means trouble.
-rate_item() {
-  local label=$1 used_raw=$2
-  [ -z "$used_raw" ] || [ "$used_raw" = "null" ] && return 1
-  local used_int left color
-  used_int=$(printf '%.0f' "$used_raw")
-  left=$((100 - used_int))
-  color=$(pct_color "$used_int")
-  # Single %, not %%: the caller emits this through printf '%b', which expands
-  # backslash escapes but does not treat % as a conversion.
-  printf '%b' "${color}${label} ${left}% left${reset}"
+# Slim bar. Args: used_pct, colour for the filled run.
+#
+# Filled cells take the item's severity colour, empty cells stay dim. That is the
+# one place the "colour the item whole" rule bends, and it has to: an empty run in
+# the item colour reads as filled, and the bar stops being a bar. The label and
+# the number still take the severity colour, so the item is a band with a dim
+# track through it -- not a dim label wrapped around a bright number, which is
+# what left the digit an isolated dot with nothing tying it to its label.
+#
+# Built by concatenation, not `printf | tr ' ' '▰'`: BSD tr is byte-oriented and
+# maps the space onto the FIRST BYTE of a multibyte glyph, which is mojibake.
+#
+# Fill floors, except that any nonzero usage claims at least one cell -- 4%
+# flooring to an empty track would render "barely started" and "not started"
+# identically, and those are the two states the bar exists to tell apart.
+make_bar() {
+  local pct_val=$1 color=$2 filled i out=""
+  filled=$((pct_val * bar_width / 100))
+  [ "$filled" -lt 1 ] && [ "$pct_val" -gt 0 ] && filled=1
+  [ "$filled" -gt "$bar_width" ] && filled=$bar_width
+  i=0
+  while [ "$i" -lt "$bar_width" ]; do
+    # Order matters: at 0% these two conditions both hold at i=0, and the dim
+    # one has to win or an empty track renders in the item colour and reads full.
+    if   [ "$i" -eq "$filled" ]; then out="${out}${comment}"
+    elif [ "$i" -eq 0 ];         then out="${color}"
+    fi
+    if [ "$i" -lt "$filled" ]; then out="${out}▰"; else out="${out}▱"; fi
+    i=$((i + 1))
+  done
+  printf '%s' "${out}${reset}"
 }
 
-# Location
+# Unix timestamp -> "4.2h" / "23m" / "2.3d".
+#
+# Integer arithmetic rather than bc: one fractional digit is the most this ever
+# shows, and computing it by hand is cheaper than a second hard dependency on a
+# script that runs on every render.
+time_until() {
+  local resets_at=$1 now diff
+  now=$(date +%s)
+  diff=$((resets_at - now))
+  [ "$diff" -le 0 ] && { printf 'now'; return; }
+  if [ "$diff" -ge 86400 ]; then
+    printf '%d.%dd' $((diff / 86400)) $(((diff % 86400) * 10 / 86400))
+  elif [ "$diff" -ge 3600 ]; then
+    printf '%d.%dh' $((diff / 3600)) $(((diff % 3600) * 10 / 3600))
+  else
+    printf '%dm' $((diff / 60))
+  fi
+}
+
+# "<label> <bar> N%" for one meter, plus a dim "↻2.5h" whenever a reset time is
+# known. Args: label, used_pct, resets_at (optional).
+#
+# Everything reads as CONSUMED now, where the quotas used to read "N% left". A
+# bar fills as you spend, so "left" would have pointed the bar and its own number
+# in opposite directions -- a track four cells full labelled 62%. Codex says
+# "left" and cannot be changed, so this is the wording half of the same split.
+meter() {
+  local label=$1 used_raw=$2 resets=$3
+  [ -z "$used_raw" ] || [ "$used_raw" = "null" ] && return 1
+  local used_int color countdown=""
+  used_int=$(printf '%.0f' "$used_raw")
+  color=$(pct_color "$used_int")
+
+  if [ -n "$resets" ] && [ "$resets" != "null" ]; then
+    # Tolerate a fractional timestamp, then reject anything that is not a plain
+    # integer, so a payload format change surfaces as a missing countdown rather
+    # than as an arithmetic error printed into the status line.
+    resets=${resets%%.*}
+    case "$resets" in
+      '' | *[!0-9]*) ;;
+      *) countdown=" ${comment}↻$(time_until "$resets")${reset}" ;;
+    esac
+  fi
+
+  # Single %, not %%: the caller emits this through printf '%b', which expands
+  # backslash escapes but does not treat % as a conversion.
+  printf '%b' "${color}${label}${reset} $(make_bar "$used_int" "$color") ${color}${used_int}%${reset}${countdown}"
+}
+
+# Line 1: where you are.
 dir_path=${PWD/#$HOME/\~}
 
 repo_link=""
@@ -156,27 +223,33 @@ if git rev-parse --git-dir &>/dev/null 2>&1; then
   fi
 fi
 
-# Assemble: dir · repo · branch · context · 5h · weekly · model
-line="${loc_green}${dir_path}${reset}"
-[ -n "$repo_link" ] && line="${line}${sep}${repo_link}"
-[ -n "$git_info" ]  && line="${line}${sep}${git_info}"
+line1="${loc_green}${dir_path}${reset}"
+[ -n "$repo_link" ] && line1="${line1}${sep}${repo_link}"
+[ -n "$git_info" ]  && line1="${line1}${sep}${git_info}"
 
-ctx_color=$(pct_color "$pct_int")
-line="${line}${sep}${ctx_color}Context ${pct_int}% used${reset}"
-
-if item=$(rate_item "5h" "$five_hr"); then
-  line="${line}${sep}${item}"
-fi
-# Labelled "weekly", not "7d", to match what Codex prints for weekly-limit.
-if item=$(rate_item "weekly" "$seven_day"); then
-  line="${line}${sep}${item}"
-fi
-
-# Mirrors Codex's "gpt-5.5 medium", but coloured on the severity scale so the
-# line's one colour language covers everything that varies.
-line="${line}${sep}${bold}${model_name}${reset}"
+# Codex renders these as one item, "gpt-5.5 medium", because model-with-reasoning
+# is a single id and it has no choice. Here they are two, on the same separator
+# as everything else on line 1: they are two independent facts (one you picked,
+# one you can change mid-session), and joining them with a bare space made the
+# effort read as a suffix of the model name. Effort is still coloured on the
+# severity scale so the line's one colour language covers everything that varies.
+line1="${line1}${sep}${bold}${model_name}${reset}"
 if [ -n "$effort" ] && [ "$effort" != "null" ]; then
-  line="${line} $(effort_color "$effort")${effort}${reset}"
+  line1="${line1}${sep}$(effort_color "$effort")${effort}${reset}"
 fi
 
-printf '%b\n' "$line"
+# Line 2: how much is left. Context first -- it is the one that moves fastest and
+# the only one you can actually act on inside a single session.
+#
+# Labels are clipped to ctx/5h/wk. The bar carries the magnitude now, so the label
+# only has to say WHICH meter, and "Context"/"weekly" were paying full width to
+# repeat what three characters already identify.
+line2=$(meter "ctx" "$pct_int")
+if item=$(meter "5h" "$five_hr" "$five_hr_resets"); then
+  line2="${line2}${sep2}${item}"
+fi
+if item=$(meter "wk" "$seven_day" "$seven_day_resets"); then
+  line2="${line2}${sep2}${item}"
+fi
+
+printf '%b\n%b\n' "$line1" "$line2"
