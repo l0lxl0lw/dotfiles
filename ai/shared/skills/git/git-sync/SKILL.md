@@ -41,7 +41,7 @@ So: try the rebase, but bail to a merge the moment it stops being cheap.
 |---|---|
 | **Branch is pushed AND has an open PR** | Rebase rewrites SHAs → needs `--force-with-lease`, which can orphan review comments pinned to old SHAs |
 | **Branch already contains a merge commit** | Rebase flattens or chokes on it (`--rebase-merges` is a footgun) |
-| **Branch is pushed with no PR** | Not disqualifying, but needs a force-push — **ask the user**, never assume |
+| **Branch is pushed with no PR** | Not disqualifying, but needs a force-push — **ask with `AskUserQuestion`**, never assume |
 | **Conflicts hit more than one commit** | You are re-resolving the same collision per commit. Abort and merge |
 | **User asks for a merge** | Their call |
 
@@ -255,12 +255,12 @@ Identical for both paths. Handle **one file at a time**; `Read` it and process i
     | Option | Action |
     |---|---|
     | **Leave it uncommitted** | Stop here — the user is still developing. This is the common case for a mid-work sync |
-    | **Commit only** | Propose a message, get confirmation, `stage-files.sh --all` + `create-commit.sh`. No push |
+    | **Commit only** | Propose a message, confirm it through another `AskUserQuestion`, `stage-files.sh --all` + `create-commit.sh`. No push |
     | **Commit and push** | The above, then `git push` (or `git push -u origin <branch>` if there is no upstream) |
 
-    Never commit without proposing the message and getting confirmation or a replacement.
+    Never commit without proposing the message and getting an answer back — the message goes to the user in the dialog too, never as a prose question.
 
-18. **If you rebased a branch that was already pushed**, the push needs `git push --force-with-lease`. Tell the user and let **them** decide. Never force-push unprompted, and never plain `--force`.
+18. **If you rebased a branch that was already pushed**, the push needs `git push --force-with-lease`. Tell the user and put the call to **them** with `AskUserQuestion` — force-push with lease, or leave it unpushed. Never force-push unprompted, and never plain `--force`.
 
 ### Phase 10: Report
 
@@ -274,6 +274,7 @@ Identical for both paths. Handle **one file at a time**; `Read` it and process i
 
 ## Rules
 
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. This covers every conflict block, the strategy choice, the commit message, and the force-push call. Ordinary text is for showing conflict context and for the final report
 - Refuse to run on the default branch, or when a merge or rebase is already in progress
 - Bail out if the local default branch has diverged from origin
 - Never discard the user's uncommitted work — stash first, restore last, never drop without explicit confirmation

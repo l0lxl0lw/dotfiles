@@ -99,10 +99,11 @@ digraph pushbranch {
 
 ### Phase 3: Handle Unpushed Commits
 
-5. If there are already unpushed commits, ask the user:
+5. If there are already unpushed commits, ask with **`AskUserQuestion`**:
    - **Squash** — fold the new changes into the last commit with `--amend`
    - **Stack** — add a new commit on top
-   - **Other** — let the user specify
+
+   (`AskUserQuestion` always offers Other, so the user can describe something else.)
 
    If the last commit was already pushed, an amend rewrites published history — pushing it needs `--force-with-lease`. Say so before choosing squash, and only force-push with explicit confirmation.
 
@@ -110,7 +111,7 @@ digraph pushbranch {
 
 6. Summarize what changed and why.
 
-7. **Auto-propose a commit message.** Show it and ask: *"Use this message, or type a replacement?"* Wait for confirmation or a replacement. Never commit without it.
+7. **Auto-propose a commit message.** Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Never commit without that answer.
 
    If this commit addresses review feedback, say what it addresses — reviewers read commit subjects.
 
@@ -135,7 +136,7 @@ digraph pushbranch {
     ```bash
     git push -u origin $(git branch --show-current)
     ```
-    If the commit was amended and the original was already pushed, **ask the user for confirmation first**, then:
+    If the commit was amended and the original was already pushed, **get an explicit go-ahead through `AskUserQuestion` first** — force-push with lease, or stop and leave it — then:
     ```bash
     git push --force-with-lease
     ```
@@ -155,7 +156,8 @@ digraph pushbranch {
 
 - Run only on a feature branch — refuse on the default branch
 - Pull before pushing when the branch is behind its own upstream; never force past a rejected push
-- Always propose the commit message and wait for confirmation (or a replacement) before committing
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
+- Always propose the commit message and wait for the dialog answer (or their replacement) before committing
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution — `create-commit.sh` rejects it
 - NEVER force-push without explicit user confirmation, and never plain `--force`
 - Warn before amending a commit that was already pushed — it rewrites published history

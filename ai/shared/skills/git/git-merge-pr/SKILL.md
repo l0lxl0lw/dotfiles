@@ -97,10 +97,11 @@ digraph mergepr {
 
 7. Report the merge — PR number, URL, strategy, merge commit.
 
-8. Offer to run `git-cleanup`, which verifies the merge landed, deletes the branch locally and remotely, and pulls the fresh default branch. Do not run it without asking; the user may want to keep the branch around.
+8. Offer to run `git-cleanup` with `AskUserQuestion` — it verifies the merge landed, deletes the branch locally and remotely, and pulls the fresh default branch. Do not run it without that answer; the user may want to keep the branch around.
 
 ## Rules
 
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for reporting state and for the final summary
 - Never merge until `check-mergeable.sh` exits 0
 - Never pass `--admin` or otherwise bypass branch protection — if it is blocked, it is blocked for a reason
 - Never merge a draft PR without the user explicitly marking it ready

@@ -63,10 +63,11 @@ digraph commit {
 
 ### Phase 2: Handle Unpushed Commits
 
-2. If there are unpushed commits, ask the user:
+2. If there are unpushed commits, ask with **`AskUserQuestion`**:
    - **Squash** — fold the new changes into the previous commit with `--amend`
    - **Stack** — add a new commit on top
-   - **Other** — let the user specify
+
+   (`AskUserQuestion` always offers Other, so the user can describe something else.)
 
    If the previous commit was already pushed, amending rewrites published history and the eventual push will need `--force-with-lease`. Say so before choosing squash.
 
@@ -74,7 +75,7 @@ digraph commit {
 
 3. Summarize the changes for the user: what files changed, what the changes do.
 
-4. **Auto-propose a commit message** based on the diff. Show it and ask: *"Use this message, or type a replacement?"* Wait for the user to confirm or provide a replacement. Never commit without this confirmation.
+4. **Auto-propose a commit message** based on the diff. Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Never commit without that answer.
 
 5. If README.md exists, check whether the changes affect documented content — new features, changed commands or structure, removed functionality. Update it only for meaningful user-visible changes, not for minor fixes, refactors, or internal work.
 
@@ -106,7 +107,8 @@ digraph commit {
 ## Rules
 
 - Continue to the next phase automatically if the current phase completes without errors
-- Always propose a commit message and wait for confirmation (or a replacement) before running `create-commit.sh`
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
+- Always propose a commit message and wait for the dialog answer (or their replacement) before running `create-commit.sh`
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commit messages — the script rejects them
 - NEVER run `git push` — that is `git-push-branch` or `git-push-to-main`
 - Warn before amending a commit that was already pushed
@@ -120,6 +122,7 @@ digraph commit {
 
 - **Pushing.** This skill commits and stops. If the user wants it pushed, that is a different skill.
 - **Committing without proposing the message.** The confirmation step is not optional.
+- **Asking in prose instead of `AskUserQuestion`.** "Use this message?" at the end of a message looks like the turn is over; the user doesn't know a decision is waiting on them.
 - **Amending an already-pushed commit silently.** It rewrites published history and needs a force-push later.
 - **Staging sensitive files.** Let `stage-files.sh` do the staging; it filters `.env`, `.pem`, `.key` and friends.
 - **Padding the README for a refactor.** Only user-visible changes belong there.

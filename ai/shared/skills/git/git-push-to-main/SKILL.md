@@ -95,10 +95,11 @@ digraph pushmain {
 
 ### Phase 3: Handle Unpushed Commits
 
-4. If there are unpushed commits, ask the user:
+4. If there are unpushed commits, ask with **`AskUserQuestion`**:
    - **Squash** — fold the new changes into the previous commit with `--amend`
    - **Stack** — add a new commit on top
-   - **Other** — let the user specify
+
+   (`AskUserQuestion` always offers Other, so the user can describe something else.)
 
    Amending a commit that was already pushed rewrites published history and needs a force-push. Say so before choosing squash.
 
@@ -106,7 +107,7 @@ digraph pushmain {
 
 5. Summarize the changes: what files changed, what the changes do.
 
-6. **Auto-propose a commit message** based on the diff. Show it and ask: *"Use this message, or type a replacement?"* Wait for the user to confirm or supply their own. Never commit without this step.
+6. **Auto-propose a commit message** based on the diff. Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Never commit without that answer.
 
 7. If README.md exists, check whether the changes affect documented content — new features, changed commands or structure, removed functionality. Update it only for meaningful user-visible changes.
 
@@ -133,7 +134,7 @@ digraph pushmain {
     ```bash
     git push -u origin $(git branch --show-current)
     ```
-    If the commit was amended and the original was already pushed, **ask the user for confirmation first**, then:
+    If the commit was amended and the original was already pushed, **get an explicit go-ahead through `AskUserQuestion` first** — force-push with lease, or stop and leave it — then:
     ```bash
     git push --force-with-lease
     ```
@@ -147,7 +148,8 @@ digraph pushmain {
 
 - Run only on the default branch — refuse in Phase 0 otherwise
 - Pull before pushing when behind the remote; never force past a rejected push
-- Always propose a commit message and get explicit confirmation (or a replacement) before committing
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
+- Always propose a commit message and get the dialog answer (or their replacement) before committing
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution — the script rejects it
 - NEVER force-push without explicit user confirmation, and never plain `--force`
 - Warn before amending a commit that was already pushed

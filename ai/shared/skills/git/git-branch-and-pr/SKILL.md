@@ -85,7 +85,7 @@ digraph branchandpr {
 
 3. Generate a short, descriptive kebab-case branch name from the diff (e.g. `add-auth-middleware`, `fix-cache-eviction`).
 
-4. **Propose the branch name** and ask: *"Use this branch name, or type a replacement?"* Wait for confirmation or a replacement. Never create the branch without it.
+4. **Propose the branch name** and put it to the user with **`AskUserQuestion`** — options: use it as-is, or one alternative you'd also accept; they type any other name via Other. Wait for the answer. Never create the branch without it.
 
 5. ```bash
    git checkout -b <branch-name>
@@ -96,7 +96,7 @@ digraph branchandpr {
 
 6. Summarize the changes: what files changed, what the changes do.
 
-7. **Auto-propose a commit message** based on the diff. Show it and ask: *"Use this commit message, or type a replacement?"* Wait for confirmation or a replacement.
+7. **Auto-propose a commit message** based on the diff. Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Wait for the answer.
 
 8. If README.md exists, check whether the changes affect documented content and update it if so — only for meaningful user-visible changes.
 
@@ -137,7 +137,7 @@ digraph branchandpr {
       <how to verify this works — manual steps, test commands>
       ```
 
-13. **Show the title and full body** and ask: *"Use this, or type a replacement?"* Wait for confirmation or edits before pushing anything.
+13. **Show the title and full body** as text, then put it to the user with **`AskUserQuestion`** — open the PR with this, or edit it first (they type changes via Other). Wait for the answer before pushing anything.
 
 ### Phase 6: Push and Create the PR
 
@@ -156,12 +156,13 @@ digraph branchandpr {
 
 - Run only from the default branch — refuse in Phase 0 otherwise
 - **Single commit**: this skill creates exactly one commit on the new branch. For more commits afterwards, use `git-push-branch` from that branch
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. This covers the branch name, the commit message, the PR title and body, and any fork in the workflow. Ordinary text is for showing the proposed content and for the final summary
 - NEVER push or create the PR without asking for confirmation first
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits **or** in the PR body
 - NEVER force-push
-- Always propose the branch name and wait for confirmation before `git checkout -b`
-- Always propose the commit message and wait for confirmation before committing
-- Always propose the PR title and body and wait for confirmation before pushing
+- Always propose the branch name and wait for the dialog answer before `git checkout -b`
+- Always propose the commit message and wait for the dialog answer before committing
+- Always propose the PR title and body and wait for the dialog answer before pushing
 - The PR description must accurately reflect the full diff; group by area if the diff is large
 - Keep Summary on the "why", Changes on the "what"
 - Use conventional commit style if the repo uses it
@@ -174,5 +175,6 @@ digraph branchandpr {
 - **Two-dot vs three-dot diff.** Use `<default>...HEAD` to match what GitHub shows in the PR.
 - **Fabricated description.** Summarize the real diff, not a guess at what the change probably does.
 - **Creating the branch before confirming the name.** Renaming afterwards is avoidable churn.
+- **Asking in prose instead of `AskUserQuestion`.** "Use this branch name?" at the end of a message looks like the turn is over; the user doesn't know a decision is waiting on them.
 - **Expecting multiple commits.** This skill makes exactly one.
 - **Putting AI attribution in the PR body.** The commit script blocks it in commits; the same rule applies to anything published to GitHub.

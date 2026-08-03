@@ -96,7 +96,7 @@ digraph pr {
 
    | Option | Action |
    |---|---|
-   | **Commit it** | Propose a message, get confirmation, then `stage-files.sh --all` + `create-commit.sh`; re-run Phase 1 |
+   | **Commit it** | Propose a message, confirm it through another `AskUserQuestion`, then `stage-files.sh --all` + `create-commit.sh`; re-run Phase 1 |
    | **Leave it out** | `git stash push -u` so it is excluded from the PR; restore it after the PR is open |
    | **Abort** | Stop and let the user sort it out |
 
@@ -108,7 +108,7 @@ digraph pr {
 
 7. Read the workflow files the analysis listed as triggering on `pull_request`, and run their equivalent locally using the check commands the script found (package.json scripts, Makefile targets, just recipes). Typically that means the lint, build, and test commands.
 
-8. If any check fails, **STOP**. Report the failure output verbatim. Fix it or ask the user — do not push and open the PR.
+8. If any check fails, **STOP**. Report the failure output verbatim, then put the next move to the user with **`AskUserQuestion`** — fix it now, or abandon the PR for now. Do not push and open the PR.
 
    If the repo has no discoverable checks, say so plainly in the report rather than implying the PR was verified.
 
@@ -128,7 +128,7 @@ digraph pr {
      <the checks that were run and their result, plus anything verified manually>
      ```
 
-10. **Show the title and full body to the user** and ask: *"Use this, or type a replacement?"* Wait for confirmation or edits before pushing anything.
+10. **Show the title and full body to the user** as text, then put it to them with **`AskUserQuestion`** — open the PR with this, or edit it first (they type changes via Other). Wait for the answer before pushing anything.
 
 ### Phase 5: Push and Create
 
@@ -152,7 +152,8 @@ digraph pr {
 - NEVER open a PR with uncommitted work unresolved or the branch behind the default branch
 - NEVER open a PR when the local checks are failing
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits **or** in the PR title/body — `create-pr.sh` rejects it in both
-- NEVER push or create the PR without showing the title and body and getting confirmation
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed title and body and for the final report
+- NEVER push or create the PR without showing the title and body and getting the dialog answer
 - NEVER force-push
 - Never create a duplicate PR — check first, update the existing one instead
 - The PR description must accurately reflect the real diff; do not invent work that is not in it

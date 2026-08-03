@@ -81,11 +81,11 @@ digraph cleanup {
    | Exit | Meaning | What to do |
    |---|---|---|
    | 0 | PR `MERGED`, tree clean | Continue to Phase 2 |
-   | 2 | On the default branch | Stop. Ask the user what they meant |
-   | 3 | No PR for this branch | Stop. Do not assume it merged. Ask the user |
-   | 4 | PR still `OPEN` | Stop. Tell the user; offer `git-merge-pr` to merge it first |
-   | 5 | PR `CLOSED` without merging | **Stop and warn.** The work is not upstream. Require explicit confirmation before anything destructive |
-   | 6 | Dirty working tree | Stop. Show exactly what is uncommitted; ask the user to commit or stash. Do not stash for them |
+   | 2 | On the default branch | Stop. Ask with `AskUserQuestion` which branch they meant |
+   | 3 | No PR for this branch | Stop. Do not assume it merged. Ask with `AskUserQuestion` how to proceed |
+   | 4 | PR still `OPEN` | Stop. Tell the user, then offer `git-merge-pr` as an option in an `AskUserQuestion` |
+   | 5 | PR `CLOSED` without merging | **Stop and warn.** The work is not upstream. Require an explicit `AskUserQuestion` go-ahead before anything destructive |
+   | 6 | Dirty working tree | Stop. Show exactly what is uncommitted, then ask with `AskUserQuestion` — commit or stash. Do not stash for them |
    | 1 | No gh / not a repo | Stop and report |
 
    Record `branch` and `default` from the script's output — you are about to leave the branch and cannot read it off `HEAD` afterwards.
@@ -111,6 +111,7 @@ digraph cleanup {
 
 ## Rules
 
+- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing what was found and for the final report
 - Refuse to delete anything until `verify-merged.sh` exits 0 — no exceptions, no "it's probably merged"
 - Never pass `--merge-verified` to `cleanup-branch.sh` on the strength of a guess
 - Never use `-D` as the default delete; it is a fallback licensed by the verified `MERGED` state alone
