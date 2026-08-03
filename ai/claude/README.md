@@ -27,6 +27,7 @@ dotfiles/ai/shared/
     ├── git/               # Custom git workflow skills
     ├── impeccable/        # Design skills from pbakaus/impeccable
     ├── integrations/      # Custom integration skills
+    ├── mattpocock/        # Skills from mattpocock/skills, prefixed pocock-
     ├── omc/               # Planning skills from oh-my-claudecode
     └── utilities/         # Custom utility skills
 ```
