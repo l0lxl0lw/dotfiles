@@ -30,7 +30,7 @@ digraph mergepr {
     "Result?" [shape=diamond];
     "Stop — report the blocker" [shape=box];
     "Already merged → git-cleanup" [shape=box];
-    "Ask: squash / merge / rebase" [shape=box];
+    "Ask: merge / squash / rebase" [shape=box];
     "Confirm with user" [shape=diamond];
     "Stop" [shape=box];
     "merge-pr.sh" [shape=box];
@@ -39,8 +39,8 @@ digraph mergepr {
     "check-mergeable.sh" -> "Result?";
     "Result?" -> "Already merged → git-cleanup" [label="4 (MERGED)"];
     "Result?" -> "Stop — report the blocker" [label="3,5,6,7,8"];
-    "Result?" -> "Ask: squash / merge / rebase" [label="0 — ready"];
-    "Ask: squash / merge / rebase" -> "Confirm with user";
+    "Result?" -> "Ask: merge / squash / rebase" [label="0 — ready"];
+    "Ask: merge / squash / rebase" -> "Confirm with user";
     "Confirm with user" -> "Stop" [label="no"];
     "Confirm with user" -> "merge-pr.sh" [label="yes"];
     "merge-pr.sh" -> "Offer git-cleanup";
@@ -77,9 +77,11 @@ digraph mergepr {
 
    | Option | Result |
    |---|---|
-   | **Squash and merge** | All branch commits become one commit on the default branch. The usual default |
-   | **Merge commit** | Preserves every commit plus a merge commit. Use when the individual commits matter |
+   | **Merge commit** | Preserves every commit plus a merge commit. Always the first option — this is the default here |
+   | **Squash and merge** | All branch commits become one commit on the default branch |
    | **Rebase and merge** | Replays each commit onto the default branch, linear, no merge commit |
+
+   **Merge commit** is always listed first. Never reorder these, and never present squash as the default.
 
    If the repo only allows some of these, GitHub rejects the others — report that plainly rather than retrying blindly.
 
