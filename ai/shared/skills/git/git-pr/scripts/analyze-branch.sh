@@ -7,8 +7,13 @@
 # Exit:  0  ready to PR
 #        1  error (not a repo)
 #        2  on the default branch — wrong skill
-#        3  no commits to PR
+#        3  no commits to PR, and nothing uncommitted either — genuinely empty
 #        4  blockers found (uncommitted work and/or branch behind default) — see BLOCKERS
+#        5  no commits yet, but uncommitted work is present — commit it first, then PR.
+#           This is the state a fresh Orca ADE worktree starts in: the branch already
+#           exists with zero commits and the work is sitting in the working tree. It is
+#           not an error, and git-branch-and-pr cannot take it either (that skill requires
+#           the default branch), so this skill handles it.
 
 set -e
 
@@ -67,7 +72,13 @@ COMMITS=$(git log --oneline "origin/$DEFAULT_BRANCH..HEAD" 2>/dev/null || echo "
 if [[ -z "$COMMITS" ]]; then
     echo "(none)"
     echo ""
-    echo "ERROR: nothing to PR — this branch has no commits beyond origin/$DEFAULT_BRANCH."
+    if [[ -n "$PORCELAIN" ]]; then
+        echo "NO COMMITS YET — but there is uncommitted work above."
+        echo "Commit it first, then this branch is PR-able. See exit 5 in the header."
+        exit 5
+    fi
+    echo "ERROR: nothing to PR — this branch has no commits beyond origin/$DEFAULT_BRANCH,"
+    echo "and the working tree is clean. There is no work here."
     exit 3
 fi
 echo "$COMMITS"

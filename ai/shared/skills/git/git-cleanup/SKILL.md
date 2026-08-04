@@ -18,7 +18,7 @@ Helper scripts in `~/.claude/skills/git-cleanup/scripts/`:
 | Script | Purpose |
 |--------|---------|
 | `verify-merged.sh` | The gate: PR state must be `MERGED` with a non-null `mergedAt`; also checks branch and tree state |
-| `cleanup-branch.sh <branch> <default> --merge-verified` | Refresh default branch, delete local + remote branch. Refuses to run without the flag |
+| `cleanup-branch.sh <branch> <default> --merge-verified` | Refresh default branch, delete local + remote branch. Refuses to run without the flag. Worktree-aware — see below |
 
 ## Why the merge check cannot be softened
 
@@ -98,6 +98,19 @@ digraph cleanup {
    ```
 
    It fetches with `--prune`, switches to the default branch, pulls `--ff-only`, deletes the local branch (`-d`, falling back to `-D`), and deletes the remote branch if GitHub did not already auto-delete it.
+
+   **In a linked worktree (Orca ADE) it does less, deliberately.** Two of those steps are
+   impossible there: the default branch is checked out in the main checkout so it cannot be
+   switched to, and `<branch>` is the branch this worktree is standing on so git will not delete
+   it. The script detects the worktree, fast-forwards the default **by ref** instead of switching,
+   deletes the remote branch as usual, and then prints:
+
+   ```
+   orca worktree rm --worktree active
+   ```
+
+   That command removes the worktree and its local branch together. Surface it to the user — do
+   not run it for them, and do not report the branch as deleted when only the remote one was.
 
 4. If it exits **10**, the local default branch has diverged from origin — someone committed directly to it. The branch was **not** deleted. Do not force anything. Surface the divergence to the user (it usually means a commit landed by mistake), resolve it with them using the conflict procedure in `git-sync`, then re-run Phase 2.
 

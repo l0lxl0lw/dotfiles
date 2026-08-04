@@ -20,7 +20,7 @@ Helper scripts in `~/.claude/skills/git-sync/scripts/`:
 | Script | Purpose |
 |--------|---------|
 | `analyze-state.sh` | Branch, uncommitted summary, default-branch divergence, upstream, **rebase eligibility verdict** |
-| `sync-main.sh <default> <feature>` | Fast-forward the local default branch from origin |
+| `sync-main.sh <default> <feature>` | Fetch origin; fast-forward the local default branch **by ref, never checking it out** |
 | `rebase-main.sh <default>` / `--continue` / `--abort` / `--status` | Rebase behind a safety branch; tracks how many commits have conflicted and signals the bail-out |
 | `merge-main.sh <default>` | Merge the default branch into the feature branch |
 | `verify-resolution.sh [--quiet]` | Prove no conflict markers or unmerged paths survive |
@@ -150,12 +150,18 @@ digraph sync {
    ```
    Record that a stash exists. If there is nothing uncommitted, skip this and note that there will be no work to restore or commit at the end.
 
-### Phase 3: Fast-Forward the Local Default Branch
+### Phase 3: Fetch, and Fast-Forward the Local Default Branch by Ref
 
 5. ```bash
    bash ~/.claude/skills/git-sync/scripts/sync-main.sh <default> <feature>
    ```
-   On failure (exit 2) the local default branch diverged. Restore the stash, return to the feature branch, and report.
+   On failure (exit 2) the local default branch diverged. Restore the stash and report.
+
+   **The integration target is `origin/<default>`, not the local branch.** Nothing here ever runs
+   `git checkout`. A repo can have several checkouts — git worktrees, as Orca ADE uses — and git
+   refuses to check out a branch already checked out elsewhere, so switching to the default branch
+   fatals in every linked worktree. Updating the local default is a convenience done by ref, and is
+   skipped entirely when another worktree holds it. Phases 5a and 5b rebase/merge `origin/<default>`.
 
 ### Phase 4: Choose the Strategy
 

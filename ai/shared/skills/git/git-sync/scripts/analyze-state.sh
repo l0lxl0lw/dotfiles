@@ -9,6 +9,8 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     exit 1
 fi
 
+source "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../_lib/worktree.sh"
+
 CURRENT_BRANCH=$(git branch --show-current)
 echo "=== CURRENT BRANCH ==="
 echo "$CURRENT_BRANCH"
@@ -66,8 +68,22 @@ echo "(done)"
 echo ""
 
 # Local default vs origin default
+#
+# This only matters because sync-main.sh wants to fast-forward the local default branch.
+# When that branch lives in ANOTHER worktree (Orca ADE), its state is not this branch's
+# business and sync-main.sh will leave it alone — so report it and carry on rather than
+# refusing to sync. Integration targets origin/<default> either way.
 echo "=== LOCAL $DEFAULT_BRANCH vs origin/$DEFAULT_BRANCH ==="
-if git show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH"; then
+DEFAULT_HELD_AT=$(branch_checked_out_elsewhere "$DEFAULT_BRANCH")
+if [[ -n "$DEFAULT_HELD_AT" ]]; then
+    echo "Local $DEFAULT_BRANCH is checked out in another worktree: $DEFAULT_HELD_AT"
+    echo "It will not be touched. Integration target is origin/$DEFAULT_BRANCH."
+    if git show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH"; then
+        AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..$DEFAULT_BRANCH" 2>/dev/null || echo "0")
+        BEHIND=$(git rev-list --count "$DEFAULT_BRANCH..origin/$DEFAULT_BRANCH" 2>/dev/null || echo "0")
+        echo "(That worktree's $DEFAULT_BRANCH is ahead $AHEAD, behind $BEHIND — informational only.)"
+    fi
+elif git show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH"; then
     LOCAL_DEFAULT=$(git rev-parse "$DEFAULT_BRANCH")
     REMOTE_DEFAULT=$(git rev-parse "origin/$DEFAULT_BRANCH" 2>/dev/null || echo "")
     if [[ -z "$REMOTE_DEFAULT" ]]; then

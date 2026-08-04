@@ -18,8 +18,17 @@ if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
     exit 1
 fi
 
-echo "=== Merging $DEFAULT_BRANCH into $CURRENT_BRANCH ==="
-git merge --no-edit "$DEFAULT_BRANCH"
+# Merge the REMOTE ref, not the local branch. The local default branch may be checked
+# out in another worktree (Orca ADE) and stale or absent here; origin/<default> is what
+# sync-main.sh just fetched and is correct in every checkout layout.
+UPSTREAM="origin/$DEFAULT_BRANCH"
+if ! git rev-parse --verify --quiet "$UPSTREAM" >/dev/null; then
+    echo "ERROR: $UPSTREAM does not exist. Fetch first."
+    exit 1
+fi
+
+echo "=== Merging $UPSTREAM into $CURRENT_BRANCH ==="
+git merge --no-edit "$UPSTREAM"
 MERGE_EXIT=$?
 
 echo ""

@@ -72,6 +72,15 @@ digraph branchandpr {
 
    Do not proceed.
 
+   **If this is a linked worktree, say so and route them properly.** Detect with:
+   ```bash
+   [[ "$(git rev-parse --absolute-git-dir)" != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
+   ```
+   A worktree-based setup (Orca ADE) puts you on a feature branch from the moment the workspace is
+   created, so this skill is *never* reachable there — it is not a failure to work around. `git-pr`
+   covers the whole flow instead, including the zero-commits-with-uncommitted-work state a fresh
+   worktree starts in (its exit 5). Tell the user that rather than leaving them at a dead end.
+
 ### Phase 1: Analyze Repository State
 
 2. Run the analysis script **from the repo root**:

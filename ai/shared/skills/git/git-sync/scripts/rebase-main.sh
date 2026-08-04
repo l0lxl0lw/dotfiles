@@ -172,9 +172,18 @@ echo "$SAFETY"
 echo "Undo at any time with: git reset --hard $SAFETY"
 echo ""
 
-echo "=== Rebasing $CURRENT_BRANCH onto $DEFAULT_BRANCH ==="
+# Rebase onto the REMOTE ref, not the local branch. The local default branch may be
+# checked out in another worktree (Orca ADE) and stale or absent here; origin/<default>
+# is what sync-main.sh just fetched and is correct in every checkout layout.
+UPSTREAM="origin/$DEFAULT_BRANCH"
+if ! git rev-parse --verify --quiet "$UPSTREAM" >/dev/null; then
+    echo "ERROR: $UPSTREAM does not exist. Fetch first."
+    exit 1
+fi
+
+echo "=== Rebasing $CURRENT_BRANCH onto $UPSTREAM ==="
 # No -X ours / -X theirs: they resolve silently and defeat the entire point.
-git rebase "$DEFAULT_BRANCH"
+git rebase "$UPSTREAM"
 
 if rebase_in_progress; then
     report_conflicts

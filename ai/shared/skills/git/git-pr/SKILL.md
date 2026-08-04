@@ -78,8 +78,22 @@ digraph pr {
    |---|---|---|
    | 0 | Ready | Continue to Phase 3 |
    | 2 | On the default branch | Stop. Point the user at `git-branch-and-pr` |
-   | 3 | No commits beyond the default branch | Stop. There is nothing to PR |
+   | 3 | No commits **and** a clean tree | Stop. There is genuinely nothing to PR |
    | 4 | Blockers listed | Resolve them in Phase 2 |
+   | 5 | No commits yet, but work is uncommitted | Commit it first — see below — then re-run and continue |
+
+   **Exit 5 — the fresh-worktree case.** An Orca ADE worktree starts on a branch that already
+   exists with zero commits, with the work sitting uncommitted. `git-branch-and-pr` cannot take
+   it (that skill requires the default branch), so this skill does.
+
+   Propose a commit message and confirm it with `AskUserQuestion` exactly as Phase 2 does for
+   any other commit, then:
+   ```bash
+   bash ~/.claude/skills/git-pr/scripts/stage-files.sh --all
+   bash ~/.claude/skills/git-pr/scripts/create-commit.sh "<confirmed message>"
+   ```
+   Re-run `analyze-branch.sh` and continue from its new verdict. Never commit without
+   proposing the message and getting an answer back.
 
 3. Read the **three-dot** diff (`origin/<default>...HEAD`) closely enough to write an honest summary. Three-dot is exactly what GitHub shows in the PR — the diff against the merge-base — so a description built from it matches what a reviewer sees. Do not infer the summary from commit subjects alone.
 
