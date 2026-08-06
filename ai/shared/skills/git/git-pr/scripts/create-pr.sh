@@ -113,20 +113,3 @@ gh pr create \
 echo ""
 echo "=== PR CREATED ==="
 gh pr view --json url --jq '.url'
-
-# Move the branch's project card to In review.
-#
-# The repos register a PostToolUse hook for this, but it is gated on
-# `if: Bash(gh pr create *)` and matches the literal command string — which this
-# wrapper is not. Calling the hook here closes that blind spot deterministically
-# rather than depending on a glob matching the wrapper's invocation.
-#
-# Same defensive guard the repos use: a missing script, or a user who never
-# opted in, is a silent no-op. The hook is repo-gated and always exits 0, so it
-# can neither fail this script nor touch a repo that has not enabled tracking.
-# Runs last, after the URL is printed, because it sleeps through the board's
-# status-drift window.
-if [ -x "$HOME/.claude/hooks/gh-project-track.sh" ]; then
-    printf '{"cwd":"%s"}' "$PWD" \
-        | "$HOME/.claude/hooks/gh-project-track.sh" in-review >/dev/null 2>&1 || :
-fi
