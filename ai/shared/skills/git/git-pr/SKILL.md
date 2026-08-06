@@ -1,7 +1,6 @@
 ---
 name: git-pr
 description: Open a pull request for a feature branch that already has commits. Analyzes the full branch diff against the default branch, ensures nothing is left uncommitted, verifies the branch is current, runs the checks CI will run, then opens the PR with a generated description. Triggers — "open a PR for this branch", "publish a PR", "create a pull request", "raise a PR", "PR this branch", "ship this branch as a PR".
-disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit, Write
 ---
 

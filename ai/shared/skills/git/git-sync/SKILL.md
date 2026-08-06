@@ -1,7 +1,6 @@
 ---
 name: git-sync
 description: On a feature branch, bring the latest default branch into it — rebasing when that is clean, falling back to a merge when it is not — resolving every conflict interactively with the user, then optionally committing and pushing. Triggers — "sync with main", "merge main into my branch", "rebase onto main", "pull in the latest main", "update my branch with main", "main moved, catch me up", "resolve conflicts one by one".
-disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit
 ---
 

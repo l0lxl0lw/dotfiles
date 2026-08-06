@@ -1,7 +1,6 @@
 ---
 name: git-cleanup
 description: After a PR for the current branch has merged, verify it genuinely merged, then delete the branch (local and remote), switch to the default branch, and pull the latest. Triggers — "clean up after the merge", "the PR is merged, delete my branch", "post-merge cleanup", "delete this branch and switch to main", "I merged it, now pull main", "tidy up now that it's merged".
-disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit
 ---
 

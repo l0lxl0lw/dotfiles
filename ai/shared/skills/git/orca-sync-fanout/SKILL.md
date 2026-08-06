@@ -65,8 +65,8 @@ to stderr so stdout stays parseable.
    almost never urgent enough to justify that. If the wait times out the agent is genuinely busy —
    report it as skipped and move on rather than forcing it.
 
-   `/git-sync` carries `disable-model-invocation: true`, which only blocks *model* invocation.
-   Typed into a Claude Code TUI it is a user invocation, so it runs normally.
+   `/git-sync` is model-invocable, so the receiving agent runs it without needing the user to
+   confirm the invocation itself. It still asks the user about every conflict it resolves.
 
 6. For a workspace with **no live terminal** (`-`), do not spawn an agent silently. Report it with
    the command the user can run:

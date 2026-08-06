@@ -1,7 +1,6 @@
 ---
 name: git-push-branch
 description: On a feature branch, commit the current changes and push them — updating the open PR if there is one. The everyday loop for acting on review comments or fixing red CI. Triggers — "commit and push", "push this to my PR", "push my changes", "address the review comments", "push the fix", "update my PR", "CI is red, fix and push".
-disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit
 ---
 

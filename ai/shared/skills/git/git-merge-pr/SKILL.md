@@ -1,7 +1,6 @@
 ---
 name: git-merge-pr
 description: Merge the open pull request for the current branch, after verifying it is mergeable and CI is green. Asks for the merge strategy, then hands off to cleanup. Triggers — "merge my PR", "merge this pull request", "land this PR", "the PR is approved, merge it", "squash and merge".
-disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read
 ---
 
