@@ -141,6 +141,26 @@ than green — changing one without the other inverts the colour scale.
 
 Change the order or items in both files together, or they drift.
 
+## Prompt hooks
+
+`hooks/explain-level.sh` fires on `UserPromptSubmit` and returns a
+`hookSpecificOutput.additionalContext` string, which Claude Code injects into the model's
+context before it composes a reply. The string asks for college-level explanations: the real
+mechanism and correct terminology rather than a simplified analogy.
+
+**Why a hook and not `~/.claude/CLAUDE.md`.** CLAUDE.md is read once, at session start. Over
+a long conversation it sits further and further back in the context window and competes with
+everything added since, so its influence decays. `additionalContext` is re-injected with
+every prompt and always lands adjacent to the turn it is meant to shape.
+
+`UserPromptSubmit` is also the only event that can affect *how* an answer is written — it
+fires before the reply is composed. There is no post-hoc hook that rewrites a response, so a
+"before you answer, remember X" instruction has to be attached to the incoming prompt.
+
+The script emits `"suppressOutput": true` so the JSON itself stays out of the transcript.
+It never reads stdin, which is safe here: hook input arrives on stdin but nothing in the
+instruction depends on the prompt.
+
 ## Skills
 
 ### Core
@@ -299,7 +319,7 @@ my-project/
 1. **Auto-sync**: `~/dotfiles/zsh/zshrc.conf` pulls the dotfiles repo from GitHub daily
 2. **Skills**: `claude_merge_config` symlinks each tool-local or shared `skills/**/SKILL.md` parent dir flat to `~/.claude/skills/<name>`
 3. **Agents**: each `agents/**/*.md` is symlinked into a mirrored tree under `~/.claude/agents`, and invoked automatically by Claude Code when a task matches their descriptions
-4. **Hooks**: `hooks/statusline.sh` is symlinked into `~/.claude/hooks` and wired into `settings.json` as the statusline command
+4. **Hooks**: every top-level file in `hooks/` is symlinked into `~/.claude/hooks`. Only `statusline.sh` is wired into `settings.json` automatically (as the statusline command); any other hook needs its `settings.json` entry added by hand — see Setup
 
 Because it symlinks, editing a skill's contents takes effect immediately. Adding or renaming one requires re-running `claude_merge_config`.
 
@@ -320,6 +340,22 @@ Because it symlinks, editing a skill's contents takes effect immediately. Adding
        }]}]' ~/.claude/settings.json > /tmp/s.json \
      && jq -e . /tmp/s.json >/dev/null && mv /tmp/s.json ~/.claude/settings.json
    ```
+
+4. Wire up `explain-level.sh`, for the same reason — the symlink lands in `~/.claude/hooks`
+   but nothing references it until `settings.json` does. This appends to `UserPromptSubmit`
+   rather than replacing it, so a hook installed there by another tool survives:
+
+   ```bash
+   jq '.hooks.UserPromptSubmit = ((.hooks.UserPromptSubmit // []) + [{"hooks":[{
+         "type": "command",
+         "command": "sh ~/.claude/hooks/explain-level.sh",
+         "timeout": 5
+       }]}])' ~/.claude/settings.json > /tmp/s.json \
+     && jq -e . /tmp/s.json >/dev/null && mv /tmp/s.json ~/.claude/settings.json
+   ```
+
+   Re-running this adds a duplicate entry; check with
+   `jq '.hooks.UserPromptSubmit' ~/.claude/settings.json` first.
 
 Why a `SessionStart` hook and not shell startup: it fires once per Claude session instead of
 once per shell, at the only moment the result matters. It costs ~0.3s, and the function is
