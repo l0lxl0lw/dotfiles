@@ -20,10 +20,13 @@ dotfiles/ai/claude/
 
 dotfiles/ai/shared/
 └── skills/
+    ├── business/          # Offer/leads/money and office-hours skills
+    ├── codebase/          # Codebase comprehension (trace-callpath)
     ├── community/         # Skills from individual repos
     ├── git/               # Custom git workflow skills
     ├── impeccable/        # Design skills from pbakaus/impeccable
     ├── integrations/      # Custom integration skills
+    ├── mattpocock/        # Skills from mattpocock/skills, prefixed pocock-
     ├── omc/               # Planning skills from oh-my-claudecode
     └── utilities/         # Custom utility skills
 ```
@@ -82,7 +85,7 @@ After adding either, run `claude_merge_config` to create the symlink.
 
 - Skill names use kebab-case directories; agent names use kebab-case `.md` files
 - The `prompts/` directory is a reference archive — organized by provider (Anthropic, Google, OpenAI, xAI, Perplexity, Misc). Read-only, not loaded by Claude Code
-- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario, plus two read-only explainers. Skills are named for **what they do**; the branch they require is enforced in their first phase.
+- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario, plus two read-only explainers and `orca-sync-fanout`. Skills are named for **what they do**; the branch they require is enforced in their first phase. Every skill here is model-invocable except `git-push-to-main` and `orca-sync-fanout`, which carry `disable-model-invocation: true` — the model can reach for any step of the lifecycle, but pushing straight to the default branch and fanning out across workspaces stay user-initiated. `_lib/` holds shared shell (`worktree.sh`) and is not a skill.
 
   | Skill | Runs on | Does |
   |---|---|---|
@@ -97,7 +100,7 @@ After adding either, run `claude_merge_config` to create the symlink.
 
   The lifecycle: `git-branch-and-pr` or (`git-commit` → `git-pr`) → `git-push-branch` for review fixes → `git-merge-pr` → `git-cleanup`. `git-sync` slots in whenever the default branch moves.
 
-  Two read-only skills sit beside the lifecycle rather than in it. They mutate nothing (`git-explain-branch` fetches, which only moves remote-tracking refs) and are the only model-invocable skills in this directory:
+  Two read-only skills sit beside the lifecycle rather than in it. They mutate nothing (`git-explain-branch` fetches, which only moves remote-tracking refs):
 
   | Skill | Scope | Does |
   |---|---|---|

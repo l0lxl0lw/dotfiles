@@ -23,6 +23,8 @@ dotfiles/ai/claude/
 
 dotfiles/ai/shared/
 └── skills/
+    ├── business/          # Offer/leads/money and office-hours skills
+    ├── codebase/          # Codebase comprehension (trace-callpath)
     ├── community/         # Skills from individual repos
     ├── git/               # Custom git workflow skills
     ├── impeccable/        # Design skills from pbakaus/impeccable
@@ -167,13 +169,20 @@ instruction depends on the prompt.
 
 | Skill | Description | Model Invocable |
 |-------|-------------|-----------------|
-| `/git-push-to-main` | On the default branch: commit + push directly to remote | No |
-| `/git-pr-from-main` | On the default branch: wrap changes into a feature branch with one commit and open a PR | No |
-| `/git-sync-main-and-commit` | On a feature branch: pull latest main, merge it in, resolve conflicts, commit & push | No |
-| `/git-commit-local-changes` | Analyze uncommitted changes and create a commit (no push, no PR) | No |
+| `/git-commit` | Anywhere: commit on the current branch. Never pushes | Yes |
+| `/git-push-branch` | Feature branch: commit and push, updating the open PR. Reports its CI checks | Yes |
+| `/git-push-to-main` | Default branch: pull if behind, then commit and push directly | No |
+| `/git-branch-and-pr` | Default branch: move the work onto a new branch as one commit and open a PR | Yes |
+| `/git-pr` | Feature branch: open a PR for a branch that already has commits | Yes |
+| `/git-sync` | Feature branch: bring the default branch in — rebase preferred, merge as fallback | Yes |
+| `/git-merge-pr` | Feature branch: merge the open PR once it is genuinely mergeable | Yes |
+| `/git-cleanup` | Feature branch: after a verified merge, delete the branch and refresh the default branch | Yes |
 | `/git-explain-diff` | Explain the uncommitted working tree — staged, unstaged and untracked — grouped by behavioral change. Read-only | Yes |
 | `/git-explain-branch` | Explain what this branch changes vs the default branch, with a contract/migration/collision risk pass. Read-only | Yes |
-| `/explain` | Explain a concept in chat at college-student depth | No |
+| `/orca-sync-fanout` | Dispatch `/git-sync` into every Orca workspace that is behind the default branch | No |
+| `/explain-college-level` | Explain a concept in chat at college-student depth | No |
+| `/explain-code-flow` | Same, plus the call path and call tree of how it runs — clickable `path:line` on every node | No |
+| `/trace-callpath` | Trace a runtime path to clickable `path:line` breakpoints, carried to the SQL and the outbound request. Read-only | Yes |
 | `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
 | `/readme` | Read README in current directory and execute instructions | Yes |
 | `/update-diagram` | Scan codebase and update existing diagram files | Yes |
