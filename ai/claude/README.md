@@ -173,6 +173,7 @@ instruction depends on the prompt.
 | `/git-commit-local-changes` | Analyze uncommitted changes and create a commit (no push, no PR) | No |
 | `/git-explain-diff` | Explain the uncommitted working tree — staged, unstaged and untracked — grouped by behavioral change. Read-only | Yes |
 | `/git-explain-branch` | Explain what this branch changes vs the default branch, with a contract/migration/collision risk pass. Read-only | Yes |
+| `/explain` | Explain a concept in chat at college-student depth | No |
 | `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
 | `/readme` | Read README in current directory and execute instructions | Yes |
 | `/update-diagram` | Scan codebase and update existing diagram files | Yes |
