@@ -192,6 +192,7 @@ instruction depends on the prompt.
 | `/humanizer` | Remove signs of AI-generated writing from text | Yes |
 | `/load-memory` | Restore working memory from MEMORY.md at session start | Yes |
 | `/save-memory` | Save working memory from the current session into MEMORY.md | Yes |
+| `/brainstorm-then-plan` | Scope with superpowers brainstorming, then plan and build in plan mode (Claude or codex) | No |
 | `/plan` | Strategic planning with optional interview workflow | Yes |
 | `/ralph` | Self-referential loop until task completion with configurable reviewer | Yes |
 | `/ralplan` | Iterative planning with Planner, Architect, and Critic agents | Yes |
