@@ -4,6 +4,8 @@
 
 set -e
 
+source "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../_lib/repo-checks.sh"
+
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "ERROR: Not in a git repository"
     exit 1
@@ -99,6 +101,16 @@ elif [[ -f "README" ]]; then
 else
     echo "No README found"
 fi
+echo ""
+
+# Repo-local pre-PR checks
+# Invariants this repo declares for itself (spec drift, stale generated artifacts).
+# This skill runs on the default branch with the work still uncommitted, so the
+# relevant file set is the working tree — staged, unstaged and untracked.
+CHANGED_FILES=$(mktemp)
+repo_check_worktree_files | sed '/^$/d' | sort -u > "$CHANGED_FILES"
+emit_repo_checks_section "$CHANGED_FILES" "git-branch-and-pr" "$DEFAULT_BRANCH" || true
+rm -f "$CHANGED_FILES"
 echo ""
 
 # Check for PR template

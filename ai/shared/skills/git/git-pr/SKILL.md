@@ -1,6 +1,6 @@
 ---
 name: git-pr
-description: Open a pull request for a feature branch that already has commits. Analyzes the full branch diff against the default branch, ensures nothing is left uncommitted, verifies the branch is current, runs the checks CI will run, then opens the PR with a generated description. Triggers — "open a PR for this branch", "publish a PR", "create a pull request", "raise a PR", "PR this branch", "ship this branch as a PR".
+description: Open a pull request for a feature branch that already has commits. Analyzes the full branch diff against the default branch, ensures nothing is left uncommitted, verifies the branch is current, runs the checks CI will run plus any drift checks the repo declares for itself, then opens the PR with a generated description. Triggers — "open a PR for this branch", "publish a PR", "create a pull request", "raise a PR", "PR this branch", "ship this branch as a PR".
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit, Write
 ---
 
@@ -18,10 +18,44 @@ Helper scripts in `~/.claude/skills/git-pr/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
-| `analyze-branch.sh` | Branch info, uncommitted work, three-dot PR diff, up-to-date check, existing-PR check, CI workflows, local check commands, PR template |
+| `analyze-branch.sh` | Branch info, uncommitted work, three-dot PR diff, up-to-date check, existing-PR check, CI workflows, local check commands, repo-local pre-PR checks, PR template |
+| `repo-check.sh list \| run <name>` | List the repo's own declared pre-PR checks, or run one and gate on its result |
 | `stage-files.sh [files\|--all]` | Stage files with sensitive-file warnings |
 | `create-commit.sh <msg> [--amend]` | Create commit (rejects AI attribution) |
 | `create-pr.sh <title> <body_file> [--draft]` | Push and open the PR (rejects AI attribution in title *and* body, refuses duplicates) |
+
+## Repo-local pre-PR checks
+
+Beyond lint/build/test, a repo often has consistency invariants that no generic command
+knows about: an OpenAPI spec drifted from the routes the code registers, a checked-in
+generated client stale against its schema, a migration no model reflects. The repo declares
+these itself, in the frontmatter of one of its own `.claude/skills/*/SKILL.md`:
+
+```yaml
+pre-pr:
+  command: .claude/skills/ocfo-api-sync/scripts/audit.sh
+  when-paths: [server/handler.go, endpoint/, model/, openapi/]
+  fail-on: 'missing [1-9]|stale [1-9]|mismatch [1-9]'
+  fix: 'Run Phase B, then Phase C, and re-audit'
+```
+
+| Key | Meaning |
+|---|---|
+| `command` | Required. Run from the repo root |
+| `when-paths` | Optional. Run only when the branch touches one of these; absent means always. `*` crosses `/`, and a bare directory covers everything beneath it |
+| `fail-on` | Optional POSIX ERE matched against combined stdout+stderr. A match is a FAILURE regardless of exit status |
+| `fix` | Optional one-liner telling the operator how to close the drift |
+
+`fail-on` is what makes this reliable. Audit scripts routinely **exit 0 while reporting
+drift** — `ocfo-api-sync`'s own audit does exactly that, and prints its `## MISSING` /
+`## STALE` section headers unconditionally, with `(none)` beneath them when clean. Gating on
+exit status would sail past the drift; gating on a header would fire on every clean run. The
+regex has to key off something that is only present when the check genuinely fails, which is
+usually a summary count.
+
+`analyze-branch.sh` prints the discovered checks and which ones this branch's diff makes
+REQUIRED. Repos that declare nothing still get a soft CANDIDATES list — drift-ish skills
+found by keyword. That list is a prompt for your judgment, never a gate.
 
 ## Workflow
 
@@ -37,6 +71,9 @@ digraph pr {
     "Run CI-equivalent checks" [shape=box];
     "Checks green?" [shape=diamond];
     "Stop — report failures" [shape=box];
+    "Run REQUIRED repo-local checks" [shape=box];
+    "Drift clean?" [shape=diamond];
+    "Stop — offer to close the drift" [shape=box];
     "Propose title + body" [shape=box];
     "User confirms?" [shape=diamond];
     "Revise" [shape=box];
@@ -53,7 +90,10 @@ digraph pr {
     "Branch behind default?" -> "Run CI-equivalent checks" [label="no"];
     "Run CI-equivalent checks" -> "Checks green?";
     "Checks green?" -> "Stop — report failures" [label="no"];
-    "Checks green?" -> "Propose title + body" [label="yes"];
+    "Checks green?" -> "Run REQUIRED repo-local checks" [label="yes"];
+    "Run REQUIRED repo-local checks" -> "Drift clean?";
+    "Drift clean?" -> "Stop — offer to close the drift" [label="no"];
+    "Drift clean?" -> "Propose title + body" [label="yes"];
     "Propose title + body" -> "User confirms?";
     "User confirms?" -> "Revise" [label="no"];
     "Revise" -> "User confirms?";
@@ -125,9 +165,34 @@ digraph pr {
 
    If the repo has no discoverable checks, say so plainly in the report rather than implying the PR was verified.
 
+9. Run every repo-local check the analysis marked **REQUIRED**:
+   ```bash
+   bash ~/.claude/skills/git-pr/scripts/repo-check.sh run <name>
+   ```
+   The script applies that check's `fail-on` regex, so the verdict is the exit code, not your
+   reading of the output: **0** passed, **1** FAILED, **2** not runnable (report it as a gap —
+   never as a pass).
+
+   Also read the CANDIDATES list, if any. If one of them plainly covers something this diff
+   touches, run it by hand and offer to add a `pre-pr:` block so the next PR gates on it
+   automatically.
+
+10. If a REQUIRED check exits **1**, **STOP**. Print its report verbatim — the drift detail is
+    the whole point, do not summarize it away — then put the next move to the user with
+    **`AskUserQuestion`**:
+
+    | Option | Action |
+    |---|---|
+    | **Close the drift now** | Run the owning skill as its `fix` line says, re-run `repo-check.sh run <name>` until it passes, commit the regenerated artifacts, then continue |
+    | **Open the PR anyway** | Only if the drift is pre-existing and unrelated to this branch. Say so explicitly in the PR body under a `## Known drift` heading |
+    | **Abort** | Stop and let the user sort it out |
+
+    Never auto-fix: closing spec drift rewrites checked-in artifacts, which is a change the
+    user has to see and agree to before it lands in their PR.
+
 ### Phase 4: Propose Title and Body
 
-9. Draft:
+11. Draft:
    - **Title**: imperative, under 70 chars, scoped to the change (e.g. `fix(cache): evict stale entries on write`)
    - **Body** — use the repo's PR template if one exists, otherwise:
      ```
@@ -141,21 +206,21 @@ digraph pr {
      <the checks that were run and their result, plus anything verified manually>
      ```
 
-10. **Show the title and full body to the user** as text, then put it to them with **`AskUserQuestion`** — open the PR with this, or edit it first (they type changes via Other). Wait for the answer before pushing anything.
+12. **Show the title and full body to the user** as text, then put it to them with **`AskUserQuestion`** — open the PR with this, or edit it first (they type changes via Other). Wait for the answer before pushing anything.
 
 ### Phase 5: Push and Create
 
-11. Write the confirmed body to a file, then create the PR:
+13. Write the confirmed body to a file, then create the PR:
     ```bash
     bash ~/.claude/skills/git-pr/scripts/create-pr.sh "<title>" /tmp/pr-body.md
     ```
     The script pushes the branch (setting upstream if needed), refuses duplicates, and rejects AI attribution in both the title and the body. Pass `--draft` only if the user asked for a draft.
 
-12. If it exits **2**, a PR already existed — report that URL rather than treating it as a failure.
+14. If it exits **2**, a PR already existed — report that URL rather than treating it as a failure.
 
 ### Phase 6: Report
 
-13. Give the user the PR URL, the branch, the commit count, and which checks were run and passed. If work was stashed in Phase 2, restore it now and say so.
+15. Give the user the PR URL, the branch, the commit count, and which checks were run and passed. If work was stashed in Phase 2, restore it now and say so.
 
     Do not merge — opening the PR is the end of this skill. When review is done, `git-merge-pr` merges it and `git-cleanup` tidies up afterwards.
 
@@ -164,6 +229,8 @@ digraph pr {
 - Run only on a feature branch that already has commits — refuse in Phase 1 otherwise
 - NEVER open a PR with uncommitted work unresolved or the branch behind the default branch
 - NEVER open a PR when the local checks are failing
+- NEVER open a PR with a REQUIRED repo-local check failing, unless the user explicitly picked "open anyway" and the drift is recorded in the PR body
+- NEVER close drift on the user's behalf — running the fix rewrites checked-in artifacts, which needs their say-so
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits **or** in the PR title/body — `create-pr.sh` rejects it in both
 - **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed title and body and for the final report
 - NEVER push or create the PR without showing the title and body and getting the dialog answer
@@ -184,3 +251,5 @@ digraph pr {
 - **Duplicate PR.** Check for an existing PR before creating one; re-running this skill must be safe.
 - **Merging the PR.** This skill opens it; review and merge are someone else's job.
 - **Claiming checks passed when none exist.** If the repo has no discoverable checks, say that instead.
+- **Reading an audit's output instead of its exit code.** `repo-check.sh run` already applied the `fail-on` regex. Exit 0 is a pass, exit 1 is a fail; don't overrule it because the report "looks fine".
+- **Treating exit 2 as a pass.** A check that could not run is an unverified invariant. Report it as a gap.

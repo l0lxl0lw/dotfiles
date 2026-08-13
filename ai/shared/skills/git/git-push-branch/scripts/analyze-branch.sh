@@ -10,6 +10,8 @@
 
 set -e
 
+source "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../_lib/repo-checks.sh"
+
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "ERROR: Not in a git repository"
     exit 1
@@ -129,6 +131,18 @@ if command -v gh >/dev/null 2>&1; then
 else
     echo "WARNING: gh CLI not found — cannot report PR or CI status"
 fi
+echo ""
+
+# --- Repo-local pre-push checks ---------------------------------------------
+# Invariants this repo declares for itself (spec drift, stale generated artifacts).
+# Relevance is judged against everything the PR will contain after this push — the
+# three-dot diff plus the uncommitted work about to be committed — not just the
+# files in this one commit, because drift introduced earlier on the branch is still
+# drift the push is about to publish.
+CHANGED_FILES=$(mktemp)
+repo_check_changed_files "$DEFAULT_BRANCH" > "$CHANGED_FILES"
+emit_repo_checks_section "$CHANGED_FILES" "git-push-branch" "$DEFAULT_BRANCH" || true
+rm -f "$CHANGED_FILES"
 echo ""
 
 echo "=== RECENT COMMITS (for style reference) ==="

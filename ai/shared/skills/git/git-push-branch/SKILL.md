@@ -18,9 +18,15 @@ Helper scripts in `~/.claude/skills/git-push-branch/scripts/`:
 
 | Script | Purpose |
 |--------|---------|
-| `analyze-branch.sh` | Status, diffs, unpushed commits, upstream drift, behind-default check, **open PR and its CI checks** |
+| `analyze-branch.sh` | Status, diffs, unpushed commits, upstream drift, behind-default check, **open PR and its CI checks**, repo-local pre-PR checks |
+| `repo-check.sh list \| run <name>` | List the repo's own declared pre-PR checks, or run one and gate on its result |
 | `stage-files.sh [files\|--all]` | Stage files with sensitive-file warnings |
 | `create-commit.sh <msg> [--amend]` | Create commit or amend (rejects AI attribution) |
+
+The repo declares its own consistency checks — spec drift, stale generated artifacts — in a
+`pre-pr:` frontmatter block on one of its `.claude/skills/*/SKILL.md`. `git-pr` documents the
+contract in full; here it matters because a push to an open PR publishes the drift just as
+surely as opening the PR did.
 
 ## Workflow
 
@@ -39,6 +45,9 @@ digraph pushbranch {
     "User confirms?" [shape=diamond];
     "Revise" [shape=box];
     "Stage + commit" [shape=box];
+    "Run REQUIRED repo-local checks" [shape=box];
+    "Drift clean?" [shape=diamond];
+    "Stop — offer to close the drift" [shape=box];
     "Push" [shape=box];
     "PR open?" [shape=diamond];
     "Report PR + watch CI" [shape=box];
@@ -59,7 +68,10 @@ digraph pushbranch {
     "User confirms?" -> "Revise" [label="no"];
     "Revise" -> "User confirms?";
     "User confirms?" -> "Stage + commit" [label="yes"];
-    "Stage + commit" -> "Push";
+    "Stage + commit" -> "Run REQUIRED repo-local checks";
+    "Run REQUIRED repo-local checks" -> "Drift clean?";
+    "Drift clean?" -> "Stop — offer to close the drift" [label="no"];
+    "Drift clean?" -> "Push" [label="yes"];
     "Push" -> "PR open?";
     "PR open?" -> "Report PR + watch CI" [label="yes"];
     "PR open?" -> "Report" [label="no"];
@@ -126,9 +138,27 @@ digraph pushbranch {
    ```
    Add `--amend` for the squash case. The script rejects AI attribution.
 
-### Phase 6: Push
+### Phase 6: Check the Repo's Own Invariants
 
-10. ```bash
+10. Run every repo-local check the analysis marked **REQUIRED**:
+    ```bash
+    bash ~/.claude/skills/git-push-branch/scripts/repo-check.sh run <name>
+    ```
+    The script applies that check's `fail-on` regex: **0** passed, **1** FAILED, **2** not
+    runnable (a gap, not a pass). Relevance was judged against everything the PR will contain
+    after this push, not just this commit — drift introduced earlier on the branch is still
+    drift this push publishes.
+
+    On **1**, **STOP before pushing**. Print the report verbatim, then use `AskUserQuestion`:
+    close the drift now (run the owning skill per its `fix` line, re-check, commit the
+    regenerated artifacts, then push), push anyway (only for pre-existing unrelated drift),
+    or abort. Never close drift on your own — it rewrites checked-in artifacts.
+
+    Skip this phase entirely when the analysis found no REQUIRED checks; do not invent one.
+
+### Phase 7: Push
+
+11. ```bash
     git push
     ```
     If there is no upstream:
@@ -141,9 +171,9 @@ digraph pushbranch {
     ```
     Never plain `--force`.
 
-### Phase 7: Report
+### Phase 8: Report
 
-11. State the commit, the branch, and that it pushed. If a PR is open, give its URL and note that the push updated it.
+12. State the commit, the branch, and that it pushed. If a PR is open, give its URL and note that the push updated it.
 
     If the user was fixing red CI, offer to check the run once it starts:
     ```bash
@@ -155,6 +185,8 @@ digraph pushbranch {
 
 - Run only on a feature branch — refuse on the default branch
 - Pull before pushing when the branch is behind its own upstream; never force past a rejected push
+- NEVER push with a REQUIRED repo-local check failing, unless the user explicitly picked "push anyway"
+- NEVER close drift on the user's behalf — running the fix rewrites checked-in artifacts, which needs their say-so
 - **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
 - Always propose the commit message and wait for the dialog answer (or their replacement) before committing
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution — `create-commit.sh` rejects it
@@ -172,3 +204,4 @@ digraph pushbranch {
 - **Opening a second PR.** This skill pushes to the branch; the existing PR updates itself. Use `git-pr` only when there is no PR yet.
 - **Blocking on `gh pr checks --watch` unprompted.** It waits for CI to finish. Only run it when asked.
 - **Silently staging sensitive files.** Let `stage-files.sh` do the staging.
+- **Pushing spec drift into a green PR.** A REQUIRED repo-local check failing is a red PR that CI may not even catch. Gate on `repo-check.sh run`'s exit code, not on how the report reads.

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Analyze a feature branch that already has commits, in preparation for opening a PR.
 # Outputs: branch info, uncommitted work, the PR diff (three-dot), up-to-date check,
-#          existing-PR check, PR template, and the local checks that mirror CI.
+#          existing-PR check, PR template, the local checks that mirror CI, and the
+#          repo's own declared pre-PR checks (see ../../_lib/repo-checks.sh).
 #
 # Usage: analyze-branch.sh
 # Exit:  0  ready to PR
@@ -16,6 +17,8 @@
 #           the default branch), so this skill handles it.
 
 set -e
+
+source "$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../_lib/repo-checks.sh"
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "ERROR: Not in a git repository"
@@ -186,6 +189,17 @@ fi
 if [[ ! -f "package.json" && ! -f "Makefile" && ! -f "justfile" && ! -f "Justfile" ]]; then
     echo "(no package.json / Makefile / justfile found)"
 fi
+echo ""
+
+# --- Repo-local pre-PR checks -----------------------------------------------
+# Invariants this repo declares for itself (spec drift, stale generated artifacts)
+# that no generic lint/build/test command knows about. Discovery only — the checks
+# marked REQUIRED are run in Phase 3 via repo-check.sh, which applies each one's
+# fail-on regex so the pass/fail call is deterministic.
+CHANGED_FILES=$(mktemp)
+repo_check_changed_files "$DEFAULT_BRANCH" > "$CHANGED_FILES"
+emit_repo_checks_section "$CHANGED_FILES" "git-pr" "$DEFAULT_BRANCH" || true
+rm -f "$CHANGED_FILES"
 echo ""
 
 # --- PR template ------------------------------------------------------------
