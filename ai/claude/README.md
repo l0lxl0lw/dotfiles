@@ -171,7 +171,7 @@ instruction depends on the prompt.
 |-------|-------------|-----------------|
 | `/git-commit` | Anywhere: commit on the current branch. Never pushes | Yes |
 | `/git-push-branch` | Feature branch: commit and push, updating the open PR. Reports its CI checks | Yes |
-| `/git-push-to-main` | Default branch: pull if behind, then commit and push directly | No |
+| `/git-push-to-main` | Default branch: pull if behind, then commit and push directly — runs end to end without asking | No |
 | `/git-branch-and-pr` | Default branch: move the work onto a new branch as one commit and open a PR | Yes |
 | `/git-pr` | Feature branch: open a PR for a branch that already has commits | Yes |
 | `/git-sync` | Feature branch: bring the default branch in — rebase preferred, merge as fallback | Yes |

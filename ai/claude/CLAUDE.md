@@ -91,7 +91,7 @@ After adding either, run `claude_merge_config` to create the symlink.
   |---|---|---|
   | `git-commit` | anywhere | Commits on the current branch. Never pushes |
   | `git-push-branch` | feature branch | Commits and pushes; updates the open PR. Reports its CI checks |
-  | `git-push-to-main` | default branch | Pulls if behind, then commits and pushes directly |
+  | `git-push-to-main` | default branch | Pulls if behind, then commits and pushes directly — end to end, no confirmation step |
   | `git-branch-and-pr` | default branch | Moves the work to a new branch as one commit and opens a PR |
   | `git-pr` | feature branch | Opens a PR for a branch that already has commits |
   | `git-sync` | feature branch | Brings the default branch in — rebase preferred, merge as fallback. Committing and pushing are opt-in |
