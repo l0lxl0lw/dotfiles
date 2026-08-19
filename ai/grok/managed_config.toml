@@ -1,0 +1,36 @@
+# Tracked Grok settings.
+#
+# Symlinked to ~/.grok/managed_config.toml by grok_merge_config. Grok merges its
+# config files lowest-to-highest as
+#
+#   managed_config.toml -> config.toml -> GROK_CONFIG overlay -> requirements.toml
+#
+# so everything here is a DEFAULT that the machine-local ~/.grok/config.toml can
+# override on a per-key basis. Grok only ever reads this layer — the TUI writes
+# solely to config.toml — which is why this can be a plain symlink, with none of
+# the marker-splicing the Codex side needs for its config.toml.
+#
+# A malformed file here breaks startup, and nothing validates it at link time.
+# Run `grok inspect` after editing.
+
+# Grok scans other vendors' directories for skills and rules. All of these
+# default to true; they are pinned explicitly because the inheritance is a
+# decision, not an accident:
+#
+#   * ~/.claude/skills is where gstack installs its skills as real directories.
+#     Those are not tracked in this repo and this is the only way Grok sees them.
+#   * ~/.claude/CLAUDE.md carries the global instructions shared with Claude Code,
+#     so AGENTS.md here holds only what is Grok-specific.
+#
+# The shared skills in ai/shared/skills are visible through this scan too, but do
+# not rely on that: grok_merge_config links them into ~/.grok/skills directly, and
+# Grok de-duplicates by skill name.
+[compat.claude]
+skills = true
+rules = true
+agents = true
+
+[compat.cursor]
+skills = true
+rules = true
+agents = true

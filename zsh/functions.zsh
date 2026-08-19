@@ -126,12 +126,12 @@ _claude_agents() {
 compdef _claude_agents ccaa ccta
 
 # ---------------------------------------------------------------------------
-# Linking tracked config into ~/.claude and ~/.codex
+# Linking tracked config into ~/.claude, ~/.codex and ~/.grok
 #
-# Both tools read a user-level directory that is a SHARED namespace: our
+# Every tool reads a user-level directory that is a SHARED namespace: our
 # symlinks live next to real directories installed by other tools (gstack under
-# ~/.claude/skills, Codex's own .system/ under ~/.codex/skills). So the plumbing
-# below is surgical on two axes:
+# ~/.claude/skills, Codex's own .system/ under ~/.codex/skills, another vendor's
+# hook JSON under ~/.grok/hooks). So the plumbing below is surgical on two axes:
 #
 #   * It only ever deletes a symlink that points back into a root we own.
 #     Real directories and other installers' symlinks are never touched.
@@ -416,4 +416,89 @@ codex_merge_config() {
 codex() {
   codex_merge_config
   command codex "$@"
+}
+
+# Link ~/dotfiles/ai/grok into ~/.grok (skills, agents, hooks, AGENTS.md, settings).
+#
+# Driven from two places, on purpose: the grok() wrapper below (which is the one
+# moment we know the config is about to be read), and a tracked SessionStart hook
+# at ai/grok/hooks/dotfiles-sync.json, which covers launches that never touch this
+# shell -- an IDE or ACP client running `grok agent stdio`. The sync converges and
+# is silent when there is nothing to do, so running it twice costs nothing.
+grok_merge_config() {
+  emulate -L zsh
+  setopt extended_glob
+
+  local grok_dir="${GROK_HOME:-$HOME/.grok}"
+  local repo="$HOME/dotfiles/ai/grok"
+  [[ -d "$repo" ]] || { echo "grok_merge_config: $repo not found" >&2; return 1 }
+  # Don't create ~/.grok; its absence means Grok isn't installed here.
+  [[ -d "$grok_dir" ]] || return 0
+
+  local f key
+  local -A want_a want_h
+  _agentcfg_reset
+
+  # Skills. ~/.grok/skills is ours alone -- Grok's own bundled skills live under
+  # ~/.grok/bundled/skills and marketplace plugins under ~/.grok/plugins, neither
+  # of which we touch. Grok-local skills win by name; ai/shared/skills holds
+  # cross-tool skills.
+  _agentcfg_sync_skill_sources "$grok_dir/skills" \
+    "$repo/skills" \
+    "$HOME/dotfiles/ai/shared/skills"
+
+  # Global instructions: Grok's equivalent of ~/.claude/CLAUDE.md.
+  [[ -f "$repo/AGENTS.md" ]] && \
+    _agentcfg_link "$repo/AGENTS.md" "$grok_dir/AGENTS.md" "AGENTS.md"
+
+  # Settings. Unlike Codex, Grok reads a second config file layered *below* the
+  # one it writes to, so tracked defaults can just be a symlink: no marker splice,
+  # no parse probe, no backup. ~/.grok/config.toml stays machine-local and wins on
+  # any key it sets.
+  [[ -f "$repo/managed_config.toml" ]] && \
+    _agentcfg_link "$repo/managed_config.toml" "$grok_dir/managed_config.toml" "managed_config.toml"
+
+  # Agents: flat *.md, since Grok reads ~/.grok/agents/*.md without recursing.
+  if [[ -d "$repo/agents" ]]; then
+    mkdir -p "$grok_dir/agents"
+    for f in "$repo"/agents/*.md(N-.); do want_a[${f:t}]="$f"; done
+
+    for f in "$grok_dir"/agents/*(N@); do
+      _agentcfg_is_managed "$f" || continue
+      (( ${+want_a[${f:t}]} )) && continue
+      rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+    done
+    for key in ${(ko)want_a}; do
+      _agentcfg_link "${want_a[$key]}" "$grok_dir/agents/$key" "agent '$key'"
+    done
+  fi
+
+  # Hooks: one JSON file per concern. Grok loads every *.json in ~/.grok/hooks
+  # by itself, so unlike the Claude side nothing has to be wired into a settings
+  # file afterwards. Other installers drop real files here (orca-status.json) and
+  # those are never touched -- pruning only removes symlinks we own.
+  if [[ -d "$repo/hooks" ]]; then
+    mkdir -p "$grok_dir/hooks"
+    for f in "$repo"/hooks/*.json(N-.); do want_h[${f:t}]="$f"; done
+
+    for f in "$grok_dir"/hooks/*(N@); do
+      _agentcfg_is_managed "$f" || continue
+      (( ${+want_h[${f:t}]} )) && continue
+      rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+    done
+    for key in ${(ko)want_h}; do
+      _agentcfg_link "${want_h[$key]}" "$grok_dir/hooks/$key" "hook '$key'"
+    done
+  fi
+
+  _agentcfg_report grok_merge_config
+}
+
+# Sync tracked Grok config, then hand off to the real binary. Grok does have a
+# SessionStart hook (and one is installed from ai/grok/hooks), but a hook fires
+# once the session is already coming up, so this is what guarantees the config is
+# current *before* it is read. `command` is required: bare `grok` is this wrapper.
+grok() {
+  grok_merge_config
+  command grok "$@"
 }

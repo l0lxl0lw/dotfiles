@@ -143,6 +143,9 @@ Codex imports shared skills from:
 Shared skills currently include the git workflows, Impeccable design skills, OMC planning
 skills, integrations, community skills, and utilities.
 
+The same tree is imported by the Claude and Grok syncs, so a skill added there reaches
+all three tools.
+
 If a shared skill needs Codex-specific behavior, add a skill with the same basename
 under `ai/codex/skills/`; the local Codex version takes precedence and the shared one is
 skipped during sync.

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "zsh -c 'source ~/dotfiles/zsh/functions.zsh 2>/dev/null; grok_merge_config'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
