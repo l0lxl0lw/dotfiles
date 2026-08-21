@@ -75,7 +75,7 @@ digraph pr {
     "Drift clean?" [shape=diamond];
     "Stop — offer to close the drift" [shape=box];
     "Propose title + body" [shape=box];
-    "User confirms?" [shape=diamond];
+    "Single gate: open / draft / edit?" [shape=diamond];
     "Revise" [shape=box];
     "Push + create PR" [shape=box];
     "Report PR URL" [shape=box];
@@ -94,10 +94,10 @@ digraph pr {
     "Run REQUIRED repo-local checks" -> "Drift clean?";
     "Drift clean?" -> "Stop — offer to close the drift" [label="no"];
     "Drift clean?" -> "Propose title + body" [label="yes"];
-    "Propose title + body" -> "User confirms?";
-    "User confirms?" -> "Revise" [label="no"];
-    "Revise" -> "User confirms?";
-    "User confirms?" -> "Push + create PR" [label="yes"];
+    "Propose title + body" -> "Single gate: open / draft / edit?";
+    "Single gate: open / draft / edit?" -> "Revise" [label="edit"];
+    "Revise" -> "Single gate: open / draft / edit?";
+    "Single gate: open / draft / edit?" -> "Push + create PR" [label="open | draft"];
     "Push + create PR" -> "Report PR URL";
 }
 ```
@@ -125,14 +125,15 @@ digraph pr {
    exists with zero commits, with the work sitting uncommitted. `git-branch-and-pr` cannot take
    it (that skill requires the default branch), so this skill does.
 
-   Propose a commit message and confirm it with `AskUserQuestion` exactly as Phase 2 does for
-   any other commit, then:
+   Print the commit message you propose as ordinary text, then put it to the user with **one
+   `AskUserQuestion`** — **Commit it** / **Reword** (they type the replacement via Other) /
+   **Abort**. On **Commit it**:
    ```bash
    bash ~/.claude/skills/git-pr/scripts/stage-files.sh --all
    bash ~/.claude/skills/git-pr/scripts/create-commit.sh "<confirmed message>"
    ```
-   Re-run `analyze-branch.sh` and continue from its new verdict. Never commit without
-   proposing the message and getting an answer back.
+   Re-run `analyze-branch.sh` and continue from its new verdict. Never commit without showing
+   the message and getting that answer back — and never split it into two dialogs.
 
 3. Read the **three-dot** diff (`origin/<default>...HEAD`) closely enough to write an honest summary. Three-dot is exactly what GitHub shows in the PR — the diff against the merge-base — so a description built from it matches what a reviewer sees. Do not infer the summary from commit subjects alone.
 
@@ -145,15 +146,18 @@ digraph pr {
 
 ### Phase 2: Clear the Blockers
 
-5. **`uncommitted-changes`** — surface the exact files and ask the user with `AskUserQuestion`:
+5. **`uncommitted-changes`** — surface the exact files **and the commit message you propose for
+   them** as ordinary text, then ask with **one `AskUserQuestion`**:
 
    | Option | Action |
    |---|---|
-   | **Commit it** | Propose a message, confirm it through another `AskUserQuestion`, then `stage-files.sh --all` + `create-commit.sh`; re-run Phase 1 |
+   | **Commit it** | `stage-files.sh --all` + `create-commit.sh "<the message shown above>"`; re-run Phase 1 |
+   | **Reword** | They type the replacement via Other; commit with that, then re-run Phase 1 |
    | **Leave it out** | `git stash push -u` so it is excluded from the PR; restore it after the PR is open |
    | **Abort** | Stop and let the user sort it out |
 
-   Never silently commit or discard. Untracked files count as uncommitted.
+   The message rides along in this dialog — do not confirm the triage, then confirm the message
+   in a second one. Never silently commit or discard. Untracked files count as uncommitted.
 
 6. **`behind-default-branch`** — stop and tell the user to run `git-sync` first. Do not open a PR from a stale branch: the diff will not reflect what actually merges, and many CI guards reject it outright.
 
@@ -206,7 +210,17 @@ digraph pr {
      <the checks that were run and their result, plus anything verified manually>
      ```
 
-12. **Show the title and full body to the user** as text, then put it to them with **`AskUserQuestion`** — open the PR with this, or edit it first (they type changes via Other). Wait for the answer before pushing anything.
+12. **Show the title and full body to the user** as ordinary text, then put it to them with **exactly one `AskUserQuestion`**. This is the only stop on a clean run, and it settles the content *and* how the PR opens in the same answer:
+
+    | Option | Action |
+    |---|---|
+    | **Open PR** | Push and open it ready for review, with this title and body |
+    | **Open as draft** | The same, with `--draft` |
+    | **Edit first** | Revise it, show the new version, and put it back through this same dialog |
+
+    (`AskUserQuestion` always offers Other, so they can type the changes they want.)
+
+    **That answer is the go-ahead to push — act on it immediately.** Never follow it with a second dialog: no "ready to open it?", no separate draft-or-ready question, no re-confirmation of a body they just approved. Draft-vs-ready lives in this dialog and nowhere else.
 
 ### Phase 5: Push and Create
 
@@ -214,7 +228,7 @@ digraph pr {
     ```bash
     bash ~/.claude/skills/git-pr/scripts/create-pr.sh "<title>" /tmp/pr-body.md
     ```
-    The script pushes the branch (setting upstream if needed), refuses duplicates, and rejects AI attribution in both the title and the body. Pass `--draft` only if the user asked for a draft.
+    The script pushes the branch (setting upstream if needed), refuses duplicates, and rejects AI attribution in both the title and the body. Pass `--draft` when step 12 came back **Open as draft**, or when the user asked for a draft in their original request — never on the strength of a question asked here.
 
 14. If it exits **2**, a PR already existed — report that URL rather than treating it as a failure.
 
@@ -232,6 +246,7 @@ digraph pr {
 - NEVER open a PR with a REQUIRED repo-local check failing, unless the user explicitly picked "open anyway" and the drift is recorded in the PR body
 - NEVER close drift on the user's behalf — running the fix rewrites checked-in artifacts, which needs their say-so
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits **or** in the PR title/body — `create-pr.sh` rejects it in both
+- **One gate on a clean run, and it is step 12.** Everything else — the analysis, the CI-equivalent checks, the repo-local checks — runs without asking. Approving the title and body *is* approving the push, so never confirm the text and then confirm opening the PR: that is one decision, not two
 - **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed title and body and for the final report
 - NEVER push or create the PR without showing the title and body and getting the dialog answer
 - NEVER force-push
@@ -239,7 +254,7 @@ digraph pr {
 - The PR description must accurately reflect the real diff; do not invent work that is not in it
 - Keep Summary on the "why", Changes on the "what"
 - Use conventional commit style if the repo uses it
-- Do not add `--draft` unless the user asks
+- Do not add `--draft` unless step 12 came back **Open as draft** or the user asked for one up front
 
 ## Common mistakes
 
@@ -249,6 +264,7 @@ digraph pr {
 - **PRing a stale branch.** If the branch is behind, the diff is not what will merge.
 - **Fabricated description.** Summarize the real diff, not the commit subjects or a guess.
 - **Duplicate PR.** Check for an existing PR before creating one; re-running this skill must be safe.
+- **Asking twice.** Confirming the body and then asking "open it?", or asking "draft or ready?" after the body is approved. Step 12 already carries both — a second dialog makes the user approve the same PR twice.
 - **Merging the PR.** This skill opens it; review and merge are someone else's job.
 - **Claiming checks passed when none exist.** If the repo has no discoverable checks, say that instead.
 - **Reading an audit's output instead of its exit code.** `repo-check.sh run` already applied the `fail-on` regex. Exit 0 is a pass, exit 1 is a fail; don't overrule it because the report "looks fine".

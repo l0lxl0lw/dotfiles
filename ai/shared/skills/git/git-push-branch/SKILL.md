@@ -42,7 +42,7 @@ digraph pushbranch {
     "Unpushed commits?" [shape=diamond];
     "Ask: squash / stack" [shape=box];
     "Propose commit message" [shape=box];
-    "User confirms?" [shape=diamond];
+    "Single gate: commit+push / squash / reword" [shape=diamond];
     "Revise" [shape=box];
     "Stage + commit" [shape=box];
     "Run REQUIRED repo-local checks" [shape=box];
@@ -64,10 +64,10 @@ digraph pushbranch {
     "Unpushed commits?" -> "Ask: squash / stack" [label="yes"];
     "Unpushed commits?" -> "Propose commit message" [label="no"];
     "Ask: squash / stack" -> "Propose commit message";
-    "Propose commit message" -> "User confirms?";
-    "User confirms?" -> "Revise" [label="no"];
-    "Revise" -> "User confirms?";
-    "User confirms?" -> "Stage + commit" [label="yes"];
+    "Propose commit message" -> "Single gate: commit+push / squash / reword";
+    "Single gate: commit+push / squash / reword" -> "Revise" [label="reword"];
+    "Revise" -> "Single gate: commit+push / squash / reword";
+    "Single gate: commit+push / squash / reword" -> "Stage + commit" [label="commit | squash"];
     "Stage + commit" -> "Run REQUIRED repo-local checks";
     "Run REQUIRED repo-local checks" -> "Drift clean?";
     "Drift clean?" -> "Stop — offer to close the drift" [label="no"];
@@ -108,21 +108,27 @@ digraph pushbranch {
    ```
    If that cannot fast-forward, the branch has diverged from its remote. **Stop** — do not force anything. Surface it to the user; resolving it is `git-sync`'s conflict procedure, not a push.
 
-### Phase 3: Handle Unpushed Commits
+### Phase 3: Note the Unpushed Commits
 
-5. If there are already unpushed commits, ask with **`AskUserQuestion`**:
-   - **Squash** — fold the new changes into the last commit with `--amend`
-   - **Stack** — add a new commit on top
+5. If there are already unpushed commits, say so in the Phase 4 summary — how many, and what the
+   last one was. Squash-versus-stack is **not** its own question: it rides in the Phase 4 dialog
+   as an option.
 
-   (`AskUserQuestion` always offers Other, so the user can describe something else.)
-
-   If the last commit was already pushed, an amend rewrites published history — pushing it needs `--force-with-lease`. Say so before choosing squash, and only force-push with explicit confirmation.
+   If the last commit was already pushed, an amend rewrites published history — pushing it needs `--force-with-lease`. Say so in that summary, before the dialog offers squash, and only force-push with explicit confirmation.
 
 ### Phase 4: Review and Propose a Message
 
-6. Summarize what changed and why.
+6. Summarize what changed and why, including the unpushed-commit state from Phase 3.
 
-7. **Auto-propose a commit message.** Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Never commit without that answer.
+7. **Auto-propose a commit message.** Show the full message as ordinary text, then put it to the user with **one `AskUserQuestion`** — the only stop on a clean run, carrying both the message and where it lands:
+
+   | Option | Action |
+   |---|---|
+   | **Commit and push** | Stage and commit with the message shown, then push. With unpushed commits present this is the **stack** choice — a new commit on top |
+   | **Squash into the last commit** | Only offered when there are unpushed commits. `create-commit.sh --amend` with the message shown, then push |
+   | **Reword** | They type the replacement via Other; commit and push with that |
+
+   With no unpushed commits, drop the squash option. Never commit without that answer, never split the history choice and the message into two dialogs, and never follow this dialog with a separate "push it?" — approving the message *is* approving the push.
 
    If this commit addresses review feedback, say what it addresses — reviewers read commit subjects.
 
@@ -187,6 +193,7 @@ digraph pushbranch {
 - Pull before pushing when the branch is behind its own upstream; never force past a rejected push
 - NEVER push with a REQUIRED repo-local check failing, unless the user explicitly picked "push anyway"
 - NEVER close drift on the user's behalf — running the fix rewrites checked-in artifacts, which needs their say-so
+- **One gate on a clean run: the Phase 4 message dialog.** It carries the message, the squash-versus-stack choice, and the go-ahead to push. The only other dialogs are exceptions — a REQUIRED check failing, and a force-push after an amend
 - **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
 - Always propose the commit message and wait for the dialog answer (or their replacement) before committing
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution — `create-commit.sh` rejects it
@@ -198,6 +205,7 @@ digraph pushbranch {
 
 ## Common mistakes
 
+- **Splitting one commit across two dialogs.** Squash-or-stack, the message, and the push are decided together in the Phase 4 dialog.
 - **Pushing without pulling when the remote branch moved.** The push is rejected, and the reflex fix — force — destroys someone else's commit.
 - **Amending an already-pushed commit without saying so.** It rewrites published history and needs a force-push; reviewers lose the diff they were reading.
 - **Using this on the default branch.** That is `git-push-to-main`, which has different guardrails.

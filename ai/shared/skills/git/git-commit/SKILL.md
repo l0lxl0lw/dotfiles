@@ -30,7 +30,7 @@ digraph commit {
     "Unpushed commits?" [shape=diamond];
     "Ask: squash / stack" [shape=box];
     "Propose commit message" [shape=box];
-    "User confirms?" [shape=diamond];
+    "Single gate: commit / squash / reword" [shape=diamond];
     "Revise" [shape=box];
     "Stage + commit" [shape=box];
     "Report (no push)" [shape=box];
@@ -41,10 +41,10 @@ digraph commit {
     "Unpushed commits?" -> "Ask: squash / stack" [label="yes"];
     "Unpushed commits?" -> "Propose commit message" [label="no"];
     "Ask: squash / stack" -> "Propose commit message";
-    "Propose commit message" -> "User confirms?";
-    "User confirms?" -> "Revise" [label="no"];
-    "Revise" -> "User confirms?";
-    "User confirms?" -> "Stage + commit" [label="yes"];
+    "Propose commit message" -> "Single gate: commit / squash / reword";
+    "Single gate: commit / squash / reword" -> "Revise" [label="reword"];
+    "Revise" -> "Single gate: commit / squash / reword";
+    "Single gate: commit / squash / reword" -> "Stage + commit" [label="commit | squash"];
     "Stage + commit" -> "Report (no push)";
 }
 ```
@@ -60,21 +60,26 @@ digraph commit {
 
    It outputs git status, unpushed commit count and list, staged and unstaged diffs, untracked files, recent commits (for style reference), and whether a README exists.
 
-### Phase 2: Handle Unpushed Commits
+### Phase 2: Note the Unpushed Commits
 
-2. If there are unpushed commits, ask with **`AskUserQuestion`**:
-   - **Squash** — fold the new changes into the previous commit with `--amend`
-   - **Stack** — add a new commit on top
+2. If there are unpushed commits, say so in the summary — how many, and what the last one was.
+   Squash-versus-stack is **not** a separate question: it rides in the Phase 3 dialog as an option.
 
-   (`AskUserQuestion` always offers Other, so the user can describe something else.)
-
-   If the previous commit was already pushed, amending rewrites published history and the eventual push will need `--force-with-lease`. Say so before choosing squash.
+   If the previous commit was already pushed, amending rewrites published history and the eventual push will need `--force-with-lease`. Say so in that summary, before the dialog offers squash.
 
 ### Phase 3: Review and Propose a Commit Message
 
 3. Summarize the changes for the user: what files changed, what the changes do.
 
-4. **Auto-propose a commit message** based on the diff. Show the full message as text, then put it to the user with **`AskUserQuestion`** — use it, or reword it (they type the replacement via Other). Never commit without that answer.
+4. **Auto-propose a commit message** based on the diff. Show the full message as ordinary text, then put it to the user with **one `AskUserQuestion`** — the only stop in this skill, carrying both the message and where it lands:
+
+   | Option | Action |
+   |---|---|
+   | **Commit it** | Stage and commit with the message shown. When unpushed commits exist, this is the **stack** choice — a new commit on top |
+   | **Squash into the last commit** | Only offered when there are unpushed commits. `create-commit.sh --amend` with the message shown |
+   | **Reword** | They type the replacement via Other; commit with that |
+
+   With no unpushed commits, drop the squash option — the dialog is then just *commit this message or reword it*. Never commit without that answer, and never split the history choice and the message into two dialogs.
 
 5. If README.md exists, check whether the changes affect documented content — new features, changed commands or structure, removed functionality. Update it only for meaningful user-visible changes, not for minor fixes, refactors, or internal work.
 
@@ -93,6 +98,7 @@ digraph commit {
    ```bash
    bash ~/.claude/skills/git-commit/scripts/create-commit.sh "commit message here"
    ```
+   Add `--amend` when the dialog came back **Squash into the last commit**.
    Or amend for the squash case:
    ```bash
    bash ~/.claude/skills/git-commit/scripts/create-commit.sh "updated message" --amend
@@ -106,6 +112,7 @@ digraph commit {
 ## Rules
 
 - Continue to the next phase automatically if the current phase completes without errors
+- **One gate: the commit-message dialog.** It carries the message *and* the squash-versus-stack choice. Never ask about squashing first and the message second — that is one commit, so it is one question
 - **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed message and for the final report
 - Always propose a commit message and wait for the dialog answer (or their replacement) before running `create-commit.sh`
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commit messages — the script rejects them
@@ -121,6 +128,7 @@ digraph commit {
 
 - **Pushing.** This skill commits and stops. If the user wants it pushed, that is a different skill.
 - **Committing without proposing the message.** The confirmation step is not optional.
+- **Splitting one commit across two dialogs.** Squash-or-stack and the message are decided together, in the Phase 3 dialog.
 - **Asking in prose instead of `AskUserQuestion`.** "Use this message?" at the end of a message looks like the turn is over; the user doesn't know a decision is waiting on them.
 - **Amending an already-pushed commit silently.** It rewrites published history and needs a force-push later.
 - **Staging sensitive files.** Let `stage-files.sh` do the staging; it filters `.env`, `.pem`, `.key` and friends.
