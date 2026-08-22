@@ -19,9 +19,9 @@ and path resolution, the read order, and what to extract — exact column vocabu
 formulas, invariants and how they are enforced, locks, deliberate exclusions, and every divergence
 between the design docs and the code.
 
-This is the entire difference between this skill and the ambient explanation-level instruction in
-`ai/claude/hooks/explain-level.sh`, which shapes register on every turn but demands no reading.
-Explaining a repo concept from general knowledge is the failure this skill exists to prevent.
+Register alone is not what this skill is for — `../_lib/explaining.md` owns that, and it demands no
+reading. The grounding is the difference: explaining a repo concept from general knowledge is the
+failure this skill exists to prevent.
 
 Where the code and a design doc disagree, say so before explaining. The code wins.
 

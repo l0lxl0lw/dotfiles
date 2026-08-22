@@ -231,6 +231,57 @@ _agentcfg_sync_skills() {
   _agentcfg_sync_skill_sources "$2" "$1"
 }
 
+# _agentcfg_ensure_hook <settings.json> <event> <match-key> <command> [status-message] [timeout]
+# Make sure <event> in settings.json carries exactly one hook running <command>,
+# leaving entries other tools installed there untouched.
+#
+# Why this exists: settings.json is not tracked in this repo -- it holds
+# machine-local paths -- and gstack, gsd and Orca all write to it. An installer
+# that assigns .hooks.<event> wholesale drops our entry, after which the sync
+# stops running and every skill added or renamed from then on silently dangles.
+# Re-asserting on each run means the next session heals it instead.
+#
+# <match-key> identifies our own entries by substring, so a command string that
+# changed between versions is rewritten in place rather than accumulating a
+# duplicate. Reads only, and returns early, when the file already says this.
+# The rewrite stages through a temp file validated as JSON, so a jq failure can
+# never truncate settings.json.
+_agentcfg_ensure_hook() {
+  local settings="$1" event="$2" key="$3" cmd="$4" msg="$5" timeout="${6:-10}"
+  [[ -f "$settings" ]] || return 0
+  (( $+commands[jq] )) || return 0
+
+  # Common case: already exactly one entry for us, with the current command.
+  # A hand-tuned timeout or statusMessage is deliberately left alone.
+  local have
+  have=$(jq -r --arg ev "$event" --arg key "$key" --arg cmd "$cmd" '
+      [ (.hooks[$ev] // [])[].hooks[]?
+        | select((.command // "") | contains($key)) ]
+      | (length == 1 and .[0].command == $cmd)
+    ' "$settings" 2>/dev/null)
+  [[ "$have" == "true" ]] && return 0
+
+  local entry tmp
+  entry=$(jq -nc --arg cmd "$cmd" --arg msg "$msg" --argjson t "$timeout" \
+    '{hooks: [ {type: "command", command: $cmd, timeout: $t}
+               + (if $msg == "" then {} else {statusMessage: $msg} end) ]}') || return 1
+
+  tmp=$(mktemp "${settings}.XXXXXX") || return 1
+  if jq --arg ev "$event" --arg key "$key" --argjson entry "$entry" '
+       .hooks[$ev] = (((.hooks[$ev] // [])
+         | map(.hooks |= map(select((.command // "") | contains($key) | not)))
+         | map(select((.hooks | length) > 0))) + [$entry])
+     ' "$settings" >"$tmp" \
+     && [[ -s "$tmp" ]] && jq -e . "$tmp" >/dev/null 2>&1; then
+    mv -f "$tmp" "$settings"
+    echo "  hook '$event': restored in ${settings/#$HOME/~}"
+  else
+    rm -f -- "$tmp"
+    echo "  hook '$event': jq failed, ${settings/#$HOME/~} left untouched" >&2
+    (( _AGENTCFG_SKIPPED++ )); return 1
+  fi
+}
+
 # Silent when there was nothing to do. claude_merge_config runs from a
 # SessionStart hook and anything it prints lands in the session as context.
 _agentcfg_report() {
@@ -240,9 +291,10 @@ _agentcfg_report() {
 }
 
 # Link ~/dotfiles/ai/claude into ~/.claude (skills, agents, hooks, statusline).
-# Wired into the Claude Code SessionStart hook in ~/.claude/settings.json, so a
+# Runs from the Claude Code SessionStart hook in ~/.claude/settings.json, so a
 # skill added or renamed here is picked up at the start of the next session
-# instead of silently dangling. Also fine to invoke by hand.
+# instead of silently dangling. Installs and repairs that hook itself, so
+# running this by hand once is all the setup a new machine needs.
 claude_merge_config() {
   emulate -L zsh          # glob qualifiers work regardless of caller's options
   setopt extended_glob
@@ -325,6 +377,14 @@ claude_merge_config() {
       fi
     fi
   fi
+
+  # Re-assert the SessionStart hook that runs this function. Without it the
+  # sync never fires on its own again, which is the one failure this whole
+  # mechanism exists to prevent -- and it fails silently, so it goes unnoticed
+  # until a skill is missing. See _agentcfg_ensure_hook for why it can vanish.
+  _agentcfg_ensure_hook "$settings" SessionStart claude_merge_config \
+    "zsh -c 'source ~/dotfiles/zsh/functions.zsh 2>/dev/null; claude_merge_config'" \
+    'Syncing Claude config from dotfiles...'
 
   _agentcfg_report claude_merge_config
 }

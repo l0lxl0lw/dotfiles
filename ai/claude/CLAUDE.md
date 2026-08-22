@@ -15,7 +15,7 @@ dotfiles/ai/claude/
 ├── CLAUDE.md              # This file — guidance when working in this directory
 ├── skills/                # Claude-specific skill overrides, if needed
 ├── agents/                # Agent personas (.md files with frontmatter)
-├── hooks/                 # Shell hooks (statusline.sh = context progress bar, explain-level.sh = per-prompt context injection)
+├── hooks/                 # Shell hooks (statusline.sh = context progress bar)
 └── prompts/               # Read-only reference collection of system prompts (Anthropic, Google, OpenAI, etc.)
 
 dotfiles/ai/shared/
@@ -35,7 +35,7 @@ dotfiles/ai/shared/
 
 - **skills** — finds every `SKILL.md` in `ai/claude/skills` and `ai/shared/skills`, then symlinks its parent dir flat to `~/.claude/skills/<name>`; `ai/claude/skills` is only for Claude-specific overrides
 - **agents** — mirrors the dir tree, symlinks each `.md`
-- **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then points `statusLine` at `statusline.sh` in `settings.json`. `statusLine` is the *only* entry it writes; every other hook here (currently `explain-level.sh`) needs its `settings.json` entry added by hand, so adding a script to `hooks/` is never sufficient on its own
+- **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then writes two entries in `settings.json`: `statusLine` pointing at `statusline.sh`, and the `SessionStart` hook that runs the sync itself. Those are the *only* entries it writes; any other hook added here needs its own `settings.json` entry, so dropping a script into `hooks/` is never sufficient on its own
 
 Caveats worth knowing:
 

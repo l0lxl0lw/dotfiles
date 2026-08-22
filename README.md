@@ -3,8 +3,8 @@
 ## Setup
 - run `./deploy.sh` initially — writes `source` stubs into `~/.zshrc`, `~/.vimrc`, `~/.tmux.conf`
 - open a new shell, then run `claude_merge_config`, `codex_merge_config` and `grok_merge_config` once
-- install the Claude `SessionStart` hook so renames self-heal — see [ai/claude/README.md](ai/claude/README.md#setup)
-  (`~/.claude/settings.json` is machine-local and not tracked here)
+- that is the whole install — each `*_merge_config` writes whatever trigger keeps it running from
+  then on (for Claude, a `SessionStart` hook in the machine-local, untracked `~/.claude/settings.json`)
 
 ## Layout
 
@@ -25,9 +25,10 @@ gstack, Codex's own bundled skills, another vendor's Grok hooks — are left alo
 Each tool syncs from whatever trigger it offers: Claude from a `SessionStart` hook, Codex
 from a `codex()` shell wrapper since it has no hook mechanism, Grok from both (the wrapper
 guarantees the config is current before launch; the hook covers sessions started outside
-the shell). Grok's hook file is itself tracked and symlinked, so it self-installs — the
-Claude one lives in the untracked `~/.claude/settings.json` and is a manual step per
-machine.
+the shell). Grok's hook file is itself tracked and symlinked, so it self-installs; the
+Claude one lives in the untracked `~/.claude/settings.json`, so `claude_merge_config`
+writes that entry itself and re-asserts it on every run — an installer that rewrites
+that file cannot quietly switch the sync off.
 
 Machine-specific and secret config lives in a separate private repo at `~/dotfiles-private`;
 `zsh/zshrc.conf` sources `~/dotfiles-private/zsh/*` if that directory exists.

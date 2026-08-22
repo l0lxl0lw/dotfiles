@@ -11,10 +11,8 @@ the whole of `explain-college-level` and `explain-code-flow`, the opening explan
 > not water things down or skip the parts that are hard — the full explanation is easier to
 > understand than a vague one.
 
-That paragraph is quoted verbatim from `ai/claude/hooks/explain-level.sh`, which injects it as
-`additionalContext` on every `UserPromptSubmit`. **Edit both or neither.** The hook is a
-dependency-free `/bin/sh` heredoc on purpose, so it cannot read this file at runtime; this copy is
-the price of that, and the two drifting apart is the failure mode to watch for.
+This file is the one copy of that wording. Every skill in `understand/` is pointed here rather than
+restating it, so there is a single place to edit and nothing to keep in sync.
 
 ## What it rules out
 
