@@ -4,6 +4,14 @@ Shared prerequisite for every skill in `understand/`. Follow this **completely**
 user-facing sentence — before an explanation, before a question, before judging anything the user
 says.
 
+## Scope: topic and path
+
+Every skill here is invoked as `/<skill> <topic>` and optionally takes a path:
+`/quiz-me 3-way matching ~/workspace/opencfo/backend`.
+
+- **No topic** → ask what to work on. One question, then proceed.
+- **No path** → use the current working directory.
+
 ## The rule
 
 **Never explain, quiz, or evaluate from memory.** Knowing the concept in general is not knowing

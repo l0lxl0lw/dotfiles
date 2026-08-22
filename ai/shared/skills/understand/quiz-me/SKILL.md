@@ -19,12 +19,11 @@ where they failed. A first-pass pass produces a report card and stops.
 
 ## Invocation
 
-`/quiz-me <topic>` — optionally with a path: `/quiz-me 3-way matching ~/workspace/opencfo/backend`.
+`/quiz-me <topic>`, optionally with a path. Topic and path resolution, and what to do when the
+topic has no implementation in this repo, are owned by `../_lib/grounding.md`.
 
-- No topic → ask what to quiz on. One question, then proceed.
-- No path → use the current working directory.
-- Topic not present in the codebase → say so and offer to quiz on general principles instead.
-  Do not silently fall back to textbook questions.
+Never silently fall back to textbook questions. A question answerable from general knowledge
+measures nothing about whether the user understands *this* system.
 
 ## Step 1 — Ground yourself in the real implementation
 
@@ -143,9 +142,9 @@ belief that has to change.
 
 For each missed concept, one at a time:
 
-1. **Teach it at college level.** The real mechanism, correct terminology defined inline, no
-   analogy standing in for the explanation. Quote the actual code with `relative/path.go:LINE`.
-   Say concretely why the option they chose fails, with the case that breaks it.
+1. **Teach it at college level, per `../_lib/explaining.md`** — which owns the voice and the
+   `relative/path.ext:LINE` citation requirement. Say concretely why the option they chose fails,
+   with the case that breaks it.
 2. **Re-ask from an unseen variation.** Missed V1 (definition) comes back as V3 (worked example)
    or V4 (counterfactual) — never a reworded V1.
 3. Loop until the running score reaches 8/10.

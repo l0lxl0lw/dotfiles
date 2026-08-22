@@ -31,8 +31,15 @@ dotfiles/ai/shared/
     ├── integrations/      # Custom integration skills
     ├── mattpocock/        # Skills from mattpocock/skills, prefixed pocock-
     ├── omc/               # Planning skills from oh-my-claudecode
+    ├── understand/        # Understanding a concept as this codebase implements it
     └── utilities/         # Custom utility skills
 ```
+
+Category directories are organisational only — `claude_merge_config` flattens every
+`*/SKILL.md` to `~/.claude/skills/<name>`, so a skill's folder never appears in its slash
+command. A directory whose name starts with `_` holds shared prose rather than a skill:
+`understand/_lib/` is read by the skills beside it via `../_lib/<file>.md`, which resolves
+correctly through the symlink because `..` follows the link target, not the link.
 
 `claude_merge_config` imports both `ai/claude/skills` and `ai/shared/skills`, flattening each
 skill directory into `~/.claude/skills/<name>`. Put new portable skills in `ai/shared/skills`;
@@ -163,6 +170,14 @@ The script emits `"suppressOutput": true` so the JSON itself stays out of the tr
 It never reads stdin, which is safe here: hook input arrives on stdin but nothing in the
 instruction depends on the prompt.
 
+**The instruction string is duplicated in
+[`ai/shared/skills/understand/_lib/explaining.md`](../shared/skills/understand/_lib/explaining.md),
+deliberately.** The hook shapes register on every turn but demands no reading; the `understand/`
+skills need the same wording available as prose they can be pointed at, alongside the citation
+rule and the grounding prerequisite. The hook stays a dependency-free `/bin/sh` heredoc rather
+than growing a JSON escaper to read the file at runtime, so the copy is the price. Edit both or
+neither.
+
 ## Skills
 
 ### Core
@@ -180,8 +195,10 @@ instruction depends on the prompt.
 | `/git-explain-diff` | Explain the uncommitted working tree — staged, unstaged and untracked — grouped by behavioral change. Read-only | Yes |
 | `/git-explain-branch` | Explain what this branch changes vs the default branch, with a contract/migration/collision risk pass. Read-only | Yes |
 | `/orca-sync-fanout` | Dispatch `/git-sync` into every Orca workspace that is behind the default branch | No |
-| `/explain-college-level` | Explain a concept in chat at college-student depth | No |
+| `/explain-college-level` | Explain a concept at college-student depth, grounded in how this repo implements it | No |
 | `/explain-code-flow` | Same, plus the call path and call tree of how it runs — clickable `path:line` on every node | No |
+| `/quiz-me` | Ten concept questions with real-code distractors, scored at 80%, then teaches the misses | No |
+| `/poke-holes` | Explains, takes your explanation back, and attacks it until a round finds no holes | No |
 | `/trace-callpath` | Trace a runtime path to clickable `path:line` breakpoints, carried to the SQL and the outbound request. Read-only | Yes |
 | `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
 | `/readme` | Read README in current directory and execute instructions | Yes |

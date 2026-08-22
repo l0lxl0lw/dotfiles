@@ -21,10 +21,8 @@ never had. This skill exists to find those parts and name them precisely.
 
 ## Invocation
 
-`/poke-holes <topic>` — optionally with a path.
-
-- No topic → ask what to work on. One question, then proceed.
-- No path → use the current working directory.
+`/poke-holes <topic>`, optionally with a path. Topic and path resolution, and what to do when the
+topic has no implementation in this repo, are owned by `../_lib/grounding.md`.
 
 ## Step 1 — Ground yourself in the real implementation
 
@@ -43,9 +41,9 @@ usually where the user's mental model is stale too.
 
 ## Step 2 — Explain the concept
 
-Explain it at college level: the real mechanism, correct terminology defined inline, no analogy
-standing in for the explanation. Cover the concept as a system — what the pieces are, how they
-relate, what the invariants are and why they hold. Cite `relative/path.ext:LINE` as you go.
+**REQUIRED: follow `../_lib/explaining.md`** — it owns the voice and the `relative/path.ext:LINE`
+citation requirement. Cover the concept as a system: what the pieces are, how they relate, what
+the invariants are and why they hold.
 
 **Explain the mechanism, not every case.** Deliberately leave the edge cases, the numeric
 consequences, and the "what breaks if" reasoning for them to derive. Those derivations are what
