@@ -1,6 +1,8 @@
 ---
 name: list-skills
 description: Use when the user asks what skills exist rather than asking for one — the whole catalog, global plus whatever the current repo adds. Triggers — "list skills", "/list-skills", "what skills do I have", "show me my skills", "which skills are installed", "what skills are available", "do I have a skill for X", "how many skills do I have". For only the current repo's skills use list-repo-skills.
+model: opus
+effort: high
 ---
 
 # List skills

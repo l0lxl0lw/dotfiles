@@ -2,6 +2,8 @@
 name: brainstorm-then-plan
 description: Scope the work with superpowers:brainstorming, then plan and implement in plan mode (Claude or codex) — not with superpowers:writing-plans or subagent-driven-development.
 disable-model-invocation: true
+model: opus
+effort: high
 ---
 
 # Brainstorm, Then Plan Mode

@@ -355,10 +355,22 @@ Safe to re-run at any time — it only removes symlinks it owns, and leaves gsta
   description: What this skill does and when to use it
   disable-model-invocation: true  # Optional: prevents Claude from auto-invoking
   allowed-tools: Read, Grep       # Optional: restrict available tools
+  model: sonnet                   # Optional: run this skill on a specific model
+  effort: medium                  # Optional: low | medium | high | xhigh | max
   ---
 
   Your skill instructions here...
   ```
+
+  `model` and `effort` are read by Claude Code 2.1.241's skill loader (`model: inherit`
+  means "leave the session model alone"). Two shared groups set them deliberately:
+
+  | Group | `model` | `effort` | Why |
+  |---|---|---|---|
+  | [`../shared/skills/git/`](../shared/skills/git) | `sonnet` | `medium` | Mechanical, heavily scripted workflows — the procedure is in the skill, not in the model |
+  | [`../shared/skills/utilities/`](../shared/skills/utilities) | `opus` | `high` | Open-ended judgement: explainers, diagrams, memory, planning hand-offs |
+
+  Neither field reaches Codex — see [`../codex/README.md`](../codex/README.md#model-and-effort-do-not-cross-over).
 - **Agents**: Add `.md` files to `agents/` with frontmatter:
   ```yaml
   ---

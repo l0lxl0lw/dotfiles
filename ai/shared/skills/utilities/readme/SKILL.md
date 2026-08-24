@@ -2,6 +2,8 @@
 name: readme
 description: Read the README file in the current directory and execute the instructions or tasks described within it.
 allowed-tools: Bash(bash *), Bash(sh *), Bash(npm *), Bash(yarn *), Bash(pnpm *), Bash(pip *), Bash(cargo *), Bash(make *), Bash(docker *), Bash(go *), Read
+model: opus
+effort: high
 ---
 
 # Run README

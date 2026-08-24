@@ -8,6 +8,8 @@ description: >-
   up", "document how this works", "make an explainer", "visualize this", "create a diagram of",
   or any time you would otherwise reach for a `.md` summary of how something works. Do NOT use for
   commit messages, plans, code files, or READMEs that belong in the repo as Markdown by convention.
+model: opus
+effort: high
 ---
 
 # Make HTML

@@ -3,6 +3,8 @@ name: orca-sync-fanout
 description: When the default branch has moved, bring every Orca workspace up to date by dispatching git-sync into each agent that is behind. Surveys all Orca-managed worktrees for the current repo, reports how many commits behind each one is, waits for each agent to go idle, then sends /git-sync so it resolves its own conflicts. Triggers — "main moved, catch everyone up", "sync all my workspaces", "I just merged, update the other agents", "which workspaces are behind", "fan out the sync", "everyone rebase on main".
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Bash(orca *), Read
+model: sonnet
+effort: medium
 ---
 
 # Orca sync fan-out

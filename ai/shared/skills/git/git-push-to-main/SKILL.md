@@ -3,6 +3,8 @@ name: git-push-to-main
 description: On the default branch, commit the current changes and push them straight to the remote in one uninterrupted go — pulling first if the remote has moved, writing the commit message itself, never stopping to confirm. For verified work that does not need a PR. Triggers — "push this to main", "commit and push to main", "ship this directly", "no PR, just push", "push straight to main".
 disable-model-invocation: true
 allowed-tools: Bash(bash *), Bash(git *), Read, Edit
+model: sonnet
+effort: medium
 ---
 
 # Push to Main

@@ -2,6 +2,8 @@
 name: git-branch-and-pr
 description: On the default branch, move the uncommitted work onto a new feature branch as a single commit and open a pull request for it. Triggers — "branch this and open a PR", "I'm on main, make this a PR", "move this to a branch and PR it", "PR this instead of pushing to main", "get this reviewed".
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit
+model: sonnet
+effort: medium
 ---
 
 # Branch and PR

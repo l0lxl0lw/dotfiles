@@ -150,6 +150,22 @@ If a shared skill needs Codex-specific behavior, add a skill with the same basen
 under `ai/codex/skills/`; the local Codex version takes precedence and the shared one is
 skipped during sync.
 
+### `model` and `effort` do not cross over
+
+Some shared skills carry `model:` and `effort:` frontmatter — `ai/shared/skills/git/*` ask
+for `sonnet`/`medium`, `ai/shared/skills/utilities/*` for `opus`/`high`. **Those two fields
+are Claude-only.** Codex 0.149.1 reads exactly `name`, `description` and `metadata`
+(`metadata.short-description`) out of a `SKILL.md`; its own bundled `skill-creator` says the
+same, and its loader silently ignores everything else, so the fields cost nothing but buy
+nothing here. Verified by loading a probe skill carrying both fields under a throwaway
+`CODEX_HOME` — it appears in `codex debug prompt-input` with no warning and no effect.
+
+Codex has no per-skill model or reasoning-effort hook at all. The only knobs are
+session-wide (`model` / `model_reasoning_effort` in `config.toml`, `/model` in the TUI) or
+subagent-wide (`default_subagent_model` / `default_subagent_reasoning_effort`). If a Codex
+equivalent is ever wanted, it has to be a session choice before invoking the skill, not
+something the skill declares.
+
 ## How it loads
 
 `~/.codex/skills` is a shared namespace: our symlinks sit next to Codex's own `.system/`

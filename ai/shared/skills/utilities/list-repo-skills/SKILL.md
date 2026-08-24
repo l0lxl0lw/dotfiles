@@ -1,6 +1,8 @@
 ---
 name: list-repo-skills
 description: Use when the user asks which skills belong to the repository they are in, as opposed to the ones they get everywhere. Triggers — "list repo skills", "/list-repo-skills", "what skills does this repo have", "project skills", "does this repo define any skills", "which skills are local to this project", "what skills ship with this codebase". For the full catalog including global skills use list-skills.
+model: opus
+effort: high
 ---
 
 # List repo skills

@@ -2,6 +2,8 @@
 name: git-commit
 description: Analyze the uncommitted changes and create a commit on the current branch, with the option to squash into or stack on top of existing unpushed commits. Does not push. Triggers — "commit this", "commit my changes", "make a commit", "commit but don't push", "squash this into the last commit".
 allowed-tools: Bash(bash *), Bash(git *), Read, Edit
+model: sonnet
+effort: medium
 ---
 
 # Commit

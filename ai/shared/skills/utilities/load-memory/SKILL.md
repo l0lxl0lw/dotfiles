@@ -3,6 +3,8 @@ name: load-memory
 description: Restore working memory from MEMORY.md and CLAUDE.md at the repo root. Use at the start of a new session to pick up where you left off, or when the user says "load memory", "restore context", or "what were we working on".
 disable-model-invocation: true
 allowed-tools: Read, Bash(git rev-parse --show-toplevel)
+model: opus
+effort: high
 ---
 
 # Load Memory

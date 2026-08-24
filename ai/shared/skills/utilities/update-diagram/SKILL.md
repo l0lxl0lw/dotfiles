@@ -1,6 +1,8 @@
 ---
 name: update-diagram
 description: Scan the codebase and update existing diagram files to reflect the current state of the code. Use when diagrams need refreshing after code changes.
+model: opus
+effort: high
 ---
 
 # Update Diagram

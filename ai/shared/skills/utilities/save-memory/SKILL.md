@@ -3,6 +3,8 @@ name: save-memory
 description: Save working memory from the current chat session into MEMORY.md at the repo root. Use when context is about to overflow, the user asks to "remember everything", or before ending a long session. Captures topics, research, decisions, tools, file paths, preferences, and next steps.
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash(git rev-parse --show-toplevel)
+model: opus
+effort: high
 ---
 
 # Save Memory
