@@ -22,9 +22,10 @@ symlinks pointing back into this repo, so tools that install into the same direc
 gstack, Codex's own bundled skills, another vendor's Grok hooks — are left alone.
 
 Claude is synced manually with `claude_merge_config`. Codex syncs from a `codex()` shell
-wrapper since it has no hook mechanism. Grok syncs from both its wrapper and a tracked
-`SessionStart` hook (the wrapper guarantees the config is current before launch; the hook
-covers sessions started outside the shell).
+wrapper since it has no hook mechanism; on each launch it also exposes the current Git
+repository's `.claude/skills` through Codex's native `.agents/skills` discovery. Grok syncs
+from both its wrapper and a tracked `SessionStart` hook (the wrapper guarantees the config
+is current before launch; the hook covers sessions started outside the shell).
 
 Machine-specific and secret config lives in a separate private repo at `~/dotfiles-private`;
 `zsh/zshrc.conf` sources `~/dotfiles-private/zsh/*` if that directory exists.

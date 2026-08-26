@@ -231,6 +231,88 @@ _agentcfg_sync_skills() {
   _agentcfg_sync_skill_sources "$2" "$1"
 }
 
+# True when $1 is one of the generated repository-skill links targeting $2.
+# This deliberately has a narrower ownership boundary than
+# _agentcfg_is_managed: repository links point outside the dotfiles roots.
+_codex_repo_skill_is_managed() {
+  [[ -L "$1" ]] || return 1
+  local target
+  target=$(readlink "$1")
+  [[ "$target" == /* ]] || target="${1:h}/$target"
+  [[ "${target:a}" == "${2:a}"/* ]]
+}
+
+# _codex_sync_repo_claude_skills [repo-root]
+# Expose a repository's Claude skills through Codex's native .agents/skills
+# discovery. With no explicit root, find the Git repository containing $PWD.
+_codex_sync_repo_claude_skills() {
+  emulate -L zsh
+  setopt extended_glob
+
+  local root="${1:-}"
+  if [[ -z "$root" ]]; then
+    (( $+commands[git] )) || return 0
+    root=$(command git -C "$PWD" rev-parse --show-toplevel 2>/dev/null) || return 0
+  fi
+
+  local src="$root/.claude/skills"
+  local dst="$root/.agents/skills"
+
+  local f key parent nested target rel current
+  local -A want
+  for f in "$src"/**/SKILL.md(N-.); do
+    # Match the global skill sync: nested SKILL.md files belong to the outer
+    # skill, while category directories are flattened to the skill basename.
+    nested=0; parent="${f:h:h}"
+    while [[ "$parent" == "$src"/?* ]]; do
+      [[ -f "$parent/SKILL.md" ]] && { nested=1; break }
+      parent="${parent:h}"
+    done
+    (( nested )) && continue
+
+    key="${f:h:t}"
+    if (( ${+want[$key]} )); then
+      echo "  duplicate repository skill '$key': keeping ${want[$key]}, ignoring ${f:h}" >&2
+      (( _AGENTCFG_SKIPPED++ )); continue
+    fi
+    want[$key]="${f:h}"
+  done
+
+  # An empty source should not introduce .agents into a previously untouched
+  # repository, but an existing destination still needs stale-link pruning.
+  [[ -d "$dst" || ${#want} -gt 0 ]] || return 0
+  mkdir -p "$dst" || return 1
+
+  for f in "$dst"/*(N@); do
+    _codex_repo_skill_is_managed "$f" "$src" || continue
+    (( ${+want[${f:t}]} )) && continue
+    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+  done
+
+  for key in ${(ko)want}; do
+    target="${want[$key]}"
+    rel="../../${target#"$root"/}"
+    f="$dst/$key"
+
+    if [[ -L "$f" ]]; then
+      if _codex_repo_skill_is_managed "$f" "$src"; then
+        current=$(readlink "$f")
+        [[ "$current" == "$rel" ]] && continue
+      else
+        echo "  repository skill '$key': $f is owned by something else, leaving it" >&2
+        (( _AGENTCFG_SKIPPED++ )); continue
+      fi
+    elif [[ -e "$f" ]]; then
+      echo "  repository skill '$key': native Codex skill wins, leaving $f" >&2
+      (( _AGENTCFG_SKIPPED++ )); continue
+    fi
+
+    ln -sfn "$rel" "$f" && (( _AGENTCFG_LINKED++ ))
+  done
+
+  return 0
+}
+
 # Silent when there was nothing to do.
 _agentcfg_report() {
   (( _AGENTCFG_LINKED || _AGENTCFG_REMOVED || _AGENTCFG_SKIPPED )) && \
@@ -355,6 +437,11 @@ codex_merge_config() {
   # Global instructions: one file, Codex's equivalent of ~/.claude/CLAUDE.md.
   [[ -f "$repo/AGENTS.md" ]] && \
     _agentcfg_link "$repo/AGENTS.md" "$codex_dir/AGENTS.md" "AGENTS.md"
+
+  # Codex discovers repository skills only under .agents/skills. Reuse any
+  # .claude/skills in the current repository without copying or overwriting a
+  # native Codex skill with the same name.
+  _codex_sync_repo_claude_skills
 
   # Settings that have to live inside config.toml (status_line and friends).
   #
