@@ -35,12 +35,12 @@ dotfiles/ai/shared/
 
 - **skills** — finds every `SKILL.md` in `ai/claude/skills` and `ai/shared/skills`, then symlinks its parent dir flat to `~/.claude/skills/<name>`; `ai/claude/skills` is only for Claude-specific overrides
 - **agents** — mirrors the dir tree, symlinks each `.md`
-- **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then writes two entries in `settings.json`: `statusLine` pointing at `statusline.sh`, and the `SessionStart` hook that runs the sync itself. Those are the *only* entries it writes; any other hook added here needs its own `settings.json` entry, so dropping a script into `hooks/` is never sufficient on its own
+- **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then points `statusLine` at `statusline.sh` in `settings.json`. `statusLine` is the only entry it writes; any hook added here needs its own `settings.json` entry, so dropping a script into `hooks/` is never sufficient on its own
 
 Caveats worth knowing:
 
-- The function runs from a **`SessionStart` hook** in `~/.claude/settings.json`, so a skill added or renamed here is picked up at the start of the next Claude Code session. Editing the *contents* of an existing skill needs no re-run at all — the symlinks make it live immediately. Run it by hand to apply a rename without restarting.
-- It **converges rather than rebuilds**: a link that is already correct is not touched, so the steady state is zero writes and no window where a concurrent session sees a missing skill. It prints nothing when there was nothing to do — anything a `SessionStart` hook prints lands in the session as context.
+- Run the function manually after adding or renaming a skill, agent, or hook. Editing the *contents* of an existing file needs no re-run at all — the symlinks make it live immediately.
+- It **converges rather than rebuilds**: a link that is already correct is not touched, so the steady state is zero writes and no window where a concurrent session sees a missing skill. It prints nothing when there was nothing to do.
 - Cleanup is surgical: the function only deletes symlinks that point back into this directory (or the legacy `~/workspace/claude-config` path). Real directories and symlinks owned by other installers are left alone.
 - `~/.claude/skills` is shared with gstack, which installs its skills as real directories. Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
 - `deploy.sh` only handles `.zshrc`/`.vimrc`/`.tmux.conf` — it does **not** touch `~/.claude/`. The dotfiles repo is auto-pulled daily by `zsh/zshrc.conf`.

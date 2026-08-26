@@ -328,20 +328,9 @@ Because it symlinks, editing a skill's contents takes effect immediately. Adding
 1. Clone dotfiles to `~/dotfiles` and run `./deploy.sh`
 2. Open a new shell, then run `claude_merge_config` once
 
-   That is the whole install for the sync itself. Besides linking skills, agents and hooks,
-   it writes its own `SessionStart` entry into `~/.claude/settings.json` and re-asserts that
-   entry on every later run, so renames keep self-healing even after another installer
-   rewrites the file. `settings.json` is not tracked in this repo — it holds machine-local
-   paths and personal toggles — which is exactly why the hook has to restore itself rather
-   than live here.
-
-   The entry is appended, never assigned, so `SessionStart` hooks belonging to gstack, gsd or
-   Orca survive; a command string left over from an older version is rewritten in place rather
-   than duplicated; and a hand-tuned `timeout` or `statusMessage` is left alone.
-
-Why a `SessionStart` hook and not shell startup: it fires once per Claude session instead of
-once per shell, at the only moment the result matters. It costs ~0.3s, and the function is
-silent and writes nothing when everything is already correct.
+Run `claude_merge_config` again after adding or renaming a skill, agent, or hook. Editing an
+existing linked file takes effect immediately. The function does not install a `SessionStart`
+hook or otherwise run automatically.
 
 Safe to re-run at any time — it only removes symlinks it owns, and leaves gstack's skills alone.
 
