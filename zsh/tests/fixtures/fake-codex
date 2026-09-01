@@ -1,0 +1,19 @@
+#!/usr/bin/env zsh
+
+setopt err_return nounset pipe_fail
+
+local skills_dir="${CODEX_HOME:-$HOME/.codex}/skills"
+local project_link
+project_link=$(find "$skills_dir" -mindepth 2 -maxdepth 2 \
+  -type l -name project -print -quit 2>/dev/null)
+
+{
+  print -r -- "argument=${1:-}"
+  if [[ -n "$project_link" && -d "$project_link" ]]; then
+    print -r -- "project-skills=present"
+  else
+    print -r -- "project-skills=absent"
+  fi
+} >| "$FAKE_CODEX_REPORT"
+
+exit "${FAKE_CODEX_STATUS:-0}"

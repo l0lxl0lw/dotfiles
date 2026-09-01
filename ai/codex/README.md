@@ -13,9 +13,9 @@ dotfiles/ai/codex/
 `codex_merge_config` also imports cross-tool skills from `../shared/skills/` into the
 same flattened Codex namespace. Codex-local skills win on name collisions.
 
-At launch it also imports repository-local `.claude/skills` into that repository's native
-`.agents/skills` catalog. The files are not copied: one relative symlink per skill keeps
-Claude as the source of truth while making the same skill available to Codex.
+At launch the `codex()` wrapper also exposes repository-local `.claude/skills` through a
+temporary catalog under `~/.codex/skills`. The repository remains untouched, and the
+catalog is removed when that Codex process exits.
 
 ## Settings (status line, etc.)
 
@@ -140,19 +140,20 @@ Then run `codex_merge_config`, or just launch `codex` — the shell wrapper sync
 
 ## Repository Claude skills
 
-When `codex` starts anywhere inside a Git repository, `codex_merge_config` finds the
-repository root. If `<repo>/.claude/skills` contains skills, it creates corresponding
-relative links under `<repo>/.agents/skills`, including skills nested below category
-directories. Codex then discovers them as ordinary repository skills, so they appear in
-the skill catalog and `$` picker.
+When `codex` starts anywhere inside a Git repository, the shell wrapper finds the
+repository root. If `<repo>/.claude/skills` contains skills, it creates a unique temporary
+directory under `~/.codex/skills` and links the complete Claude skill tree into it. Codex
+discovers top-level and categorized skills through that link, so they appear in the skill
+catalog and `$` picker without creating `<repo>/.agents` or changing the worktree.
 
-Existing native `.agents/skills` directories are preserved. A native skill wins a name
-collision, links not created by this sync are never touched, and links to removed Claude
-skills are pruned on the next launch. Repositories without `.claude/skills` are unchanged.
+The temporary catalog exists only while the launched Codex process is alive. An `always`
+cleanup block removes the link and its now-empty directory when the process exits,
+including a nonzero exit, while preserving Codex's status. Repositories without
+`.claude/skills` launch normally without creating a catalog.
 
-The generated `.agents/` entries are intentionally visible to Git. Each repository can
-choose to commit or ignore them; this global config does not silently modify repository
-ignore rules.
+The staging area is in the shared user skill namespace, so another Codex process launched
+during that interval may also discover it. Unique staging directories keep lifecycle
+cleanup independent; strict cross-session isolation is deliberately out of scope.
 
 ## Shared Skills
 
@@ -195,10 +196,9 @@ directories, so editing their contents updates both tools immediately.
 
 Sync runs from a `codex()` shell wrapper rather than a hook, because Codex has no hook
 mechanism (`codex --help` exposes `plugin` and `mcp`, nothing session-scoped). The wrapper
-syncs and then execs the real binary, so it costs nothing on shells that never run Codex,
-and the global config plus the current repository's Claude skills are current at launch.
-The tradeoff: a skill added *while* a Codex session is already open needs
-`codex_merge_config` by hand.
+syncs, stages repository skills, runs the real binary, and cleans up when it exits. This
+costs nothing on shells that never run Codex, keeps global config current at launch, and
+leaves the repository untouched.
 
 ## What is deliberately not tracked
 

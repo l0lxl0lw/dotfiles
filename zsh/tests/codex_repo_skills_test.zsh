@@ -22,66 +22,83 @@ assert_link_to() {
     fail "$link resolves to ${link:A}, expected ${expected:A}"
 }
 
-(( $+functions[_codex_sync_repo_claude_skills] )) || \
-  fail "_codex_sync_repo_claude_skills is missing"
+(( $+functions[_codex_stage_repo_claude_skills] )) || \
+  fail "_codex_stage_repo_claude_skills is missing"
+(( $+functions[_codex_cleanup_repo_claude_skills] )) || \
+  fail "_codex_cleanup_repo_claude_skills is missing"
 
-# A repository without Claude skills must remain untouched.
-local empty_repo="$test_tmp/empty"
-mkdir -p "$empty_repo"
-_codex_sync_repo_claude_skills "$empty_repo"
-[[ ! -e "$empty_repo/.agents" ]] || fail "empty repository gained .agents"
-
-# Top-level and nested Claude skills are flattened into Codex's repo catalog.
+# Staging from a nested working directory must expose the whole Claude skill
+# tree outside the repository and leave the repository itself untouched.
 local import_repo="$test_tmp/import"
+local codex_home="$test_tmp/codex-home"
 mkdir -p "$import_repo/.claude/skills/alpha" \
-  "$import_repo/.claude/skills/group/beta"
+  "$import_repo/.claude/skills/group/beta" \
+  "$import_repo/service/nested" \
+  "$codex_home/skills"
 touch "$import_repo/.claude/skills/alpha/SKILL.md" \
   "$import_repo/.claude/skills/group/beta/SKILL.md"
-_codex_sync_repo_claude_skills "$import_repo"
-assert_link_to "$import_repo/.agents/skills/alpha" \
-  "$import_repo/.claude/skills/alpha"
-assert_link_to "$import_repo/.agents/skills/beta" \
-  "$import_repo/.claude/skills/group/beta"
+command git -C "$import_repo" init -q
 
-# A native Codex skill wins a same-name collision and is never overwritten.
-mkdir -p "$import_repo/.agents/skills/native" \
-  "$import_repo/.claude/skills/native"
-touch "$import_repo/.agents/skills/native/SKILL.md" \
-  "$import_repo/.claude/skills/native/SKILL.md"
-_codex_sync_repo_claude_skills "$import_repo" >/dev/null 2>&1
-[[ -d "$import_repo/.agents/skills/native" && \
-   ! -L "$import_repo/.agents/skills/native" ]] || \
-  fail "native Codex skill was overwritten"
-
-# A removed Claude skill prunes only the symlink previously imported for it.
-mv "$import_repo/.claude/skills/alpha" "$test_tmp/removed-alpha"
-_codex_sync_repo_claude_skills "$import_repo" >/dev/null 2>&1
-[[ ! -e "$import_repo/.agents/skills/alpha" && \
-   ! -L "$import_repo/.agents/skills/alpha" ]] || \
-  fail "stale imported skill was not removed"
-[[ -d "$import_repo/.agents/skills/native" ]] || \
-  fail "stale-link cleanup removed a native Codex skill"
-
-# Removing the entire Claude skill tree also removes generated links, while
-# leaving a native .agents/skills directory untouched.
-mv "$import_repo/.claude/skills" "$test_tmp/removed-skill-tree"
-_codex_sync_repo_claude_skills "$import_repo" >/dev/null 2>&1
-[[ ! -e "$import_repo/.agents/skills/beta" && \
-   ! -L "$import_repo/.agents/skills/beta" ]] || \
-  fail "generated link survived removal of .claude/skills"
-[[ -d "$import_repo/.agents/skills/native" ]] || \
-  fail "missing Claude skill tree removed a native Codex skill"
-
-# With no explicit path, launch-time sync finds the repository from a nested CWD.
-local cwd_repo="$test_tmp/from-cwd"
-mkdir -p "$cwd_repo/.claude/skills/gamma" "$cwd_repo/service/nested"
-touch "$cwd_repo/.claude/skills/gamma/SKILL.md"
-command git -C "$cwd_repo" init -q
-(
-  cd "$cwd_repo/service/nested"
-  _codex_sync_repo_claude_skills
+local stage
+stage=$(
+  cd "$import_repo/service/nested"
+  CODEX_HOME="$codex_home" _codex_stage_repo_claude_skills
 )
-assert_link_to "$cwd_repo/.agents/skills/gamma" \
-  "$cwd_repo/.claude/skills/gamma"
+[[ "$stage" == "$codex_home/skills/repo-session."* ]] || \
+  fail "stage was created at unexpected path: $stage"
+assert_link_to "$stage/project" "$import_repo/.claude/skills"
+[[ ! -e "$import_repo/.agents" ]] || fail "repository gained .agents"
 
-print -- "PASS: repository Claude skills sync safely into Codex"
+CODEX_HOME="$codex_home" _codex_cleanup_repo_claude_skills "$stage"
+[[ ! -e "$stage" ]] || fail "staged skills survived explicit cleanup"
+
+# The wrapper must keep skills staged while Codex runs, remove them afterward,
+# and preserve a failing Codex process's exit status.
+local fake_bin="$test_tmp/bin"
+local report="$test_tmp/fake-codex-report"
+mkdir -p "$fake_bin"
+cp "$repo_root/zsh/tests/fixtures/fake-codex" "$fake_bin/codex"
+chmod +x "$fake_bin/codex"
+
+codex_merge_config() { :; }
+PATH="$fake_bin:$PATH"
+rehash
+
+if (
+  cd "$import_repo/service/nested"
+  CODEX_HOME="$codex_home" \
+    FAKE_CODEX_REPORT="$report" \
+    FAKE_CODEX_STATUS=23 \
+    codex probe-argument
+); then
+  local wrapper_status=0
+else
+  local wrapper_status=$?
+fi
+
+[[ $wrapper_status -eq 23 ]] || \
+  fail "wrapper returned $wrapper_status instead of Codex status 23"
+[[ "$(<"$report")" == *$'argument=probe-argument\n'* ]] || \
+  fail "wrapper did not pass arguments to Codex"
+[[ "$(<"$report")" == *'project-skills=present' ]] || \
+  fail "project skills were not staged while Codex ran"
+[[ -z "$(find "$codex_home/skills" -mindepth 1 -maxdepth 1 -print -quit)" ]] || \
+  fail "session staging survived after Codex exited"
+[[ ! -e "$import_repo/.agents" ]] || fail "wrapper created .agents"
+
+# Repositories without Claude skills should launch without creating staging.
+local empty_repo="$test_tmp/empty"
+local empty_report="$test_tmp/empty-report"
+mkdir -p "$empty_repo"
+command git -C "$empty_repo" init -q
+(
+  cd "$empty_repo"
+  CODEX_HOME="$codex_home" \
+    FAKE_CODEX_REPORT="$empty_report" \
+    FAKE_CODEX_STATUS=0 \
+    codex
+)
+[[ "$(<"$empty_report")" == *'project-skills=absent' ]] || \
+  fail "empty repository unexpectedly staged project skills"
+
+print -- "PASS: repository Claude skills are scoped to the Codex process"
