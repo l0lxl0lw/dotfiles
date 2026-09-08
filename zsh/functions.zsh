@@ -1,5 +1,7 @@
-# Auto-ls on directory change
+# Auto-ls on directory change (interactive shells only; keeps `cd` output out
+# of agent tool results, where it was polluting every Bash call)
 chpwd() {
+  [[ -o interactive && -z $CLAUDECODE ]] || return
   ls
 }
 
