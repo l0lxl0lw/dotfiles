@@ -20,6 +20,14 @@ Chosen approach and rationale; meaningful alternatives and why rejected. Scope,
 explicit exclusions, assumptions, risks, and material-drift stop conditions.
 Document important decisions without referring to the planning conversation.
 
+List every likely generated or incidental output from planned commands (for example,
+API collections/clients, snapshots, lockfiles, migrations, fixtures, and formatting).
+For each material output, state its expected paths and the explicit decision: accept
+the scoped update, use a pinned/configured command that prevents it, or prohibit the
+producing command. A generic test/generation authorization is not approval for broad
+unrelated churn. The plan is not ready for approval if implementation would need to
+ask whether to accept, suppress, or reconfigure an expected output.
+
 ## Acceptance And Proof
 
 Create stable IDs early and retain them across revisions. Repeat for each AC:

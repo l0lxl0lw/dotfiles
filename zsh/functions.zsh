@@ -558,8 +558,8 @@ grok() {
   command grok "$@"
 }
 
-# Link shared skills and OpenCode-local overrides into its native skill directory.
-# JSON/JSONC settings stay machine-local and are never written by this sync.
+# Link shared skills and the local fresh-session handoff. Existing machine-local
+# JSON/JSONC files remain untouched; only an absent TUI config gets our defaults.
 opencode_merge_config() {
   emulate -L zsh
   setopt extended_glob
@@ -574,6 +574,27 @@ opencode_merge_config() {
   _agentcfg_sync_skill_sources "$opencode_dir/skills" \
     "$repo/skills" \
     "$HOME/dotfiles/ai/shared/skills"
+
+  local f
+  for f in "$repo"/plugins/*.js(N-.); do
+    mkdir -p "$opencode_dir/plugins"
+    _agentcfg_link "$f" "$opencode_dir/plugins/${f:t}" "OpenCode plugin '${f:t}'"
+  done
+  for f in "$repo"/commands/*.md(N-.); do
+    mkdir -p "$opencode_dir/commands"
+    _agentcfg_link "$f" "$opencode_dir/commands/${f:t}" "OpenCode command '${f:t}'"
+  done
+  if [[ -d "$repo/handoff" ]]; then
+    _agentcfg_link "$repo/handoff" "$opencode_dir/dotfiles-handoff" "OpenCode handoff modules"
+  fi
+  if [[ -f "$repo/tui.json" ]]; then
+    if [[ -e "$opencode_dir/tui.jsonc" || -L "$opencode_dir/tui.jsonc" ]]; then
+      print -u2 -- 'opencode_merge_config: preserving tui.jsonc; add ./dotfiles-handoff/tui.mjs to its plugin list to enable fresh handoff'
+      (( _AGENTCFG_SKIPPED++ ))
+    else
+      _agentcfg_link "$repo/tui.json" "$opencode_dir/tui.json" "TUI config (existing configs need ./dotfiles-handoff/tui.mjs in plugin)"
+    fi
+  fi
   _agentcfg_report opencode_merge_config
 }
 

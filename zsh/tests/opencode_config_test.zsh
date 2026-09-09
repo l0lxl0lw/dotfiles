@@ -9,6 +9,9 @@ export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME
 mkdir -p "$HOME/dotfiles/ai/opencode/skills" "$HOME/dotfiles/ai/shared"
 ln -s "$repo_root/ai/shared/skills" "$HOME/dotfiles/ai/shared/skills"
+for name in handoff plugins commands tui.json; do
+  ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
+done
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
 
@@ -21,6 +24,10 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
+assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/ai/opencode/tui.json"
+assert_link_to "$HOME/.config/opencode/dotfiles-handoff" "$repo_root/ai/opencode/handoff"
+assert_link_to "$HOME/.config/opencode/plugins/fresh-session.js" "$repo_root/ai/opencode/plugins/fresh-session.js"
+assert_link_to "$HOME/.config/opencode/commands/implement-plan.md" "$repo_root/ai/opencode/commands/implement-plan.md"
 skills=("$repo_root"/ai/shared/skills/**/SKILL.md(N.))
 (( ${#skills} > 0 )) || fail "empty shared catalog"
 for f in "${skills[@]}"; do
@@ -81,6 +88,24 @@ sleep 1
 [[ -z "$(opencode_merge_config)" ]] || fail "XDG sync not silent"
 [[ "$(stat -f %m "$dst/skills/readme")" == "$before" ]] || fail "unchanged link rewritten"
 cmp -s "$dst/opencode.jsonc" "$test_tmp/config-before" || fail "JSONC modified"
+
+# Never replace a machine-local TUI config or another installer's command/plugin.
+rm "$dst/tui.json"
+print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.jsonc"
+cp "$dst/tui.jsonc" "$test_tmp/tui-before"
+opencode_merge_config || fail "existing tui.jsonc sync"
+cmp -s "$dst/tui.jsonc" "$test_tmp/tui-before" || fail "TUI JSONC modified"
+[[ ! -e "$dst/tui.json" ]] || fail "created competing TUI JSON"
+mv "$dst/tui.jsonc" "$dst/tui.json"
+rm "$dst/commands/implement-plan.md" "$dst/plugins/fresh-session.js"
+print -r -- 'keep command' > "$dst/commands/implement-plan.md"
+ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
+opencode_merge_config || fail "foreign handoff files sync"
+cmp -s "$dst/tui.json" "$test_tmp/tui-before" || fail "TUI JSON modified"
+[[ "$(<"$dst/commands/implement-plan.md")" == 'keep command' ]] || fail "command overwritten"
+[[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "plugin overwritten"
+rm "$dst/tui.json" "$dst/commands/implement-plan.md" "$dst/plugins/fresh-session.js"
+opencode_merge_config || fail "restore handoff links"
 
 # The wrapper syncs before launch, forwards arguments and returns binary status.
 mkdir -p "$test_tmp/bin"

@@ -29,9 +29,13 @@ cold-session context; do not reconstruct the brainstorming conversation.
    check assumptions. Avoid whole-repo rediscovery and ritual rereads; re-read
    when edits, concurrent changes, stale context, or failures make it necessary.
 4. Do not relitigate settled scope. For material drift (changed behavior/contract,
-   conflicting edits, missing required prerequisites, newly unsafe effects, or
-   invalid design), record evidence and stop with the smallest decision needed.
-   Harmless line shifts are not material drift. Never silently widen approval.
+    conflicting edits, missing required prerequisites, newly unsafe effects, or
+    invalid design), record evidence and stop with the smallest decision needed.
+    Harmless line shifts are not material drift. Never silently widen approval.
+    Unexpected broad generated output is material drift unless the approved plan
+    explicitly authorizes those paths and output class. Do not accept it merely
+    because a planned command produced it. This should be rare: a handoff-ready plan
+    has already resolved the expected-output policy before implementation starts.
 
 ## Implement And Verify
 
