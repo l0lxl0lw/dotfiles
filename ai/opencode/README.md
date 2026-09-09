@@ -62,6 +62,9 @@ Run `zsh zsh/tests/opencode_config_test.zsh` for isolated sync and wrapper check
 
 ## Automatic Fresh Implementation
 
+This integration is temporarily disabled in favor of Superpowers. Its command,
+server plugin, and TUI config remain under `.disabled` filenames for restoration.
+
 On **OpenCode 1.18.30**, the shared `brainstorm-then-plan` skill can finish with
 one native popup approving the exact plan AND starting implementation in a fresh
 root session. It only takes this path when `prepare_plan_handoff` is actually in

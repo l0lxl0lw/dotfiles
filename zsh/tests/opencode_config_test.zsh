@@ -24,22 +24,19 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
-assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/ai/opencode/tui.json"
 assert_link_to "$HOME/.config/opencode/dotfiles-handoff" "$repo_root/ai/opencode/handoff"
-assert_link_to "$HOME/.config/opencode/plugins/fresh-session.js" "$repo_root/ai/opencode/plugins/fresh-session.js"
-assert_link_to "$HOME/.config/opencode/commands/implement-plan.md" "$repo_root/ai/opencode/commands/implement-plan.md"
+for disabled in \
+  "$HOME/.config/opencode/tui.json" \
+  "$HOME/.config/opencode/plugins/fresh-session.js" \
+  "$HOME/.config/opencode/commands/implement-plan.md" \
+  "$HOME/.config/opencode/skills/brainstorm-then-plan" \
+  "$HOME/.config/opencode/skills/implement-plan"; do
+  [[ ! -e "$disabled" && ! -L "$disabled" ]] || fail "disabled workflow installed: $disabled"
+done
 skills=("$repo_root"/ai/shared/skills/**/SKILL.md(N.))
 (( ${#skills} > 0 )) || fail "empty shared catalog"
 for f in "${skills[@]}"; do
   assert_link_to "$HOME/.config/opencode/skills/${f:h:t}" "${f:h}"
-done
-# Shared workflow helpers remain prose, reachable through resolved skill links.
-for name in brainstorm-then-plan implement-plan; do
-  linked="$HOME/.config/opencode/skills/$name"
-  source_dir=${linked:A}
-  for helper in plan-template verification-contract; do
-    [[ -f "$source_dir/../_lib/$helper.md" ]] || fail "missing workflow helper: $name/$helper"
-  done
 done
 [[ ! -e "$HOME/.config/opencode/skills/_lib" ]] || fail "helper directory became a skill"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
@@ -90,14 +87,13 @@ sleep 1
 cmp -s "$dst/opencode.jsonc" "$test_tmp/config-before" || fail "JSONC modified"
 
 # Never replace a machine-local TUI config or another installer's command/plugin.
-rm "$dst/tui.json"
 print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.jsonc"
 cp "$dst/tui.jsonc" "$test_tmp/tui-before"
 opencode_merge_config || fail "existing tui.jsonc sync"
 cmp -s "$dst/tui.jsonc" "$test_tmp/tui-before" || fail "TUI JSONC modified"
 [[ ! -e "$dst/tui.json" ]] || fail "created competing TUI JSON"
 mv "$dst/tui.jsonc" "$dst/tui.json"
-rm "$dst/commands/implement-plan.md" "$dst/plugins/fresh-session.js"
+mkdir -p "$dst/commands" "$dst/plugins"
 print -r -- 'keep command' > "$dst/commands/implement-plan.md"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
 opencode_merge_config || fail "foreign handoff files sync"
@@ -105,7 +101,10 @@ cmp -s "$dst/tui.json" "$test_tmp/tui-before" || fail "TUI JSON modified"
 [[ "$(<"$dst/commands/implement-plan.md")" == 'keep command' ]] || fail "command overwritten"
 [[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "plugin overwritten"
 rm "$dst/tui.json" "$dst/commands/implement-plan.md" "$dst/plugins/fresh-session.js"
-opencode_merge_config || fail "restore handoff links"
+opencode_merge_config || fail "disabled handoff sync"
+for disabled in "$dst/tui.json" "$dst/commands/implement-plan.md" "$dst/plugins/fresh-session.js"; do
+  [[ ! -e "$disabled" && ! -L "$disabled" ]] || fail "disabled handoff entry restored: $disabled"
+done
 
 # The wrapper syncs before launch, forwards arguments and returns binary status.
 mkdir -p "$test_tmp/bin"

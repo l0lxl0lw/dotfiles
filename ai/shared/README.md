@@ -31,8 +31,8 @@ when adapting those workflows.
 
 ## Plan And Implement
 
-Two portable entry skills provide the shared workflow for Claude, Codex, Grok,
-and OpenCode, without a planning plugin dependency:
+This custom workflow is temporarily disabled in favor of Superpowers. Its entry
+files remain as `SKILL.md.disabled` for restoration; when enabled, it provides:
 
 - `brainstorm-then-plan`: inspect context, ask only unresolved important questions
   one at a time, define acceptance and bounded proof, then request one final plan
