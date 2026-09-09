@@ -14,7 +14,7 @@
 | `ai/codex/` | Codex CLI skills and global `AGENTS.md` — see [ai/codex/README.md](ai/codex/README.md) |
 | `ai/grok/` | Grok CLI skills, agents, hooks, global `AGENTS.md`, and tracked settings — see [ai/grok/README.md](ai/grok/README.md) |
 | `ai/opencode/` | OpenCode skill overrides and native shared-skill sync - see [ai/opencode/README.md](ai/opencode/README.md) |
-| `ai/shared/` | Skills shared by Claude, Codex, Grok, and OpenCode |
+| `ai/shared/` | Skills shared by Claude, Codex, Grok, and OpenCode; see the [plan/implement workflow](ai/shared/README.md#plan-and-implement) |
 | `vim/` `tmux/` `emacs/` | editor and multiplexer config (`emacs/` is manual, not wired into `deploy.sh`) |
 
 All four agent integrations use symlinks in their user-level directories (`~/.claude`,

@@ -26,6 +26,15 @@ skills=("$repo_root"/ai/shared/skills/**/SKILL.md(N.))
 for f in "${skills[@]}"; do
   assert_link_to "$HOME/.config/opencode/skills/${f:h:t}" "${f:h}"
 done
+# Shared workflow helpers remain prose, reachable through resolved skill links.
+for name in brainstorm-then-plan implement-plan; do
+  linked="$HOME/.config/opencode/skills/$name"
+  source_dir=${linked:A}
+  for helper in plan-template verification-contract; do
+    [[ -f "$source_dir/../_lib/$helper.md" ]] || fail "missing workflow helper: $name/$helper"
+  done
+done
+[[ ! -e "$HOME/.config/opencode/skills/_lib" ]] || fail "helper directory became a skill"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
 
 # A path containing spaces must be honored without touching the default tree.

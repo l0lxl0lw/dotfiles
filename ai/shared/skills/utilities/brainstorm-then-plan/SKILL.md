@@ -1,56 +1,84 @@
 ---
 name: brainstorm-then-plan
-description: Scope the work with superpowers:brainstorming, then plan it in plan mode (Claude or codex). Ends at the approved plan — implementation happens in a fresh session via implement-plan, not here.
+description: Discover context, settle important decisions, and write a standalone plan for one final approval, then stop. Use for "brainstorm then plan", "plan this change", or a cold-session handoff to implement-plan.
 disable-model-invocation: true
-model: opus
-effort: high
 ---
 
 # Brainstorm, Then Plan
 
-Scope the work, produce an approved plan, hand off. **This skill does not implement.**
-Implementation runs in a fresh session under `implement-plan`, on a cheaper model, with none
-of the brainstorming transcript in context.
+Produce an approved plan, not an implementation. This workflow works in Claude,
+Codex, Grok, and OpenCode without plugins or native plan tools. Use the available
+read, search, question, and file-edit tools; a plain chat question is sufficient.
+Native plan mode is optional and must not auto-start implementation on approval.
 
-## Steps
+Read `../_lib/plan-template.md` and `../_lib/verification-contract.md` relative to
+this skill's resolved source directory (resolve the skill symlink first, not the
+shell working directory). If unavailable, report the missing reference, not an
+invented replacement contract.
 
-1. **Orient before asking.** If the repo has a graphify graph (`graph.json` at the repo root
-   or a `graphify` MCP server), query it — `/graphify query`, `/graphify path A B`,
-   `/graphify explain X` — to find the entry points, callers and neighbours you need.
-   Read the specific files it points at. Do NOT dispatch exploration subagents to go
-   read the codebase for you; if there is no graph, grep and read directly.
+## Discover Before Asking
 
-2. Invoke `superpowers:brainstorming` and work through it with the user until the shape of
-   the change is settled: what problem, what approach, what is out of scope.
+1. Inspect repository instructions, status (staged, unstaged, and untracked),
+   relevant docs, entry points, callers, tests, and environment/verification
+   scripts. Preserve others' work. Record the repo root, revision, dirty baseline,
+   and the specific sources supporting the design. Graphs may locate code but
+   current files are authoritative. No implementation or setup side effects.
+2. Identify the user-visible goal, constraints, exclusions, and risks. Draft
+   stable acceptance IDs (`AC-01`, etc.) early, with concrete scenarios and
+   observable outcomes; use them to expose missing decisions, not as a final
+   paperwork step. Read the verification contract before promising any proof.
+3. Ask **one question at a time**, only for an unresolved important decision that
+   inspection cannot answer: behavior, scope, tradeoff, authorization, or a
+   prerequisite that changes feasibility. Do not ask users to recite discoverable
+   facts or choose a planner/model. State safe, low-impact assumptions in the plan.
+4. Match depth to uncertainty and risk. A small fix needs a short grounded plan;
+   a cross-system change needs boundaries, failure paths, and migration/recovery
+   detail. Compare meaningful viable alternatives with tradeoffs and a recommended
+   choice when there is a real choice. Include doing nothing when viable; do not
+   manufacture alternatives or impose design-review approval rounds.
 
-3. Ask the user which planner to use — Claude plan mode or codex:
+## Make The Plan Executable
 
-   - **Claude plan mode** — call `EnterPlanMode`, write the plan in-session, present it with
-     `ExitPlanMode` for approval.
-   - **codex** — invoke the `codex` skill in planning mode and bring its plan back for approval.
+Write the standalone plan using the template at the explicit canonical path
+`~/.agents/plans/<project>/<task>/plan.md`. Choose unambiguous filesystem-safe
+project/task names; do not overwrite an unrelated plan. Resolve and display the
+absolute path. The cold reader must not need the brainstorming transcript.
 
-4. On approval, **stop**. Confirm the plan file's path under `~/.claude/plans/`, then tell
-   the user verbatim:
+- Name affected files, coherent implementation units and their dependencies,
+  decisions and rejected alternatives, non-goals, and relevant current contracts.
+- For every AC, specify scenarios, fixtures, prerequisites, non-vacuity checks,
+  a cheap proof and the necessary real-system proof (or justified non-applicability),
+  expected observations, and what the proof explicitly does not establish.
+- Specify exact commands, working directories, environment identity, authorized
+  effects and targets, cleanup, time/cost/attempt limits, and stop conditions.
+  Missing infrastructure is a stated blocker, never implicit permission to create it.
+- Discover repository-local `ADAPTER.md` (including the local verification skill
+  directory). If applicable, read it and include its required fenced machine
+  contract block, using its schema and validation instructions. The shared
+  template is not a backend schema. If that contract is absent or ambiguous,
+  do not guess fields or promise an adapter run; resolve the blocker before
+  approval if that run is required. See the shared verification contract.
+- Self-check traceability from AC to step to proof and the ability to resume from
+  `progress.md`. Use review only where risk warrants it, with available tools;
+  no mandatory reviewer loop, delegation, worktree, or commit.
 
-   > Plan approved and saved to `<path>`.
-   > Run `/clear`, then `/implement-plan <path>` to build it.
+## One Final Approval, Then Stop
 
-   Do not write code, do not touch the working tree, do not offer to "just start".
+Present the completed plan, its exact path, key tradeoffs, exact authorized effects,
+verification budget, and any exclusions/blockers. Ask for one final plan approval.
+Clarification answers, silence, a tool exit, or your own recommendation are not
+approval. If the user requests edits, revise before seeking final approval again.
 
-## Writing the plan for a cold reader
+Only after explicit user approval, record the approval provenance and SHA-256 of
+the exact approved `plan.md` bytes in adjacent `progress.md`, not by mutating the
+approved plan. Do not manufacture approval for a draft or claim a hash is a user
+decision. Preserve that immutable snapshot; material revisions need new approval.
 
-The plan is the ONLY thing that survives into implementation. Nothing said during
-brainstorming carries over. So the plan must stand alone:
+Then **STOP**. Return the absolute plan path and this handoff:
 
-- Name every file to touch by repo-relative path, and what changes in each.
-- State what is explicitly **out of scope**, and the rejected alternatives with one line
-  on why — otherwise the implementer re-litigates settled decisions.
-- Spell out how to verify: the exact commands to run, and what passing looks like.
-- No pronouns pointing at the conversation ("the approach we discussed", "as above").
+> Start a fresh/cleared session, then invoke `implement-plan <absolute-plan-path>`.
 
-## Rules
-
-- Stop `superpowers:brainstorming` when scoping is done. It hands off to plan mode, nothing else.
-- Do NOT use `superpowers:writing-plans`. The plan lives in plan mode, which writes the file.
-- Do NOT use `superpowers:subagent-driven-development`.
-- One approval gate: the plan. Do not re-ask for scope after the plan is approved.
+Use the harness's new-session/clear mechanism if available; `/clear` is not a
+portable requirement. Do not implement, launch a worker to implement, or continue
+automatically. No automatic git operations (including staging, commits, branch or
+worktree creation, pulls, or pushes); read-only git inspection is allowed.

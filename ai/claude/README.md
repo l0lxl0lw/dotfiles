@@ -181,7 +181,8 @@ Change the order or items in both files together, or they drift.
 | `/humanizer` | Remove signs of AI-generated writing from text | Yes |
 | `/load-memory` | Restore working memory from MEMORY.md at session start | Yes |
 | `/save-memory` | Save working memory from the current session into MEMORY.md | Yes |
-| `/brainstorm-then-plan` | Scope with superpowers brainstorming, then plan and build in plan mode (Claude or codex) | No |
+| `/brainstorm-then-plan` | Discover context, write a portable plan, request final approval, then stop for a cold-session handoff | No |
+| `/implement-plan <path>` | Build the approved plan in a fresh session with drift checks and bounded, durable verification evidence | No |
 | `/plan` | Strategic planning with optional interview workflow | Yes |
 | `/ralph` | Self-referential loop until task completion with configurable reviewer | Yes |
 | `/ralplan` | Iterative planning with Planner, Architect, and Critic agents | Yes |
@@ -357,7 +358,13 @@ Safe to re-run at any time — it only removes symlinks it owns, and leaves gsta
   | Group | `model` | `effort` | Why |
   |---|---|---|---|
   | [`../shared/skills/git/`](../shared/skills/git) | `sonnet` | `medium` | Mechanical, heavily scripted workflows — the procedure is in the skill, not in the model |
-  | [`../shared/skills/utilities/`](../shared/skills/utilities) | `opus` | `high` | Open-ended judgement: explainers, diagrams, memory, planning hand-offs |
+  | Most [`../shared/skills/utilities/`](../shared/skills/utilities) | `opus` | `high` | Open-ended judgement: diagrams, memory, and other utilities |
+
+  The portable `brainstorm-then-plan` and `implement-plan` skills do not pin model
+  or effort in frontmatter. Implementation recommends medium effort, with Sonnet
+  only as an availability-dependent cost hint. Their shared
+  [workflow and plan location](../shared/README.md#plan-and-implement) apply across
+  Claude, Codex, Grok, and OpenCode; native plan mode is optional.
 
   Neither field reaches Codex — see [`../codex/README.md`](../codex/README.md#model-and-effort-do-not-cross-over).
 - **Agents**: Add `.md` files to `agents/` with frontmatter:
