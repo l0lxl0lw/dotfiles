@@ -1,0 +1,4 @@
+#!/bin/zsh -f
+[[ $# == 1 && "$1" == 'argument with spaces' ]] || exit 90
+[[ -f "$XDG_CONFIG_HOME/opencode/skills/readme/SKILL.md" ]] || exit 91
+exit 23

@@ -1,6 +1,6 @@
 # Shared Agent Config
 
-Cross-tool configuration consumed by Claude, Codex, and Grok.
+Cross-tool configuration consumed by Claude, Codex, Grok, and OpenCode.
 
 ```
 ai/
@@ -14,10 +14,17 @@ ai/
         ├── integrations/
         ├── mattpocock/
         ├── omc/
+        ├── understand/
         └── utilities/
 ```
 
-`claude_merge_config`, `codex_merge_config` and `grok_merge_config` all flatten
+`claude_merge_config`, `codex_merge_config`, `grok_merge_config` and
+`opencode_merge_config` all flatten
 `ai/shared/skills/**/SKILL.md` into their respective runtime skill directories. Tool-local
-skills win by basename, so put a skill under `ai/claude/skills`, `ai/codex/skills` or
-`ai/grok/skills` when it needs tool-specific behavior.
+skills win by basename, so put a skill under `ai/claude/skills`, `ai/codex/skills`,
+`ai/grok/skills` or `ai/opencode/skills` when it needs tool-specific behavior.
+
+All previously disabled skills are restored here, including their supporting files.
+Discovery does not guarantee portability: some skills reference harness-specific tools,
+plugins, models or commands. Keep shared contents intact and use tool-local overrides
+when adapting those workflows.

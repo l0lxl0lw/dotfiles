@@ -128,7 +128,7 @@ _claude_agents() {
 compdef _claude_agents ccaa ccta
 
 # ---------------------------------------------------------------------------
-# Linking tracked config into ~/.claude, ~/.codex and ~/.grok
+# Linking tracked config into Claude, Codex, Grok and OpenCode user directories
 #
 # Every tool reads a user-level directory that is a SHARED namespace: our
 # symlinks live next to real directories installed by other tools (gstack under
@@ -187,7 +187,7 @@ _agentcfg_link() {
 }
 
 # _agentcfg_sync_skill_sources <dest-skills-dir> <src-skills-dir>...
-# Both Claude and Codex discover skills as <dir>/<name>/SKILL.md, so each source
+# Agent tools discover skills as <dir>/<name>/SKILL.md, so each source
 # tree may nest them under categories and they get flattened to their basename.
 # Missing sources are skipped -- otherwise an absent source would prune every link
 # and put nothing back, which is the data loss this design exists to prevent.
@@ -556,4 +556,29 @@ grok_merge_config() {
 grok() {
   grok_merge_config
   command grok "$@"
+}
+
+# Link shared skills and OpenCode-local overrides into its native skill directory.
+# JSON/JSONC settings stay machine-local and are never written by this sync.
+opencode_merge_config() {
+  emulate -L zsh
+  setopt extended_glob
+
+  local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+  local repo="$HOME/dotfiles/ai/opencode"
+  [[ -d "$repo" ]] || { echo "opencode_merge_config: $repo not found" >&2; return 1 }
+  # As with Codex/Grok, don't create config for a tool not installed here.
+  [[ -d "$opencode_dir" ]] || return 0
+
+  _agentcfg_reset
+  _agentcfg_sync_skill_sources "$opencode_dir/skills" \
+    "$repo/skills" \
+    "$HOME/dotfiles/ai/shared/skills"
+  _agentcfg_report opencode_merge_config
+}
+
+# Sync before startup; `command` bypasses this wrapper and preserves arguments.
+opencode() {
+  opencode_merge_config || return
+  command opencode "$@"
 }
