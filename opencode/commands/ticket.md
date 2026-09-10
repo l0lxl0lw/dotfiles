@@ -12,12 +12,39 @@ criteria, but this local contract wins wherever they conflict: tickets are GitHu
 issues, not files under `thoughts/`; comments hold later workflow artifacts; no
 Agentic CLI is required.
 
-Resolve the repository and whether `$ARGUMENTS` identifies a new ticket or an
-existing issue. For a new ticket, create a repository issue with
-`gh issue create --body-file ...`, add it to the configured project, set Status to
-Backlog, and use `sync-state ISSUE 'Not started'`. For an existing issue, preserve
-useful content and refine it with `gh issue edit --body-file ...`; do not reset its
-status. Return the issue and board links, and do not start research or implementation.
+Resolve the repository and treat the request as a new ticket by default. Similar
+topics, shared components or collections, overlapping keywords, and related search
+results are context only: they never authorize selecting or editing an existing
+issue. An existing issue is an update candidate only when the user supplies its URL
+or number, or explicitly asks to update that specific issue.
+
+Before every `gh issue edit`, even when the user explicitly named the issue, show the
+candidate issue and use the native question tool with these choices in this order:
+**Create a new ticket (Recommended)**, **Update the existing ticket**, **Cancel**.
+Do not edit the issue, its project fields, or its status unless the user selects the
+update option. If the request is merely related to existing issues, mention or link
+them in the new ticket where useful instead of merging the scopes.
+
+For a new ticket, create a repository issue with `gh issue create --assignee @me
+--body-file ...`, add it to https://github.com/orgs/opencfo-ai/projects/4 regardless
+of which repository owns the issue, set Status to Backlog, and use `sync-state ISSUE
+'Not started'`. Verify the assignee and project fields, then run `python3
+~/dotfiles/opencode/tracking/track.py link-orca ISSUE` with the exact URL returned by
+GitHub. Attempt and report Project 4 setup and Orca attachment independently; neither
+downstream failure undoes the created issue or excuses skipping the other outcome.
+
+If `link-orca` reports a conflict, show the existing and new issue URLs and use the
+native question tool with **Keep existing link (Recommended)** and **Replace with new
+issue**. Only the replace choice authorizes rerunning with `--replace-existing
+EXISTING_NUMBER`. Treat `not_managed` as normal outside Orca. For `orca_unavailable`
+or `failed`, keep the issue and report the helper's exact recovery command; never
+claim attachment without `attached` or `already_attached`. Report issue creation,
+assignee/Project 4 fields, and Orca attachment as separate final outcomes.
+
+For an explicitly approved existing-ticket update, preserve useful content and refine
+it with `gh issue edit --body-file ...`; do not reset its status, change its assignees,
+or invoke `link-orca`. Return the issue and board links, and do not start research or
+implementation.
 
 # Create Ticket
 

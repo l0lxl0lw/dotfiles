@@ -1,12 +1,14 @@
 """Real local Git histories; GitHub mutations intercepted. No network or user refs."""
+import contextlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 spec = importlib.util.spec_from_file_location("track", Path(__file__).resolve().parents[1] / "tracking/track.py")
 track = importlib.util.module_from_spec(spec)
@@ -181,6 +183,289 @@ class CommentTest(unittest.TestCase):
                 track.note(ISSUE, "Research", "body", "key")
                 write.assert_not_called()
                 self.assertIn("--paginate", api.call_args.args)
+
+
+class IssueUrlTest(unittest.TestCase):
+    def test_accepts_issue_outside_opencfo_organization(self):
+        value = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+        with patch.object(track, "gh", return_value={"number": 4, "url": value}) as api:
+            self.assertEqual(track.issue_url(value), value)
+        api.assert_called_once_with("issue", "view", value, "--json", "number,url")
+
+    def test_uses_canonical_github_identity(self):
+        supplied = "https://github.com/L0LXL0LW/DOTFILES/issues/4"
+        canonical = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+        with patch.object(track, "gh", return_value={"number": 4, "url": canonical}):
+            self.assertEqual(track.issue_details(supplied), {
+                "number": 4, "repository": "l0lxl0lw/dotfiles", "url": canonical
+            })
+
+    def test_rejects_mismatched_github_number(self):
+        value = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+        with patch.object(track, "gh", return_value={"number": 5, "url": value}):
+            with self.assertRaisesRegex(RuntimeError, "invalid issue number"):
+                track.issue_details(value)
+
+    def test_number_resolves_against_current_repository(self):
+        value = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+        with patch.object(track, "gh", side_effect=[
+            {"nameWithOwner": "l0lxl0lw/dotfiles"}, {"number": 4, "url": value}
+        ]) as api:
+            self.assertEqual(track.issue_url("4"), value)
+        self.assertEqual(api.call_args_list, [
+            call("repo", "view", "--json", "nameWithOwner"),
+            call("issue", "view", value, "--json", "number,url"),
+        ])
+
+    def test_rejects_malformed_github_json(self):
+        value = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+        error = json.JSONDecodeError("bad", "", 0)
+        with patch.object(track, "gh", side_effect=error):
+            with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
+                track.issue_details(value)
+
+    def test_rejects_malformed_numeric_repository_response(self):
+        with patch.object(track, "gh", return_value=[]):
+            with self.assertRaisesRegex(RuntimeError, "repository identity"):
+                track.issue_details("4")
+
+
+class OrcaProtocolTest(unittest.TestCase):
+    def completed(self, response, returncode=0, stderr=""):
+        return subprocess.CompletedProcess(
+            args=[], returncode=returncode, stdout=response, stderr=stderr
+        )
+
+    def test_preserves_structured_error_code(self):
+        response = json.dumps({
+            "ok": False, "error": {"code": "selector_not_found", "message": "outside"}
+        })
+        with patch.object(track.subprocess, "run", return_value=self.completed(response)):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "selector_not_found")
+
+    def test_rejects_malformed_json(self):
+        with patch.object(track.subprocess, "run", return_value=self.completed("not json")):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "malformed_orca_response")
+
+    def test_rejects_non_object_envelope(self):
+        with patch.object(track.subprocess, "run", return_value=self.completed("[]")):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "malformed_orca_response")
+
+    def test_rejects_non_boolean_ok(self):
+        response = json.dumps({"ok": 1, "result": {}})
+        with patch.object(track.subprocess, "run", return_value=self.completed(response)):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "malformed_orca_response")
+
+    def test_rejects_nonzero_success_envelope(self):
+        response = json.dumps({"ok": True, "result": {}})
+        with patch.object(track.subprocess, "run", return_value=self.completed(response, 1)):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "orca_process_error")
+
+    def test_classifies_missing_executable(self):
+        with patch.object(track.subprocess, "run", side_effect=FileNotFoundError):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "orca_unavailable")
+
+    def test_classifies_timeout(self):
+        with patch.object(track.subprocess, "run", side_effect=subprocess.TimeoutExpired("orca", 90)):
+            with self.assertRaises(track.OrcaError) as raised:
+                track.orca("worktree", "current", "--json")
+        self.assertEqual(raised.exception.reason, "orca_timeout")
+
+
+class OrcaLinkTest(unittest.TestCase):
+    ISSUE = "https://github.com/l0lxl0lw/dotfiles/issues/4"
+    DETAILS = {"number": 4, "repository": "l0lxl0lw/dotfiles", "url": ISSUE}
+    WORKTREE_ID = "repo-id::/worktree"
+
+    def worktree(self, linked=None, project="github:l0lxl0lw/dotfiles", path="/worktree", worktree_id=None):
+        return {"ok": True, "result": {"worktree": {
+            "id": worktree_id or self.WORKTREE_ID,
+            "projectId": project,
+            "path": path,
+            "linkedIssue": linked,
+        }}}
+
+    def link(self, responses, replace_existing=None):
+        with patch.object(track, "issue_details", return_value=self.DETAILS.copy()):
+            with patch.object(track, "orca", side_effect=responses) as api:
+                result, exit_code = track.link_orca(self.ISSUE, replace_existing)
+        return result, exit_code, api
+
+    def test_attaches_empty_link_and_verifies_exact_worktree(self):
+        result, exit_code, api = self.link([
+            self.worktree(), self.worktree(4), self.worktree(4)
+        ])
+        self.assertEqual((result["outcome"], exit_code), ("attached", 0))
+        self.assertEqual(api.call_args_list, [
+            call("worktree", "current", "--json"),
+            call("worktree", "set", "--worktree", "id:" + self.WORKTREE_ID,
+                 "--issue", "4", "--json"),
+            call("worktree", "current", "--json"),
+        ])
+
+    def test_matching_link_is_idempotent(self):
+        result, exit_code, api = self.link([self.worktree(4)])
+        self.assertEqual((result["outcome"], exit_code), ("already_attached", 0))
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_conflicting_link_is_preserved(self):
+        result, exit_code, api = self.link([self.worktree(3)])
+        self.assertEqual((result["outcome"], exit_code), ("conflict", 2))
+        self.assertEqual(result["existingIssue"], 3)
+        self.assertTrue(result["recoveryCommand"].endswith("--replace-existing 3"))
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_approved_observed_link_can_be_replaced(self):
+        result, exit_code, api = self.link([
+            self.worktree(3), self.worktree(4), self.worktree(4)
+        ], replace_existing=3)
+        self.assertEqual((result["outcome"], exit_code), ("attached", 0))
+        self.assertEqual(api.call_count, 3)
+
+    def test_stale_replacement_authorization_is_refused(self):
+        result, exit_code, api = self.link([self.worktree()], replace_existing=3)
+        self.assertEqual((result["reason"], exit_code), ("stale_replacement", 2))
+        self.assertFalse(result["recoveryCommand"].endswith("--replace-existing 3"))
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_changed_link_requires_new_specific_authorization(self):
+        result, exit_code, api = self.link([self.worktree(5)], replace_existing=3)
+        self.assertEqual((result["reason"], exit_code), ("stale_replacement", 2))
+        self.assertEqual(result["observed"], 3)
+        self.assertTrue(result["recoveryCommand"].endswith("--replace-existing 5"))
+        self.assertNotIn("--replace-existing 3 --replace-existing", result["recoveryCommand"])
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_unmanaged_directory_is_not_a_failure(self):
+        result, exit_code, _ = self.link([
+            track.OrcaError("selector_not_found", "outside")
+        ])
+        self.assertEqual((result["outcome"], exit_code), ("not_managed", 0))
+        self.assertNotIn("recoveryCommand", result)
+
+    def test_missing_orca_is_recoverable(self):
+        result, exit_code, _ = self.link([
+            track.OrcaError("orca_unavailable", "missing")
+        ])
+        self.assertEqual((result["outcome"], exit_code), ("orca_unavailable", 0))
+        self.assertIn(self.ISSUE, result["recoveryCommand"])
+
+    def test_runtime_unavailable_is_attachment_failure(self):
+        result, exit_code, _ = self.link([
+            track.OrcaError("runtime_unavailable", "stopped")
+        ])
+        self.assertEqual((result["reason"], exit_code), ("runtime_unavailable", 1))
+
+    def test_remote_runtime_error_is_classified_narrowly(self):
+        result, exit_code, _ = self.link([track.OrcaError(
+            "invalid_argument", "current is a local cwd shortcut against a remote runtime"
+        )])
+        self.assertEqual((result["reason"], exit_code), ("remote_runtime_unsupported", 1))
+
+    def test_repository_mismatch_refuses_mutation(self):
+        result, exit_code, api = self.link([
+            self.worktree(project="github:someone/else")
+        ])
+        self.assertEqual((result["reason"], exit_code), ("repository_mismatch", 1))
+        self.assertEqual(result["worktree"]["id"], self.WORKTREE_ID)
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_repository_match_is_case_insensitive(self):
+        result, exit_code, _ = self.link([
+            self.worktree(4, project="github:L0LXL0LW/DOTFILES")
+        ])
+        self.assertEqual((result["outcome"], exit_code), ("already_attached", 0))
+
+    def test_malformed_linked_issue_refuses_mutation(self):
+        result, exit_code, api = self.link([self.worktree("4")])
+        self.assertEqual((result["reason"], exit_code), ("malformed_linked_issue", 1))
+        api.assert_called_once_with("worktree", "current", "--json")
+
+    def test_setter_failure_reports_recovery(self):
+        result, exit_code, _ = self.link([
+            self.worktree(), track.OrcaError("runtime_error", "write failed")
+        ])
+        self.assertEqual((result["reason"], exit_code), ("setter_error", 1))
+        self.assertIn("link-orca " + self.ISSUE, result["recoveryCommand"])
+
+    def test_setter_confirmation_must_match(self):
+        result, exit_code, api = self.link([self.worktree(), self.worktree(3)])
+        self.assertEqual((result["reason"], exit_code), ("invalid_setter_confirmation", 1))
+        self.assertEqual(api.call_count, 2)
+
+    def test_setter_confirmation_must_keep_path(self):
+        result, exit_code, _ = self.link([
+            self.worktree(), self.worktree(4, path="/other")
+        ])
+        self.assertEqual((result["reason"], exit_code), ("invalid_setter_confirmation", 1))
+
+    def test_final_verification_must_match_identity_and_issue(self):
+        result, exit_code, _ = self.link([
+            self.worktree(), self.worktree(4), self.worktree(3)
+        ])
+        self.assertEqual((result["reason"], exit_code), ("verification_mismatch", 1))
+
+    def test_final_verification_must_keep_worktree_id(self):
+        result, exit_code, _ = self.link([
+            self.worktree(), self.worktree(4), self.worktree(4, worktree_id="other")
+        ])
+        self.assertEqual((result["reason"], exit_code), ("verification_mismatch", 1))
+
+    def test_orca_error_data_is_preserved(self):
+        result, exit_code, _ = self.link([
+            track.OrcaError("runtime_unavailable", "stopped", {"nextSteps": ["orca open"]})
+        ])
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(result["details"], {"nextSteps": ["orca open"]})
+
+
+class OrcaCommandContractTest(unittest.TestCase):
+    def test_cli_prints_json_and_returns_classified_exit(self):
+        expected = {"outcome": "conflict", "reason": "linked_issue_conflict"}
+        with patch.object(track, "link_orca", return_value=(expected, 2)) as link:
+            with patch.object(track.sys, "argv", ["track.py", "link-orca", ISSUE, "--replace-existing", "7"]):
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    self.assertEqual(track.main(), 2)
+        self.assertEqual(json.loads(output.getvalue()), expected)
+        link.assert_called_once_with(ISSUE, 7)
+
+    def test_invalid_issue_still_returns_structured_result(self):
+        with patch.object(track, "issue_details", side_effect=RuntimeError("bad issue")):
+            result, exit_code = track.link_orca("bad")
+        self.assertEqual((result["outcome"], result["reason"], exit_code),
+                         ("failed", "invalid_issue", 1))
+
+    def test_invalid_replacement_still_returns_structured_result(self):
+        with patch.object(track.sys, "argv", ["track.py", "link-orca", ISSUE, "--replace-existing", "0"]):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(track.main(), 1)
+        result = json.loads(output.getvalue())
+        self.assertEqual((result["outcome"], result["reason"]),
+                         ("failed", "invalid_replacement"))
+
+    def test_ticket_contract_separates_new_issue_attachment(self):
+        contract = (Path(__file__).resolve().parents[1] / "commands/ticket.md").read_text()
+        local_contract = contract.split("# Create Ticket", 1)[0]
+        self.assertIn("link-orca ISSUE", contract)
+        self.assertIn("Keep existing link (Recommended)", contract)
+        self.assertIn("Report issue creation,\nassignee/Project 4 fields, and Orca attachment as separate final outcomes", contract)
+        self.assertIn("or invoke `link-orca`", contract)
+        self.assertLess(local_contract.index("gh issue create"), local_contract.index("link-orca ISSUE"))
+        self.assertIn("neither\ndownstream failure undoes the created issue or excuses skipping the other outcome", local_contract)
 
 
 if __name__ == "__main__":
