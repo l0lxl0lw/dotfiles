@@ -2,9 +2,11 @@
 
 ## GitHub issue workflow
 
-Personal adaptations of [Agentic](https://github.com/Cluster444/agentic) live in
-`commands/` and `agents/`. See `tracking/UPSTREAM.md` for the pinned source and
-`tracking/LICENSE.agentic` for its license. Edit these files directly in dotfiles.
+The complete command and agent payload from
+[Agentic](https://github.com/Cluster444/agentic) is vendored into `commands/` and
+`agents/`, with personal GitHub-workflow instructions layered into those files.
+See `tracking/UPSTREAM.md` for the pinned source and `tracking/LICENSE.agentic` for
+its license. Edit these files directly in dotfiles; the Agentic CLI is not required.
 
 OpenCFO work uses [Azu's Tasks, organization project #4](https://github.com/orgs/opencfo-ai/projects/4).
 Other repositories require an explicit project mapping; the current helper refuses
