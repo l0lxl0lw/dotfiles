@@ -558,24 +558,23 @@ grok() {
   command grok "$@"
 }
 
-# Link shared skills and native commands/agents into OpenCode's config directory.
+# Link OpenCode-owned skills and native commands/agents into its config directory.
 # Existing machine-local JSON/JSONC files remain untouched.
 opencode_merge_config() {
   emulate -L zsh
   setopt extended_glob
 
   local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-  local repo="$HOME/dotfiles/ai/opencode"
+  local repo="$HOME/dotfiles/opencode"
   [[ -d "$repo" ]] || { echo "opencode_merge_config: $repo not found" >&2; return 1 }
   # As with Codex/Grok, don't create config for a tool not installed here.
   [[ -d "$opencode_dir" ]] || return 0
 
   _agentcfg_reset
   _agentcfg_sync_skill_sources "$opencode_dir/skills" \
-    "$repo/skills" \
-    "$HOME/dotfiles/ai/shared/skills"
+    "$repo/skills"
 
-  local f
+  local f command_name
   # Managed native agents. Preserve foreign files; prune only our retired links.
   if [[ -d "$repo/agents" ]]; then
     mkdir -p "$opencode_dir/agents"
@@ -594,12 +593,21 @@ opencode_merge_config() {
   done
   for f in "$opencode_dir"/commands/*(N@); do
     _agentcfg_is_managed "$f" || continue
-    [[ -f "$repo/commands/${f:t}" ]] && continue
+    command_name="${f:t:r}"
+    [[ -f "$repo/commands/${f:t}" || -f "$repo/skills/git/$command_name/SKILL.md" ]] && continue
     rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
   done
   for f in "$repo"/commands/*.md(N-.); do
     mkdir -p "$opencode_dir/commands"
     _agentcfg_link "$f" "$opencode_dir/commands/${f:t}" "OpenCode command '${f:t}'"
+  done
+  # Git skills are also user-facing slash commands. Link the canonical SKILL.md
+  # directly so removing a skill prunes both live registrations on the next sync.
+  for f in "$repo"/skills/git/*/SKILL.md(N-.); do
+    command_name="${f:h:t}"
+    [[ -f "$repo/commands/$command_name.md" ]] && continue
+    mkdir -p "$opencode_dir/commands"
+    _agentcfg_link "$f" "$opencode_dir/commands/$command_name.md" "OpenCode skill command '$command_name'"
   done
 
   # Remove links installed by the retired fresh-session handoff. Real files and
@@ -618,5 +626,7 @@ opencode_merge_config() {
 # Sync before startup; `command` bypasses this wrapper and preserves arguments.
 opencode() {
   opencode_merge_config || return
-  command opencode "$@"
+  OPENCODE_DISABLE_EXTERNAL_SKILLS=1 \
+    OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 \
+    command opencode "$@"
 }

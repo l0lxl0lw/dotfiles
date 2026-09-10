@@ -7,10 +7,9 @@ test_tmp=${test_tmp:a}
 trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME
-mkdir -p "$HOME/dotfiles/ai/opencode/skills" "$HOME/dotfiles/ai/shared"
-ln -s "$repo_root/ai/shared/skills" "$HOME/dotfiles/ai/shared/skills"
-for name in commands agents; do
-  ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
+mkdir -p "$HOME/dotfiles/opencode"
+for name in skills commands agents; do
+  ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
 done
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
@@ -24,18 +23,22 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
-for f in "$repo_root"/ai/opencode/agents/*.md; do
+for f in "$repo_root"/opencode/agents/*.md; do
   assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
 done
-for f in "$repo_root"/ai/opencode/commands/*.md; do
+for f in "$repo_root"/opencode/commands/*.md; do
   assert_link_to "$HOME/.config/opencode/commands/${f:t}" "$f"
 done
-skills=("$repo_root"/ai/shared/skills/**/SKILL.md(N.))
-(( ${#skills} > 0 )) || fail "empty shared catalog"
+for f in "$repo_root"/opencode/skills/git/*/SKILL.md; do
+  assert_link_to "$HOME/.config/opencode/commands/${f:h:t}.md" "$f"
+done
+skills=("$repo_root"/opencode/skills/**/SKILL.md(N.))
+(( ${#skills} > 0 )) || fail "empty OpenCode catalog"
 for f in "${skills[@]}"; do
   assert_link_to "$HOME/.config/opencode/skills/${f:h:t}" "${f:h}"
 done
 [[ ! -e "$HOME/.config/opencode/skills/_lib" ]] || fail "helper directory became a skill"
+[[ ! -e "$HOME/.config/opencode/skills/readme" ]] || fail "shared skill leaked into OpenCode"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
 
 # A path containing spaces must be honored without touching the default tree.
@@ -50,48 +53,38 @@ for f in "${skills[@]}"; do
 done
 [[ ! -e "$dst/AGENTS.md" && ! -e "$dst/opencode.json" ]] || fail "created unrelated config"
 
-# Local overrides win; removing them restores the shared target.
-override="$HOME/dotfiles/ai/opencode/skills/readme"
-mkdir -p "$override"
-touch "$override/SKILL.md"
-opencode_merge_config || fail "override sync"
-assert_link_to "$dst/skills/readme" "$override"
-rm "$override/SKILL.md"
-rmdir "$override"
-opencode_merge_config || fail "override removal sync"
-assert_link_to "$dst/skills/readme" "$repo_root/ai/shared/skills/utilities/readme"
-
 # Prune only managed links, preserving real directories and foreign symlinks.
 ln -s "$HOME/dotfiles/missing" "$dst/skills/stale"
 mkdir -p "$dst/skills/vendor"
 ln -s "$test_tmp/missing-vendor" "$dst/skills/foreign"
-rm "$dst/skills/readme"
-mkdir "$dst/skills/readme"
+rm "$dst/skills/git-commit"
+mkdir "$dst/skills/git-commit"
 opencode_merge_config || fail "collision sync"
 [[ ! -L "$dst/skills/stale" ]] || fail "stale link survived"
 [[ -d "$dst/skills/vendor" && -L "$dst/skills/foreign" ]] || fail "vendor entry removed"
-[[ -d "$dst/skills/readme" && ! -L "$dst/skills/readme" ]] || fail "real directory overwritten"
-rmdir "$dst/skills/readme"
-ln -s "$test_tmp/missing-vendor" "$dst/skills/readme"
+[[ -d "$dst/skills/git-commit" && ! -L "$dst/skills/git-commit" ]] || fail "real directory overwritten"
+rmdir "$dst/skills/git-commit"
+ln -s "$test_tmp/missing-vendor" "$dst/skills/git-commit"
 opencode_merge_config || fail "foreign collision sync"
-[[ "$(readlink "$dst/skills/readme")" == "$test_tmp/missing-vendor" ]] || fail "foreign link overwritten"
-rm "$dst/skills/readme"
+[[ "$(readlink "$dst/skills/git-commit")" == "$test_tmp/missing-vendor" ]] || fail "foreign link overwritten"
+rm "$dst/skills/git-commit"
 opencode_merge_config || fail "restore sync"
-before=$(stat -f %m "$dst/skills/readme")
+before=$(stat -f %m "$dst/skills/git-commit")
 sleep 1
 [[ -z "$(opencode_merge_config)" ]] || fail "XDG sync not silent"
-[[ "$(stat -f %m "$dst/skills/readme")" == "$before" ]] || fail "unchanged link rewritten"
+[[ "$(stat -f %m "$dst/skills/git-commit")" == "$before" ]] || fail "unchanged link rewritten"
 cmp -s "$dst/opencode.jsonc" "$test_tmp/config-before" || fail "JSONC modified"
 
 # Retired handoff links are removed, while matching real files and foreign links
 # remain untouched.
 mkdir -p "$dst/commands" "$dst/plugins"
-ln -s "$HOME/dotfiles/ai/opencode/handoff" "$dst/dotfiles-handoff"
-ln -s "$HOME/dotfiles/ai/opencode/commands/implement-plan.md" "$dst/commands/implement-plan.md"
+ln -s "$HOME/dotfiles/opencode/handoff" "$dst/dotfiles-handoff"
+ln -s "$HOME/dotfiles/opencode/commands/implement-plan.md" "$dst/commands/implement-plan.md"
+ln -s "$HOME/dotfiles/opencode/skills/git/retired/SKILL.md" "$dst/commands/git-retired.md"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
 print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.json"
 opencode_merge_config || fail "retired handoff cleanup"
-[[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" ]] || fail "retired handoff links survived"
+[[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" && ! -L "$dst/commands/git-retired.md" ]] || fail "retired managed links survived"
 [[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "foreign plugin removed"
 [[ -f "$dst/tui.json" && ! -L "$dst/tui.json" ]] || fail "machine-local TUI config removed"
 
@@ -101,8 +94,8 @@ cp "$repo_root/zsh/tests/fixtures/fake-opencode" "$test_tmp/bin/opencode"
 chmod +x "$test_tmp/bin/opencode"
 export PATH="$test_tmp/bin:$PATH"
 rehash
-rm "$dst/skills/readme"
+rm "$dst/skills/git-commit"
 opencode 'argument with spaces'
 result=$?
 [[ $result == 23 ]] || fail "wrapper status/arguments/pre-launch sync: $result"
-print -- "PASS: ${#skills} shared skills, XDG/default paths, overrides, safe pruning, config preservation, idempotence and wrapper"
+print -- "PASS: ${#skills} OpenCode skills, XDG/default paths, external-skill isolation, safe pruning, config preservation, idempotence and wrapper"

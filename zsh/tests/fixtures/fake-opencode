@@ -1,4 +1,6 @@
 #!/bin/zsh -f
 [[ $# == 1 && "$1" == 'argument with spaces' ]] || exit 90
-[[ -f "$XDG_CONFIG_HOME/opencode/skills/readme/SKILL.md" ]] || exit 91
+[[ -f "$XDG_CONFIG_HOME/opencode/skills/git-commit/SKILL.md" ]] || exit 91
+[[ "$OPENCODE_DISABLE_EXTERNAL_SKILLS" == 1 ]] || exit 92
+[[ "$OPENCODE_DISABLE_CLAUDE_CODE_SKILLS" == 1 ]] || exit 93
 exit 23
