@@ -558,8 +558,8 @@ grok() {
   command grok "$@"
 }
 
-# Link shared skills and the local fresh-session handoff. Existing machine-local
-# JSON/JSONC files remain untouched; only an absent TUI config gets our defaults.
+# Link shared skills and native commands/agents into OpenCode's config directory.
+# Existing machine-local JSON/JSONC files remain untouched.
 opencode_merge_config() {
   emulate -L zsh
   setopt extended_glob
@@ -601,17 +601,17 @@ opencode_merge_config() {
     mkdir -p "$opencode_dir/commands"
     _agentcfg_link "$f" "$opencode_dir/commands/${f:t}" "OpenCode command '${f:t}'"
   done
-  if [[ -d "$repo/handoff" ]]; then
-    _agentcfg_link "$repo/handoff" "$opencode_dir/dotfiles-handoff" "OpenCode handoff modules"
-  fi
-  if [[ -f "$repo/tui.json" ]]; then
-    if [[ -e "$opencode_dir/tui.jsonc" || -L "$opencode_dir/tui.jsonc" ]]; then
-      print -u2 -- 'opencode_merge_config: preserving tui.jsonc; add ./dotfiles-handoff/tui.mjs to its plugin list to enable fresh handoff'
-      (( _AGENTCFG_SKIPPED++ ))
-    else
-      _agentcfg_link "$repo/tui.json" "$opencode_dir/tui.json" "TUI config (existing configs need ./dotfiles-handoff/tui.mjs in plugin)"
-    fi
-  fi
+
+  # Remove links installed by the retired fresh-session handoff. Real files and
+  # links owned by another installer remain untouched.
+  for f in \
+    "$opencode_dir/dotfiles-handoff" \
+    "$opencode_dir/commands/implement-plan.md" \
+    "$opencode_dir/plugins/fresh-session.js" \
+    "$opencode_dir/tui.json"; do
+    _agentcfg_is_managed "$f" || continue
+    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+  done
   _agentcfg_report opencode_merge_config
 }
 
