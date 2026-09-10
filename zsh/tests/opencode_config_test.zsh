@@ -9,7 +9,7 @@ export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME
 mkdir -p "$HOME/dotfiles/ai/opencode/skills" "$HOME/dotfiles/ai/shared"
 ln -s "$repo_root/ai/shared/skills" "$HOME/dotfiles/ai/shared/skills"
-for name in handoff plugins commands tui.json; do
+for name in handoff plugins commands agents tui.json; do
   ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
 done
 compdef() { :; }
@@ -25,6 +25,12 @@ opencode_merge_config || fail "absent config sync"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
 assert_link_to "$HOME/.config/opencode/dotfiles-handoff" "$repo_root/ai/opencode/handoff"
+for f in "$repo_root"/ai/opencode/agents/*.md; do
+  assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
+done
+for f in "$repo_root"/ai/opencode/commands/*.md; do
+  assert_link_to "$HOME/.config/opencode/commands/${f:t}" "$f"
+done
 for disabled in \
   "$HOME/.config/opencode/tui.json" \
   "$HOME/.config/opencode/plugins/fresh-session.js" \

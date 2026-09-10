@@ -576,9 +576,26 @@ opencode_merge_config() {
     "$HOME/dotfiles/ai/shared/skills"
 
   local f
+  # Managed native agents. Preserve foreign files; prune only our retired links.
+  if [[ -d "$repo/agents" ]]; then
+    mkdir -p "$opencode_dir/agents"
+    for f in "$opencode_dir"/agents/*(N@); do
+      _agentcfg_is_managed "$f" || continue
+      [[ -f "$repo/agents/${f:t}" ]] && continue
+      rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+    done
+    for f in "$repo"/agents/*.md(N-.); do
+      _agentcfg_link "$f" "$opencode_dir/agents/${f:t}" "OpenCode agent '${f:t}'"
+    done
+  fi
   for f in "$repo"/plugins/*.js(N-.); do
     mkdir -p "$opencode_dir/plugins"
     _agentcfg_link "$f" "$opencode_dir/plugins/${f:t}" "OpenCode plugin '${f:t}'"
+  done
+  for f in "$opencode_dir"/commands/*(N@); do
+    _agentcfg_is_managed "$f" || continue
+    [[ -f "$repo/commands/${f:t}" ]] && continue
+    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
   done
   for f in "$repo"/commands/*.md(N-.); do
     mkdir -p "$opencode_dir/commands"

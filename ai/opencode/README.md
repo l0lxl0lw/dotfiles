@@ -1,5 +1,81 @@
 # OpenCode Config
 
+## GitHub issue workflow
+
+Personal adaptations of [Agentic](https://github.com/Cluster444/agentic) live in
+`commands/` and `agents/`. See `tracking/UPSTREAM.md` for the pinned source and
+`tracking/LICENSE.agentic` for its license. Edit these files directly in dotfiles.
+
+OpenCFO work uses [Azu's Tasks, organization project #4](https://github.com/orgs/opencfo-ai/projects/4).
+Other repositories require an explicit project mapping; the current helper refuses
+to put them on the OpenCFO board. Issues hold requirements; comments hold research,
+plans, review and progress. Commands: `/ticket`, `/research`, `/plan`, `/execute`,
+`/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for the contract.
+
+Status: **Backlog → Researching → Planning → Ready → Implementing → In review → Done**.
+Branch sync: **Not started / Unchecked / Up to date / Needs sync / Syncing / Conflicts / Verifying**.
+The two fields are independent. Planning alone does not authorize implementation.
+
+### Installation and migration
+
+```
+python3 ai/opencode/tracking/install.py inspect
+python3 ai/opencode/tracking/track.py configure
+python3 ai/opencode/tracking/install.py migrate
+opencode_merge_config
+python3 ai/opencode/tracking/install.py monitor
+```
+
+Inspect reports differences from upstream before migrating. Migration preserves
+the original six global agents and six commands under
+`~/.local/state/opencode-track/backups/` and replaces them with managed links in
+the plural native directories. Foreign symlinks/collisions are not overwritten.
+Configuration of field options refuses a populated project if options differ.
+
+Quit and restart OpenCode after installation. Machine-local JSON settings remain
+local. OpenCode-specific git-sync, git-pr and git-merge-pr skills wrap the shared
+workflows with project updates; they use native questions and dotfiles script paths.
+
+### Automatic detection, explicit sync
+
+Register from each implementation worktree:
+
+```
+python3 ~/dotfiles/ai/opencode/tracking/track.py register ISSUE_URL
+python3 ~/dotfiles/ai/opencode/tracking/track.py refresh
+python3 ~/dotfiles/ai/opencode/tracking/track.py list
+```
+
+The macOS LaunchAgent `dev.dotfiles.opencode-track` checks every five minutes and
+on load while logged in. It fetches only the target origin branch, compares Git
+ancestry and updates Branch sync. It never switches branches, merges, rebases,
+stashes, commits or pushes. No registrations means no network work. It catches up
+on its next run after sleep/offline time. It observes registered local branches,
+not every remote branch in the organization, and uses each repo's default branch.
+
+Runtime registry and logs live under `~/.local/state/opencode-track/`; branch
+registrations and local paths are not committed. Worktree directory renames are
+recovered; branch renames require `/track` repair. Unresolvable branches become
+Unchecked. Offline failures are recorded locally; GitHub may retain the last known
+state until access recovers. Closed issues are skipped, not automatically called Done.
+
+Request `/sync ISSUE_URL` to integrate the target branch. Conflicts are resolved
+with you. After integration, Verifying remains until the workflow records actual
+check results. An ancestry check cannot clear a pending verification. Normal
+Up to date observations outside sync describe ancestry, not test success.
+
+To stop monitoring:
+`launchctl bootout gui/$(id -u)/dev.dotfiles.opencode-track`.
+To retire a completed branch: `track.py unregister ISSUE_URL` via Python.
+Re-run `install.py monitor` to load the monitor again. Tracking works while this
+machine is running; it is not a server-side GitHub Action.
+
+Verification: `python3 -B -m unittest discover -s ai/opencode/tests -p '*_test.py'`
+and `zsh zsh/tests/opencode_config_test.zsh`. Git tests build isolated local
+repositories and exercise parallel changes, merge/rebase conflicts, worktree
+renames, verification gates, retries and offline recovery. GitHub writes are
+mocked in automated tests; project fields are checked against the live API on setup.
+
 OpenCode is a peer of Claude, Codex and Grok. `opencode_merge_config` in
 `zsh/functions.zsh` links all active `ai/shared/skills/**/SKILL.md` directories into
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/<name>` using the shared sync helpers.
