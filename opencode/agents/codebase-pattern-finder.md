@@ -1,6 +1,7 @@
 ---
 description: Find concrete implementation patterns and analogous examples in this repository.
 mode: subagent
+model: openai/gpt-5.6-terra-fast
 permission:
   edit: deny
   bash: deny

@@ -9,8 +9,7 @@ description: >-
   I change", "what's in my working tree", "what am I about to commit", "walk me through my
   changes", "did I leave anything in here", "is this ready to commit".
 allowed-tools: Bash(bash *), Bash(git *), Read, Grep, Glob
-model: sonnet
-effort: medium
+model: openai/gpt-5.6-terra-fast
 ---
 
 # Explain the uncommitted diff

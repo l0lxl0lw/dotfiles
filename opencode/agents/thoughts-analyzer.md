@@ -1,6 +1,7 @@
 ---
 description: Analyze supplied issue research, implementation plans and historical decisions.
 mode: subagent
+model: openai/gpt-5.6-terra-fast
 permission:
   edit: deny
   bash: deny

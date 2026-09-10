@@ -1,6 +1,7 @@
 ---
 description: Research primary web documentation and return sourced technical findings.
 mode: subagent
+model: openai/gpt-5.6-sol
 permission:
   edit: deny
   bash: deny

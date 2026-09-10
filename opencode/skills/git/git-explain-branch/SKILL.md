@@ -10,8 +10,7 @@ description: >-
   branch", "what's in this PR", "summarize my feature branch", "what am I about to open a
   PR with", "what did I do on this branch", "is anything in here risky".
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Grep, Glob
-model: sonnet
-effort: medium
+model: openai/gpt-5.6-terra-fast
 ---
 
 # Explain the branch against main

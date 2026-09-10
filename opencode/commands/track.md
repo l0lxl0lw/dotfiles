@@ -1,6 +1,7 @@
 ---
 description: Inspect, register, refresh or repair GitHub issue and branch project tracking.
 agent: build
+model: openai/gpt-5.6-luna-fast
 ---
 Read `~/dotfiles/opencode/tracking/WORKFLOW.md` and follow its contract.
 

@@ -1,6 +1,7 @@
 ---
 description: Create or refine a GitHub issue ticket and add it to Azu's Tasks.
 agent: build
+model: openai/gpt-5.6-terra-fast
 ---
 
 ## Local workflow contract

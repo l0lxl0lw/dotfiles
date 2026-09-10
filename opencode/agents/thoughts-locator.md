@@ -1,6 +1,7 @@
 ---
 description: Locate relevant historical research, plans and decisions in supplied issue context and repository documents.
 mode: subagent
+model: openai/gpt-5.6-luna-fast
 permission:
   edit: deny
   bash: deny

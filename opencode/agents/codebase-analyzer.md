@@ -1,6 +1,7 @@
 ---
 description: Analyze implementation details and execution paths with precise code evidence.
 mode: subagent
+model: openai/gpt-5.6-sol
 permission:
   edit: deny
   bash: deny

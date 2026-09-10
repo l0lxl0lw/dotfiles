@@ -1,6 +1,7 @@
 ---
 description: Review implementation against a GitHub issue's plan and acceptance criteria.
 agent: build
+model: openai/gpt-5.6-sol
 ---
 
 ## Local workflow contract

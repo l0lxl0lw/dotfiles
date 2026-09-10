@@ -1,6 +1,7 @@
 ---
 description: Develop a GitHub issue implementation plan and publish it for approval.
 agent: build
+model: openai/gpt-5.6-sol
 ---
 
 ## Local workflow contract

@@ -1,6 +1,7 @@
 ---
 description: Investigate a GitHub ticket and publish evidence as an issue comment.
 agent: build
+model: openai/gpt-5.6-sol
 ---
 
 ## Local workflow contract

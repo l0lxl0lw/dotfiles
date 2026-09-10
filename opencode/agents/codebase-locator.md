@@ -1,6 +1,7 @@
 ---
 description: Locate files, entry points and tests relevant to a concrete codebase question.
 mode: subagent
+model: openai/gpt-5.6-luna-fast
 permission:
   edit: deny
   bash: deny

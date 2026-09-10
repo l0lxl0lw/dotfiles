@@ -1,6 +1,7 @@
 ---
 description: Commit requested work using the existing git-commit workflow.
 agent: build
+model: openai/gpt-5.6-luna-fast
 ---
 
 ## Local workflow contract
