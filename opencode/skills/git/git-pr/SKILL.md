@@ -1,6 +1,6 @@
 ---
 name: git-pr
-description: Open a pull request for a feature branch that already has commits. Analyzes the full branch diff against the default branch, ensures nothing is left uncommitted, verifies the branch is current, runs the checks CI will run plus any drift checks the repo declares for itself, then opens the PR with a generated description. Triggers — "open a PR for this branch", "publish a PR", "create a pull request", "raise a PR", "PR this branch", "ship this branch as a PR".
+description: Open a pull request for a feature branch that already has commits. Analyzes the full branch diff against the default branch, ensures nothing is left uncommitted, verifies the branch is current, runs the checks CI will run plus any drift checks the repo declares for itself, then opens the PR with a generated description and issue-closing reference. Triggers — "open a PR for this branch", "publish a PR", "create a pull request", "raise a PR", "PR this branch", "ship this branch as a PR".
 allowed-tools: Bash(bash *), Bash(git *), Bash(gh *), Read, Edit, Write
 model: openai/gpt-5.6-terra-fast
 ---
@@ -75,9 +75,7 @@ digraph pr {
     "Run REQUIRED repo-local checks" [shape=box];
     "Drift clean?" [shape=diamond];
     "Stop — offer to close the drift" [shape=box];
-    "Propose title + body" [shape=box];
-    "Single gate: open / draft / edit?" [shape=diamond];
-    "Revise" [shape=box];
+    "Draft title + body" [shape=box];
     "Push + create PR" [shape=box];
     "Report PR URL" [shape=box];
 
@@ -94,11 +92,8 @@ digraph pr {
     "Checks green?" -> "Run REQUIRED repo-local checks" [label="yes"];
     "Run REQUIRED repo-local checks" -> "Drift clean?";
     "Drift clean?" -> "Stop — offer to close the drift" [label="no"];
-    "Drift clean?" -> "Propose title + body" [label="yes"];
-    "Propose title + body" -> "Single gate: open / draft / edit?";
-    "Single gate: open / draft / edit?" -> "Revise" [label="edit"];
-    "Revise" -> "Single gate: open / draft / edit?";
-    "Single gate: open / draft / edit?" -> "Push + create PR" [label="open | draft"];
+    "Drift clean?" -> "Draft title + body" [label="yes"];
+    "Draft title + body" -> "Push + create PR";
     "Push + create PR" -> "Report PR URL";
 }
 ```
@@ -195,7 +190,7 @@ digraph pr {
     Never auto-fix: closing spec drift rewrites checked-in artifacts, which is a change the
     user has to see and agree to before it lands in their PR.
 
-### Phase 4: Propose Title and Body
+### Phase 4: Draft Title and Body
 
 11. Draft:
    - **Title**: imperative, under 70 chars, scoped to the change (e.g. `fix(cache): evict stale entries on write`)
@@ -207,29 +202,21 @@ digraph pr {
      ## Changes
      <notable files / areas touched, grouped by area if the diff is large>
 
-     ## Test plan
-     <the checks that were run and their result, plus anything verified manually>
-     ```
+      ## Test plan
+      <the checks that were run and their result, plus anything verified manually>
+      ```
 
-12. **Show the title and full body to the user** as ordinary text, then put it to them with **exactly one `AskUserQuestion`**. This is the only stop on a clean run, and it settles the content *and* how the PR opens in the same answer:
+12. Do not show the generated title or body for approval. On a clean run, open the PR ready for review immediately after drafting it. Only stop for the blocker decisions explicitly required in Phases 1-3.
 
-    | Option | Action |
-    |---|---|
-    | **Open PR** | Push and open it ready for review, with this title and body |
-    | **Open as draft** | The same, with `--draft` |
-    | **Edit first** | Revise it, show the new version, and put it back through this same dialog |
-
-    (`AskUserQuestion` always offers Other, so they can type the changes they want.)
-
-    **That answer is the go-ahead to push — act on it immediately.** Never follow it with a second dialog: no "ready to open it?", no separate draft-or-ready question, no re-confirmation of a body they just approved. Draft-vs-ready lives in this dialog and nowhere else.
+    Identify the issue the PR resolves from an explicit issue URL/number in the request, the current Orca worktree's `linkedIssue`, or a branch named `issue-N` or `issue-N-*`. Verify the candidate with `gh issue view` before adding a closing reference. Append `Closes #N` to the body for an issue in the current repository, or `Closes OWNER/REPO#N` for an issue in another repository. If no candidate is available or verification fails, open the PR without a closing reference and report the gap.
 
 ### Phase 5: Push and Create
 
-13. Write the confirmed body to a file, then create the PR:
+13. Write the generated body to a file, then create the ready-for-review PR:
     ```bash
     bash ~/.config/opencode/skills/git-pr/scripts/create-pr.sh "<title>" /tmp/pr-body.md
     ```
-    The script pushes the branch (setting upstream if needed), refuses duplicates, and rejects AI attribution in both the title and the body. Pass `--draft` when step 12 came back **Open as draft**, or when the user asked for a draft in their original request — never on the strength of a question asked here.
+    The script pushes the branch (setting upstream if needed), refuses duplicates, and rejects AI attribution in both the title and the body. Pass `--draft` only when the user explicitly asked for a draft in their original request.
 
 14. If it exits **2**, a PR already existed — report that URL rather than treating it as a failure.
 
@@ -247,15 +234,15 @@ digraph pr {
 - NEVER open a PR with a REQUIRED repo-local check failing, unless the user explicitly picked "open anyway" and the drift is recorded in the PR body
 - NEVER close drift on the user's behalf — running the fix rewrites checked-in artifacts, which needs their say-so
 - NEVER include "Co-Authored-By" or any "Claude Code" / AI attribution in commits **or** in the PR title/body — `create-pr.sh` rejects it in both
-- **One gate on a clean run, and it is step 12.** Everything else — the analysis, the CI-equivalent checks, the repo-local checks — runs without asking. Approving the title and body *is* approving the push, so never confirm the text and then confirm opening the PR: that is one decision, not two
-- **Every decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit. Ordinary text is for showing the proposed title and body and for the final report
-- NEVER push or create the PR without showing the title and body and getting the dialog answer
+- **No gate on a clean run.** Generate the title and body, add a verified issue-closing reference when available, then push and open the PR. Do not ask the user to review or approve the PR message.
+- **Every blocker decision goes through `AskUserQuestion`, never a question in prose.** A text question reads as a sign-off — the turn looks finished and the user can't tell anything is pending. The dialog renders as something to select and submit.
+- Append a verified `Closes #N` or `Closes OWNER/REPO#N` line when the branch, Orca worktree, or request identifies the issue being resolved.
 - NEVER force-push
 - Never create a duplicate PR — check first, update the existing one instead
 - The PR description must accurately reflect the real diff; do not invent work that is not in it
 - Keep Summary on the "why", Changes on the "what"
 - Use conventional commit style if the repo uses it
-- Do not add `--draft` unless step 12 came back **Open as draft** or the user asked for one up front
+- Do not add `--draft` unless the user asked for one up front
 
 ## Common mistakes
 
@@ -265,7 +252,8 @@ digraph pr {
 - **PRing a stale branch.** If the branch is behind, the diff is not what will merge.
 - **Fabricated description.** Summarize the real diff, not the commit subjects or a guess.
 - **Duplicate PR.** Check for an existing PR before creating one; re-running this skill must be safe.
-- **Asking twice.** Confirming the body and then asking "open it?", or asking "draft or ready?" after the body is approved. Step 12 already carries both — a second dialog makes the user approve the same PR twice.
+- **Asking to verify the PR message.** On a clean run, draft it from the actual diff and open the PR immediately.
+- **Missing the issue link.** When a valid issue is available from the request, Orca worktree, or `issue-N` branch name, append the appropriate `Closes` reference so GitHub links and closes it on merge.
 - **Merging the PR.** This skill opens it; review and merge are someone else's job.
 - **Claiming checks passed when none exist.** If the repo has no discoverable checks, say that instead.
 - **Reading an audit's output instead of its exit code.** `repo-check.sh run` already applied the `fail-on` regex. Exit 0 is a pass, exit 1 is a fail; don't overrule it because the report "looks fine".

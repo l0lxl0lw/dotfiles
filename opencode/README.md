@@ -8,15 +8,26 @@ The complete command and agent payload from
 See `tracking/UPSTREAM.md` for the pinned source and `tracking/LICENSE.agentic` for
 its license. Edit these files directly in dotfiles; the Agentic CLI is not required.
 
-OpenCFO work uses [Azu's Tasks, organization project #4](https://github.com/orgs/opencfo-ai/projects/4).
-Other repositories require an explicit project mapping; the current helper refuses
-to put them on the OpenCFO board. Issues hold requirements; comments hold research,
-plans, review and progress. Commands: `/ticket`, `/research`, `/plan`, `/execute`,
-`/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for the contract.
+All work uses [Azu's Tasks, organization project #4](https://github.com/orgs/opencfo-ai/projects/4),
+including issues from repositories outside the OpenCFO organization. New tickets are
+assigned to the authenticated GitHub user. Issues hold requirements; comments hold
+research, plans, review and progress. Commands: `/ticket`, `/research`, `/plan`,
+`/execute`, `/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for
+the contract.
 
 Status: **Backlog → Researching → Planning → Ready → Implementing → In review → Done**.
 Branch sync: **Not started / Unchecked / Up to date / Needs sync / Syncing / Conflicts / Verifying**.
 The two fields are independent. Planning alone does not authorize implementation.
+
+When `/ticket` creates an issue inside an Orca-managed worktree, it also calls the
+tracking helper to set Orca's native `linkedIssue`. The helper verifies GitHub and
+Orca repository identity, preserves a different existing link until replacement is
+explicitly approved, and rereads Orca before reporting success. Outside Orca, ticket
+creation and Project 4 setup continue normally. Retry an unavailable attachment with:
+
+```
+python3 ~/dotfiles/opencode/tracking/track.py link-orca ISSUE_URL
+```
 
 ### Installation and migration
 
@@ -75,8 +86,9 @@ machine is running; it is not a server-side GitHub Action.
 Verification: `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'`
 and `zsh zsh/tests/opencode_config_test.zsh`. Git tests build isolated local
 repositories and exercise parallel changes, merge/rebase conflicts, worktree
-renames, verification gates, retries and offline recovery. GitHub writes are
-mocked in automated tests; project fields are checked against the live API on setup.
+renames, verification gates, retries, offline recovery, and mocked Orca attachment
+protocols. GitHub writes and Orca metadata writes are mocked in automated tests;
+project fields are checked against the live API on setup.
 
 OpenCode is a peer of Claude, Codex and Grok. `opencode_merge_config` in
 `zsh/functions.zsh` links all active `opencode/skills/**/SKILL.md` directories into

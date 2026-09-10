@@ -5,8 +5,9 @@ The repository issue is the durable record. Use GitHub CLI, not local ticket fil
 
 ## Project and identity
 
-- OpenCFO repositories use https://github.com/orgs/opencfo-ai/projects/4.
-- Other repositories need an explicit mapping; never add unrelated work here.
+- Every repository uses https://github.com/orgs/opencfo-ai/projects/4 as the
+  personal task tracker, including repositories outside the `opencfo-ai` organization.
+- Assign every newly created ticket to the authenticated GitHub user (`@me`).
 - Accept full issue URLs or numbers resolved against the current repository.
 - Read the issue body AND all comments (paginate `gh api`) before each stage.
 - Preserve user-written requirements, discussion and existing tracking markers.
@@ -25,6 +26,7 @@ Run `python3 ~/dotfiles/opencode/tracking/track.py <operation>`:
 
 ```
 add ISSUE
+link-orca ISSUE [--replace-existing NUMBER]
 status ISSUE 'Researching'
 note ISSUE 'Research' /absolute/body.md --key research-UNIQUE_ID
 register ISSUE
@@ -40,6 +42,14 @@ unregister ISSUE
 The optional note key prevents duplicate comments on retry. Use a fresh key for
 a substantive revision. Treat failures as failures: report pending GitHub updates,
 retry them explicitly, and never claim a card or comment changed without success.
+
+`link-orca` is independent of project fields and branch registration. New-ticket
+flows call it with GitHub's exact issue URL. A different existing link is preserved
+unless the user explicitly approves replacing that observed issue number; retry with
+the returned `--replace-existing NUMBER` command only after approval. An unmanaged
+cwd is a normal no-op. Missing/unavailable Orca and mutation or verification errors
+do not undo issue creation: report the recovery command and keep issue, project, and
+Orca outcomes separate. Only `attached` or `already_attached` proves attachment.
 
 Status: Backlog → Researching → Planning → Ready → Implementing → In review → Done.
 Do not regress active implementation/review just because research or a plan is
