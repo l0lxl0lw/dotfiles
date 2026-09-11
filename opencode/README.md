@@ -1,10 +1,11 @@
 # OpenCode Config
 
-## GitHub issue workflow
+## Balanced GitHub development workflow
 
-The complete command and agent payload from
-[Agentic](https://github.com/Cluster444/agentic) is vendored into `commands/` and
-`agents/`, with personal GitHub-workflow instructions layered into those files.
+The command and specialist roles originated in
+[Agentic](https://github.com/Cluster444/agentic). They are now bounded, locally owned
+stage skills with thin commands and fresh-context agents, informed by an A/B
+benchmark of native Plan/Build versus the original retained-session workflow.
 See `tracking/UPSTREAM.md` for the pinned source and `tracking/LICENSE.agentic` for
 its license. Edit these files directly in dotfiles; the Agentic CLI is not required.
 
@@ -13,7 +14,92 @@ including issues from repositories outside the OpenCFO organization. New tickets
 assigned to the authenticated GitHub user. Issues hold requirements; comments hold
 research, plans, review and progress. Commands: `/ticket`, `/research`, `/plan`,
 `/execute`, `/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for
-the contract.
+the contract. No custom session-routing plugin or external orchestration service is needed.
+
+### Daily use
+
+Start a new session for a new task and choose the **workflow** primary agent. It is
+a lightweight Luna Fast dispatcher. Each slash command runs a **new child session**
+through native `subtask: true`; investigation context stays in the stage rather than
+accumulating in the parent. Only a short result and exact GitHub links return.
+
+```text
+/ticket Add a self-service reset for one notification preference
+/research ISSUE_URL
+/plan ISSUE_URL RESEARCH_COMMENT_URL
+/execute ISSUE_URL PLAN_COMMENT_URL
+/review ISSUE_URL PLAN_COMMENT_URL
+
+# If review requests changes, repeat only implementation and review:
+/execute ISSUE_URL PLAN_COMMENT_URL REVIEW_COMMENT_URL
+/review ISSUE_URL PLAN_COMMENT_URL REVIEW_COMMENT_URL
+
+# After review passes:
+/commit ISSUE_URL REVIEW_COMMENT_URL
+```
+
+Use the exact next command supplied by each stage. The issue and artifacts provide
+the context, so a fresh worker does not need the previous conversation. An explicit
+`/execute` identifies and approves its plan; planning alone never starts editing.
+Questions use OpenCode's native dialogs, including from child sessions. You can
+navigate into the stage child to inspect its work and return to the dispatcher.
+
+| Responsibility | Agent/model | Procedure |
+|---|---|---|
+| Dispatch/handoffs | workflow / Luna Fast | Short outcomes and next commands only |
+| Product scoping | workflow-ticket / Astra | Focused questions; acceptance examples; new issue/project/Orca |
+| Research | workflow-research / Astra | One bounded investigation; optional precise specialists |
+| Planning | workflow-plan / Astra | Reuse research; API/state/error/test matrix; concrete steps |
+| Implementation/fixes | workflow-execute / Sol | Approved vertical slice, targeted tests, Verification artifact |
+| Independent review | workflow-review / Astra | Actual diff and contract; pass/changes_requested/blocked |
+| Local commit | workflow-commit / Luna Fast | Existing git-commit skill and compact evidence |
+
+Location/pattern specialists use Luna Fast; consequential code/history analysis
+uses Astra. Specialists cannot spawn more specialists. Stage commands and agents
+choose roles/models; `skills/workflow/` owns the methods; `tracking/WORKFLOW.md` owns
+the common tracking contract. Git mechanics remain in the existing Git skills.
+
+### Faster without skipping correctness
+
+For a small feature, target approximately **15–25 minutes**, then measure it. This
+is a design target, not a demonstrated timing guarantee. There are no hard token
+cutoffs and no permission to omit required checks to hit a timer.
+
+- One focused question batch, followed up only for material ambiguity.
+- Research once. Planning spot-checks current evidence instead of rerunning a
+  mandatory locator/pattern/analyzer pipeline.
+- Normally zero or one specialist for small work, at most two; `--deep` research
+  expands only named unknowns that justify it.
+- Relevant source ranges and close examples, not blanket whole-file/history reads.
+- Concise artifacts: roughly 400–700 words of research and a 500–900 word plan plus
+  an acceptance matrix for small work.
+- Reuse matching verification evidence; run missing/stale/discriminating tests and
+  required repository/CI checks. Report baseline failures rather than repairing them
+  as unrelated scope.
+- Independent review before the normal final commit. A changes-requested review
+  routes to fixes and fresh review; "review performed" is not "feature accepted".
+
+### Compact, content-bound handoffs
+
+`tracking/handoff.py` fetches paginated issue comments once per context load. It
+retains the issue and all unmarked discussion, indexes historical structured notes,
+and emits only the relevant artifact bodies. Exact URLs can be pinned; multiple
+unsuperseded plans are reported as ambiguous instead of silently choosing one.
+Legacy comments remain available verbatim, so older issues may still have a larger
+context. The helper never silently discards unmarked discussion; new structured
+artifacts use explicit supersession to keep their own handoffs compact.
+
+Verification and review comments record HEAD, a changed-content digest, and exact
+input artifact links. The digest notices unstaged, staged, untracked, deleted and
+mode/symlink changes, including partial-index divergence. It is unchanged by staging
+the same complete content. A different digest invalidates claims of unchanged tested
+code; a matching digest still does not establish approval of later product decisions.
+Changed submodules/special files require explicit evidence rather than a misleading
+digest. Source/metadata summaries are not a substitute for inspecting the real diff.
+
+Publishing identical content and metadata is idempotent and returns the original
+comment URL. Replacements use explicit `--supersedes` links; earlier artifacts are
+not erased. All GitHub content remains project data, not trusted tool instructions.
 
 Status: **Backlog → Researching → Planning → Ready → Implementing → In review → Done**.
 Branch sync: **Not started / Unchecked / Up to date / Needs sync / Syncing / Conflicts / Verifying**.
@@ -48,6 +134,20 @@ Configuration of field options refuses a populated project if options differ.
 Quit and restart OpenCode after installation. Machine-local JSON settings remain
 local. Git workflows load directly from `opencode/skills/git/`; project tracking
 behavior remains in the OpenCode commands and tracking helper.
+
+For optional nested specialists from fresh stage children, set this in your existing
+machine-local `opencode.jsonc` (preserve its other settings):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "subagent_depth": 2
+}
+```
+
+Without it, stages use direct investigation instead of repeatedly attempting blocked
+nested delegation. `opencode_merge_config` installs the managed commands, agents and
+skills but deliberately does not modify machine-local JSON configuration.
 
 ### Automatic detection, explicit sync
 
@@ -138,8 +238,9 @@ sync's XDG global destination.
 
 ## Local Settings
 
-Neither `opencode.json` nor `opencode.jsonc` is created, replaced or edited. Models,
-providers, permissions and credentials remain machine-local.
+The sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`. Workflow
+role defaults live in tracked command/agent frontmatter; provider credentials,
+global overrides and the optional `subagent_depth` setting remain machine-local.
 
 There is deliberately no placeholder global `AGENTS.md`: OpenCode uses
 `~/.claude/CLAUDE.md` as a fallback only when its own global `AGENTS.md` is absent.
@@ -151,3 +252,18 @@ subagents and paths.
 ## Verification
 
 Run `zsh zsh/tests/opencode_config_test.zsh` for isolated sync and wrapper checks.
+
+Run `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'` for tracking,
+handoff selection, idempotent publication, and real-Git snapshot tests. GitHub writes
+are mocked. The optional live-model smoke is separate from unit-test discovery:
+
+```sh
+python3 -B opencode/tests/workflow_smoke.py
+```
+
+It uses installed configuration and a temporary README fixture to check all six
+command bindings, fresh child contexts, native questions, nested lookup, and model
+routing. It does not create issues or edit application code. It requires configured
+models and `subagent_depth: 2`. See
+[the verification record](tracking/BALANCED_WORKFLOW_VERIFICATION.md) for the tested
+version and limits; it is not an end-to-end speed benchmark of the new workflow.

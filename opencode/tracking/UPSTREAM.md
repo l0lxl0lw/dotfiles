@@ -4,12 +4,16 @@ Source: https://github.com/Cluster444/agentic
 
 Reference commit: `3a3915310d3d03d4a45114b7b0c0a17c34bf0e8b` (master inspected 2026-09-10).
 
-The complete bodies of the six distributed commands and six specialist agents are
-vendored into `../commands/` and `../agents/`. Local instructions are layered above
-the upstream bodies: GitHub Issues and comments replace local ticket artifacts, the
-distribution CLI is replaced with dotfiles sync, model overrides are removed, and
-permissions use current OpenCode syntax. The tracking helper, explicit sync command
-and launchd monitor are local additions.
+The six command and specialist roles were originally vendored in full. They are now
+locally maintained derivatives: thin commands load stage skills, each stage gets a
+fresh-context worker, specialist prompts are bounded, and GitHub issue/comment
+artifacts replace local ticket files. The full original payload remains in Git
+history before the balanced-workflow update. The tracking/handoff helpers, explicit
+sync command, workflow dispatcher and launchd monitor are local additions.
+
+Model roles are intentional local defaults: Astra for planning/analysis/review, Sol
+for implementation, and Luna Fast for lookup/commit work. Do not reintroduce upstream
+mandatory repeated research phases or whole-file/history reading rules on updates.
 
 Retain LICENSE.agentic with vendored and derived prompts. Future upstream changes
 should be reviewed and copied into dotfiles, not installed with `agentic pull -g`
