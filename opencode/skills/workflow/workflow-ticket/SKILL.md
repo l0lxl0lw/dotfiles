@@ -46,6 +46,8 @@ conflict, ask **Keep existing link (Recommended)** or **Replace with new issue**
 only replacement authorizes the returned `--replace-existing EXISTING_NUMBER` retry.
 `not_managed` is normal outside Orca. Report `orca_unavailable`/`failed` with the
 helper's exact recovery command. Only `attached`/`already_attached` proves attachment.
+After successful attachment, run `track.py checkpoint-orca ISSUE Backlog` to mirror
+the new-ticket milestone (the earlier status call may have preceded attachment).
 
 For an approved existing-ticket update, preserve useful content and later work;
 do not reset status/assignees or invoke `link-orca`.

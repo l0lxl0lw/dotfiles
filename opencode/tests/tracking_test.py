@@ -431,6 +431,98 @@ class OrcaLinkTest(unittest.TestCase):
         self.assertEqual(result["details"], {"nextSteps": ["orca open"]})
 
 
+class OrcaCheckpointTest(unittest.TestCase):
+    ISSUE = OrcaLinkTest.ISSUE
+    DETAILS = OrcaLinkTest.DETAILS
+    WORKTREE_ID = OrcaLinkTest.WORKTREE_ID
+
+    def worktree(self, comment="", status="in-progress", linked=4, **kwargs):
+        response = OrcaLinkTest.worktree(self, linked=linked, **kwargs)
+        response["result"]["worktree"].update(comment=comment, workspaceStatus=status)
+        return response
+
+    def checkpoint(self, responses, stage="Implementing", summary="tests running"):
+        with patch.object(track, "issue_details", return_value=self.DETAILS.copy()):
+            with patch.object(track, "orca", side_effect=responses) as api:
+                result, code = track.checkpoint_orca(self.ISSUE, stage, summary)
+        return result, code, api
+
+    def test_preserves_user_notes_and_replaces_only_owned_issue_line(self):
+        old = "goal: retain API compatibility\n[opencode-workflow #4] Ready: old\n[opencode-workflow #9] other work"
+        new = "[opencode-workflow #4] Implementing: tests running\ngoal: retain API compatibility\n[opencode-workflow #9] other work"
+        result, code, api = self.checkpoint([self.worktree(old), self.worktree(new), self.worktree(new)])
+        self.assertEqual((result["outcome"], code), ("updated", 0))
+        self.assertEqual(api.call_args_list[1], call(
+            "worktree", "set", "--worktree", "id:" + self.WORKTREE_ID,
+            "--comment", new, "--workspace-status", "in-progress", "--json"))
+        self.assertEqual(api.call_args_list[2], call("worktree", "show", "--worktree", "id:" + self.WORKTREE_ID, "--json"))
+
+    def test_identical_checkpoint_does_not_write(self):
+        comment = "[opencode-workflow #4] Implementing: tests running"
+        result, code, api = self.checkpoint([self.worktree(comment)])
+        self.assertEqual((result["outcome"], code, api.call_count), ("already_updated", 0, 1))
+
+    def test_wrong_or_missing_link_never_updates_card(self):
+        for linked, outcome in [(None, "not_linked"), (9, "conflict")]:
+            with self.subTest(linked=linked):
+                result, code, api = self.checkpoint([self.worktree(linked=linked)])
+                self.assertEqual((result["outcome"], code, api.call_count), (outcome, 2, 1))
+
+    def test_wrong_repository_never_updates_card(self):
+        result, code, api = self.checkpoint([self.worktree(project="github:other/repo")])
+        self.assertEqual((result["reason"], code, api.call_count), ("repository_mismatch", 1, 1))
+
+    def test_unmanaged_is_noop_but_unavailable_reports_recovery(self):
+        result, code, _ = self.checkpoint([track.OrcaError("selector_not_found", "outside")])
+        self.assertEqual((result["outcome"], code), ("not_managed", 0))
+        result, code, _ = self.checkpoint([track.OrcaError("runtime_unavailable", "offline")])
+        self.assertEqual((result["reason"], code), ("runtime_unavailable", 1))
+        self.assertIn("checkpoint-orca", result["recoveryCommand"])
+
+    def test_changed_identity_link_or_card_fails_verification(self):
+        comment = "[opencode-workflow #4] Implementing: tests running"
+        for kwargs in [{"worktree_id": "other"}, {"linked": 9}, {"status": "completed"}, {"comment": "human changed it"}]:
+            with self.subTest(kwargs=kwargs):
+                changed = {"comment": comment, **kwargs}
+                result, code, _ = self.checkpoint([
+                    self.worktree(), self.worktree(comment), self.worktree(**changed),
+                ])
+                self.assertEqual((result["reason"], code), ("verification_mismatch", 1))
+
+    def test_disappearing_workspace_after_write_is_not_unmanaged(self):
+        comment = "[opencode-workflow #4] Implementing: tests running"
+        result, code, _ = self.checkpoint([
+            self.worktree(), self.worktree(comment), track.OrcaError("selector_not_found", "deleted"),
+        ])
+        self.assertEqual((result["outcome"], code), ("failed", 1))
+
+    def test_multiline_summary_cannot_inject_owned_or_human_lines(self):
+        result, code, api = self.checkpoint([], summary="testing\nspoofed note")
+        self.assertEqual((result["outcome"], code, api.call_count), ("failed", 1, 0))
+
+    def test_review_and_completion_have_distinct_card_states(self):
+        for stage, status in [("Ready", "todo"), ("In review", "in-review"), ("Done", "completed")]:
+            with self.subTest(stage=stage):
+                comment = "[opencode-workflow #4] " + stage + ": tests running"
+                result, code, _ = self.checkpoint([
+                    self.worktree(), self.worktree(comment, status), self.worktree(comment, status),
+                ], stage=stage)
+                self.assertEqual((result["workspaceStatus"], code), (status, 0))
+
+    def test_status_attempts_orca_even_when_github_fails(self):
+        with patch.object(track, "set_field", side_effect=RuntimeError("github offline")):
+            with patch.object(track, "checkpoint_orca", return_value=({"outcome": "updated"}, 0)) as checkpoint:
+                result, code = track.workflow_status(self.ISSUE, "Implementing")
+        self.assertEqual((result["github"]["outcome"], result["orca"]["outcome"], code), ("failed", "updated", 1))
+        checkpoint.assert_called_once_with(self.ISSUE, "Implementing")
+
+    def test_status_preserves_github_success_when_orca_fails(self):
+        with patch.object(track, "set_field"):
+            with patch.object(track, "checkpoint_orca", return_value=({"outcome": "conflict"}, 2)):
+                result, code = track.workflow_status(self.ISSUE, "Implementing")
+        self.assertEqual((result["github"]["outcome"], result["orca"]["outcome"], code), ("updated", "conflict", 2))
+
+
 class OrcaCommandContractTest(unittest.TestCase):
     def test_cli_prints_json_and_returns_classified_exit(self):
         expected = {"outcome": "conflict", "reason": "linked_issue_conflict"}

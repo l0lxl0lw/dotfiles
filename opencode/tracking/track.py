@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,15 @@ STATUSES = ["Backlog", "Researching", "Planning", "Ready", "Implementing", "In r
 SYNC = ["Not started", "Unchecked", "Up to date", "Needs sync", "Syncing", "Conflicts", "Verifying"]
 STATE = Path(os.environ.get("OPENCODE_TRACK_STATE", str(Path.home() / ".local/state/opencode-track")))
 ISSUE_PATTERN = re.compile(r"https://github\.com/([^/]+/[^/]+)/issues/(\d+)")
+ORCA_STAGES = {
+    "Backlog": ("todo", "ticket created; awaiting research"),
+    "Researching": ("in-progress", "research in progress"),
+    "Planning": ("in-progress", "planning in progress"),
+    "Ready": ("todo", "plan ready; awaiting execution approval"),
+    "Implementing": ("in-progress", "implementing; verification next"),
+    "In review": ("in-review", "ready for independent review"),
+    "Done": ("completed", "accepted and required PRs merged"),
+}
 
 
 class OrcaError(RuntimeError):
@@ -294,6 +304,74 @@ def link_orca(value, replace_existing=None):
     return outcome("attached", worktree=verified), 0
 
 
+def checkpoint_orca(value, stage, summary=None):
+    """Mirror a milestone only to the enclosing, already-linked workspace."""
+    current = None
+    recovery = "python3 ~/dotfiles/opencode/tracking/track.py checkpoint-orca " + shlex.quote(value) + " " + shlex.quote(stage)
+    if summary is not None:
+        recovery += " --summary " + shlex.quote(summary)
+    try:
+        if stage not in ORCA_STAGES or (summary is not None and (not summary.strip() or "\n" in summary or "\r" in summary)):
+            raise RuntimeError("Use a known stage and a nonempty single-line summary")
+        issue = issue_details(value)
+        current = validated_worktree(orca("worktree", "current", "--json"), issue["repository"])
+        if current.get("linkedIssue") != issue["number"]:
+            return {
+                "outcome": "not_linked" if current.get("linkedIssue") is None else "conflict",
+                "existingIssue": current.get("linkedIssue"),
+                "recoveryCommand": "python3 ~/dotfiles/opencode/tracking/track.py link-orca " + issue["url"],
+            }, 2
+        status, default_summary = ORCA_STAGES[stage]
+        old_comment = current.get("comment", "")
+        if not isinstance(old_comment, str):
+            raise RuntimeError("Orca returned a non-text workspace comment")
+        # Replace only this issue's owned line; preserve user goals and other notes.
+        prefix = "[opencode-workflow #" + str(issue["number"]) + "] "
+        line = prefix + stage + ": " + (summary.strip() if summary is not None else default_summary)
+        lines = old_comment.split("\n") if old_comment else []
+        kept = [part for part in lines if not part.startswith(prefix)]
+        comment = "\n".join([line, *kept])
+        base = {"issue": issue["url"], "worktreeId": current["id"], "workspaceStatus": status, "comment": comment}
+        if old_comment == comment and current.get("workspaceStatus") == status:
+            return {"outcome": "already_updated", **base}, 0
+        selector = "id:" + current["id"]
+        response = orca("worktree", "set", "--worktree", selector,
+                        "--comment", comment, "--workspace-status", status, "--json")
+        # Both the mutation receipt and a fresh read must confirm the exact target.
+        for observed in (response, orca("worktree", "show", "--worktree", selector, "--json")):
+            actual = validated_worktree(observed, issue["repository"])
+            if any(actual.get(key) != expected for key, expected in {
+                "id": current["id"], "path": current["path"], "linkedIssue": issue["number"],
+                "comment": comment, "workspaceStatus": status,
+            }.items()):
+                raise OrcaError("verification_mismatch", "Orca milestone did not persist on the expected linked workspace")
+        return {"outcome": "updated", **base}, 0
+    except OrcaError as error:
+        if error.reason == "selector_not_found":
+            # Only the initial current lookup can establish an unmanaged cwd.
+            if current is None:
+                return {"outcome": "not_managed"}, 0
+        result = {"outcome": "failed", "reason": error.reason, "observed": str(error), "recoveryCommand": recovery}
+        if error.data is not None:
+            result["details"] = error.data
+        return result, 1
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        return {"outcome": "failed", "observed": str(error), "recoveryCommand": recovery}, 1
+
+
+def workflow_status(value, stage):
+    """Report GitHub and Orca independently; neither failure hides the other."""
+    try:
+        set_field(value, "Status", stage)
+        github = {"outcome": "updated", "status": stage}
+        github_exit = 0
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        github = {"outcome": "failed", "observed": str(error)}
+        github_exit = 1
+    checkpoint, orca_exit = checkpoint_orca(value, stage)
+    return {"github": github, "orca": checkpoint}, github_exit or orca_exit
+
+
 def item(value):
     return gh("project", "item-add", str(NUMBER), "--owner", OWNER, "--url", value, "--format", "json")["id"]
 
@@ -474,6 +552,10 @@ def main():
     link = sub.add_parser("link-orca")
     link.add_argument("issue")
     link.add_argument("--replace-existing", type=int)
+    checkpoint = sub.add_parser("checkpoint-orca")
+    checkpoint.add_argument("issue")
+    checkpoint.add_argument("stage", choices=STATUSES)
+    checkpoint.add_argument("--summary")
     for name in ("register", "unregister", "refresh", "status", "note", "sync-state", "add"):
         p = sub.add_parser(name)
         p.add_argument("issue", nargs="?" if name == "refresh" else None)
@@ -498,6 +580,10 @@ def main():
         result, exit_code = link_orca(args.issue, args.replace_existing)
         print(json.dumps(result, indent=2))
         return exit_code
+    if args.command == "checkpoint-orca":
+        result, exit_code = checkpoint_orca(args.issue, args.stage, args.summary)
+        print(json.dumps(result, indent=2))
+        return exit_code
     value = issue_url(args.issue) if args.issue else None
     if args.command == "add":
         item(value)
@@ -510,7 +596,9 @@ def main():
     elif args.command == "refresh":
         refresh(value)
     elif args.command == "status":
-        set_field(value, "Status", args.value)
+        result, exit_code = workflow_status(value, args.value)
+        print(json.dumps(result, indent=2))
+        return exit_code
     elif args.command == "sync-state":
         sync_state(value, args.value, args.evidence)
     elif args.command == "note":

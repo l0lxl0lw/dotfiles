@@ -10,7 +10,8 @@ pinning the exact plan and supplied Review with repeated `--include` arguments.
 Do not infer scope from parent conversation or treat a plan's checked boxes as proof
 that review findings are fixed. Resolve conflicting plans or changed product decisions.
 
-Confirm the correct repo and isolated feature worktree, register the issue branch,
+Confirm the correct repo and isolated feature worktree, run `track.py link-orca ISSUE`
+from that worktree (preserve conflicting links), register the issue branch,
 and refresh freshness once. Ask before sync; a Needs sync indication is not permission
 to rebase. `/execute` authorizes this identified plan/fix stage, not commits or pushes.
 Set Implementing. Small-task implementation target: 5–12 minutes; do not sacrifice

@@ -33,6 +33,7 @@ Run `python3 ~/dotfiles/opencode/tracking/track.py <operation>`:
 ```
 add ISSUE
 link-orca ISSUE [--replace-existing NUMBER]
+checkpoint-orca ISSUE 'Implementing' --summary 'fix implemented; running integration tests'
 status ISSUE 'Researching'
 note ISSUE 'Research' /absolute/body.md --key research-UNIQUE_ID
 register ISSUE
@@ -57,6 +58,37 @@ cwd is a normal no-op. Missing/unavailable Orca and mutation or verification err
 do not undo issue creation: report the recovery command and keep issue, project, and
 Orca outcomes separate. Only `attached` or `already_attached` proves attachment.
 
+## Orca workspace milestones
+
+At implementation entry, run `link-orca ISSUE` from the actual feature worktree,
+even when the ticket was created elsewhere. Preserve conflicting links using the
+same explicit replacement contract above. Report a failed attachment without
+claiming that registration or a GitHub update linked the workspace.
+
+`status` updates GitHub and independently mirrors the stage onto the enclosing
+Orca workspace, returning separate JSON outcomes. A mirror requires that the
+workspace already links this exact issue in this repository; it never silently
+attaches or replaces an issue. `not_managed` is normal outside Orca. On partial
+failure retry only the failed operation (`checkpoint-orca` retries just Orca).
+
+Mapping: Backlog/Ready → `todo`; Researching/Planning/Implementing → `in-progress`;
+In review → `in-review`; Done → `completed`. The existing completion and
+non-regression rules below still apply. Idle agent status is not task completion.
+
+After publishing research, a plan, verification, or review, and when blocked,
+call `checkpoint-orca ISSUE STAGE --summary 'short outcome; next step'`. Use the
+current stage, not an earlier one when revisiting work. Include a useful artifact
+URL when concise. A blocker stays in its current stage with a `blocked: ...`
+summary. Verification ready for review uses `In review`; a changes-requested
+review stays `In review` until execution is authorized again. A passed review
+awaiting commit/merge is not Done.
+
+The helper replaces only its `[opencode-workflow #N]` line and preserves all other
+comment lines. It verifies issue/repository identity, targets the full worktree ID,
+and rereads the card before reporting success. It does not promise atomic editing
+against concurrent human card edits. Report conflicts/failures and recovery commands;
+never erase user notes to make an update succeed.
+
 Status: Backlog → Researching → Planning → Ready → Implementing → In review → Done.
 Do not regress active implementation/review just because research or a plan is
 revisited. Inspect current project state before changing it. Only newly created
@@ -67,6 +99,12 @@ Conflicts, Verifying. Up to date outside a sync indicates commit ancestry only;
 after an explicit sync, verification evidence is required to leave Verifying.
 
 ## Execution and Git boundaries
+
+In an explicitly Orca-supervised worker, carry the injected Task/Dispatch and
+coordinator IDs into stage children. Route blocking questions through Orca's
+`orchestration ask` contract to the coordinator; ordinary interactive sessions
+still use native dialogs. Only the owning worker reports Dispatch completion,
+after collecting its children's outcomes. See `../orca/COORDINATION.md`.
 
 - `/execute ISSUE` is authorization to implement the identified plan. If unclear,
   ask which plan. Posting a plan alone never starts implementation.

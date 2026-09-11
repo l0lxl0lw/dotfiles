@@ -115,6 +115,45 @@ creation and Project 4 setup continue normally. Retry an unavailable attachment 
 python3 ~/dotfiles/opencode/tracking/track.py link-orca ISSUE_URL
 ```
 
+### Orca workspace visibility and coordination
+
+`track.py status` now reports GitHub and Orca outcomes separately and mirrors the
+stage to the enclosing workspace **only when its issue link matches**. Workspace
+cards receive an owned `[opencode-workflow #N]` summary line; existing user notes
+are preserved. Milestone updates are verified by rereading the exact workspace.
+`/execute` links its implementation workspace even if the ticket originated in
+another workspace. Conflicting issue links still require explicit replacement.
+
+For a detailed checkpoint or an Orca-only retry:
+
+```sh
+python3 ~/dotfiles/opencode/tracking/track.py checkpoint-orca ISSUE_URL Implementing \
+  --summary 'fix implemented; running integration tests'
+```
+
+Use `/orca-handoff TASK` for a one-way transfer to another workspace/terminal, or
+`/orca-coordinate TASK` for supervised tasks, dependencies, and completion tracking.
+These are opt-in commands using the installed Orca CLI's version-matched guides.
+OpenCode stage children remain the default for ordinary workflow commands.
+Supervised workers route questions to their coordinator; ordinary sessions use
+native dialogs. See [coordination rules](orca/COORDINATION.md).
+
+The morning UI refresh uses [a fixed checkout helper](orca/refresh_checkout.py).
+Its `--check` mode is a read-only automation precheck; `--apply` fetches the named
+branch, discards only tracked unstaged edits, and fast-forwards to the fetched HEAD.
+It preserves staged work, local-only commits, and untracked/ignored-file collisions
+by refusing incompatible states. It does not clean untracked files. See
+[the automation setup](orca/README.md) for the exact target and schedule.
+
+Deleting a workspace/branch does not close its GitHub issue or unregister the local
+monitor. Close issues explicitly when appropriate, and use `track.py unregister`
+to retire monitoring. Moving this dotfiles tree requires reinstalling the monitor:
+
+```sh
+python3 ~/dotfiles/opencode/tracking/install.py monitor
+launchctl list dev.dotfiles.opencode-track
+```
+
 ### Installation and migration
 
 ```
