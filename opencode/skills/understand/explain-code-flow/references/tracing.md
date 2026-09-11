@@ -1,18 +1,8 @@
----
-name: trace-callpath
-description: >-
-  Trace an existing runtime path through this codebase and answer in chat with a relative
-  file:line breakpoint guide, ordered the way the code actually executes and carried all the
-  way to the wire — the quoted SQL statement and the literal outbound METHOD /path?query — so
-  the user can attach a debugger and step through it. Read-only: creates no files, changes
-  nothing. For uncommitted or branch changes use git-explain-diff or git-explain-branch; for a
-  conceptual "how does X work" with no debugging intent, just answer. Triggers — "what is the
-  call path for X", "trace X for me", "where do I set breakpoints", "I want to step through X",
-  "walk me through what happens when X runs", "how does X flow at runtime", "which function
-  actually writes this row", or any request for file/line numbers to follow a feature.
----
+# Shared runtime tracing procedure
 
-# Trace a runtime call path
+This reference belongs to `explain-code-flow`. Apply its investigation and tree
+rules in both modes; the parent skill selects the output sections. The full
+seven-section template below is the debug-mode output.
 
 Produce one thing: an ordered, verified map from the entry point (HTTP, cron, CLI, queue) down
 to **the wire** — the literal SQL statement text and the literal outbound HTTP request — with
@@ -39,8 +29,7 @@ wrong function and they believe it.
 **Not this skill:**
 - Uncommitted working-tree changes → `git-explain-diff`
 - What the branch changes vs main → `git-explain-branch`
-- A standalone HTML explainer → `make-html`
-- "How does X work" conceptually, with no debugging intent → just answer
+- "How does X work" conceptually, with no runtime-flow intent → `explain-college-level`
 
 ## Step 0 — anchor the repo
 
@@ -173,9 +162,8 @@ it still gets its own node in the call tree — a reader stepping in a debugger 
 
 ## Output template
 
-The answer IS this document. Use these seven headings, verbatim and in this order, with these
-shapes. Same layout every time, whatever the subsystem — someone who has read one of these can
-skim the next one without re-learning it.
+In debug mode, use these seven headings, verbatim and in this order, with these
+shapes. In explain mode, use the sections selected by the parent skill.
 
 ````markdown
 ## Entry points (N)
@@ -214,8 +202,7 @@ left-and-right on every line.
   line number in parentheses** (`src/payments/gateway.ts:41` — never a bare basename, never a
   bare `:41`). Fill the remainder with `·` leader dots. Symbol-first means the names sit right
   after the glyphs, so the call sequence reads down the left edge and the paths stay out of the
-  way in parens. Abbreviate a repeated directory as `…/gateway.ts:42` once the full path has
-  appeared on an ancestor line.
+   way in parens. Keep full relative paths on every node, including repeated directories.
 - **Right, the description column.** What this frame does and why. No symbol name (it is already
   on the left), and **no `→ some/other/file.ext:LINE`** — a jump to another file is a child node,
   not prose (see below).
@@ -313,7 +300,7 @@ Shape, in miniature — descriptions all begin in the same column, leaves break 
 └─ checkoutOrder (src/services/checkout.ts:118) ··· the order write; the charge is an epilogue step
    └─ chargeOrder (src/services/checkout.ts:174) ·· best-effort: error logged, HTTP stays 200
       └─ ⇢ src/payments/stripe/gateway.ts:41 ······ wired src/container.ts:57 — the only implementation
-         ├─ loadOrderForCharge (…/gateway.ts:42) ·· tenancy, currency, already-charged marker
+          ├─ loadOrderForCharge (src/payments/stripe/gateway.ts:42) ·· tenancy, currency, already-charged marker
          │  └─ ⇢ src/db/queries/orders.ts:26 ······ a deliberately narrow projection
          │     ┌─ SQL ─────────────────────────────────────────────────────────┐
          │     │ SELECT orders{id, tenant_id, currency, provider_charge_id}    │
@@ -321,7 +308,7 @@ Shape, in miniature — descriptions all begin in the same column, leaves break 
          │     │ $1 = orderId · provider_charge_id selects capture over create │
          │     │ literal :29 · queryOne :28                                    │
          │     └───────────────────────────────────────────────────────────────┘
-         └─ ↩ return null (…/gateway.ts:63) ······· !found → payments opt-in; nothing written anywhere
+          └─ ↩ return null (src/payments/stripe/gateway.ts:63) ······· !found → payments opt-in; nothing written anywhere
 ```
 
 Getting this right by counting characters fails at scale, and a leader that drifts by one or two
@@ -329,7 +316,7 @@ is worse than none. Write the tree in the DSL — `locator @@ description` per s
 plus `>>` lines per box — and render it mechanically:
 
 ```bash
-scripts/render_tree.py tree.txt        # derives the column, pads, draws the boxes
+python3 ~/dotfiles/opencode/skills/understand/explain-code-flow/scripts/render_tree.py tree.txt
 ```
 
 One invocation must cover the whole answer, or each tree gets its own column. Without the script,

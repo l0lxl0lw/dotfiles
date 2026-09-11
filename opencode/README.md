@@ -198,6 +198,12 @@ The shell wrapper disables OpenCode's compatibility scans of `~/.claude/skills` 
 
 ## Skills
 
+`/explain-code-flow` loads the skill that combines concept explanations and runtime tracing. Explain mode
+introduces the concept before the entry-point table and call tree; debug mode follows
+the path to concrete side effects and supplies suggested breakpoints. Both use the
+skill's shared tracing reference and renderer. It replaces the separate OpenCode
+`trace-callpath` skill.
+
 Put OpenCode skills in `opencode/skills/<category>/<name>/SKILL.md`.
 Categories are allowed; the sync flattens skill directories by basename. Use matching
 `name` and `description` frontmatter, for example:
@@ -221,6 +227,13 @@ directly to the live command catalog. `/git-commit`, `/git-pr`, and the other Gi
 entries therefore use the same tracked instructions as the native skill catalog.
 Deleting a Git skill prunes both live registrations on the next sync; no command
 alias is stored separately in the repository.
+
+Understanding skills have thin slash-command wrappers that load the corresponding
+skill and pass through the user's arguments: `/explain-code-flow`,
+`/explain-college-level`, `/poke-holes`, and `/quiz-me`. The procedures remain in
+the skill files. Workflow skills use their existing `/ticket`, `/research`,
+`/plan`, `/execute`, `/review`, and `/commit` commands, which also select their
+stage agents and models; no duplicate `/workflow-*` commands are registered.
 
 ## Loading
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a call tree with a fixed description column and boxed wire leaves.
+"""Render an explain-code-flow tree with aligned descriptions and boxed wire leaves.
 
 Hand-counting leader dots drifts by a character or two on long trees, which is
 worse than no alignment at all. Write the tree in the tiny DSL below and let this
