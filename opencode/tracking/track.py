@@ -12,6 +12,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import operational
 
 OWNER = "opencfo-ai"
 NUMBER = 4
@@ -399,7 +400,8 @@ def note(value, heading, body, key=None):
         pages = gh("api", "--paginate", "--slurp", "repos/" + repo + "/issues/" + number + "/comments")
         if any(marker in c["body"] for page in pages for c in page):
             return
-    print(run("gh", "issue", "comment", value, "--body", "## " + heading + "\n\n" + body + "\n\n" + marker))
+    text = ("## " + heading + "\n\n" + body + "\n\n" + marker).strip()
+    print(run("gh", "issue", "comment", value, "--body", operational.wrap(text)))
 
 
 def git(cwd, *args):

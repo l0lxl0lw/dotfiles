@@ -6,13 +6,18 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import call, patch
 
 spec = importlib.util.spec_from_file_location("track", Path(__file__).resolve().parents[1] / "tracking/track.py")
 track = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(track)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tracking"))
+try:
+    spec.loader.exec_module(track)
+finally:
+    sys.path.pop(0)
 ISSUE = "https://github.com/opencfo-ai/backend/issues/123"
 
 

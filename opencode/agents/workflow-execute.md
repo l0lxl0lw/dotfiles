@@ -2,7 +2,7 @@
 description: Implement or repair the approved issue contract with focused verification.
 mode: subagent
 model: openai/gpt-5.6-sol
-variant: medium
+variant: xhigh
 permission:
   external_directory:
     "~/dotfiles/opencode/tracking/**": allow

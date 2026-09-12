@@ -626,7 +626,20 @@ opencode_merge_config() {
 # Sync before startup; `command` bypasses this wrapper and preserves arguments.
 opencode() {
   opencode_merge_config || return
+  # A nested invocation retains its launch snapshot, even if live dotfiles changed.
+  local workflow_root="${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/opencode}"
+  if [[ -f "$workflow_root/runtime/launch.py" ]]; then
+    PYTHONDONTWRITEBYTECODE=1 python3 "$workflow_root/runtime/launch.py" -- "$@"
+    return $?
+  fi
   OPENCODE_DISABLE_EXTERNAL_SKILLS=1 \
     OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 \
     command opencode "$@"
+}
+
+# Explicit profile/doctor entry point for shell use. These are launcher options,
+# not flags claimed to exist on the upstream OpenCode executable.
+opencode_workflow() {
+  opencode_merge_config || return
+  PYTHONDONTWRITEBYTECODE=1 python3 "${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/opencode}/runtime/launch.py" "$@"
 }

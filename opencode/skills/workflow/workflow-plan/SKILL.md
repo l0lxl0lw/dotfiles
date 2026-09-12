@@ -6,7 +6,7 @@ description: Use for /plan on a GitHub issue. Reuse verified research and define
 # Plan: make correctness explicit
 
 Read `~/dotfiles/opencode/tracking/WORKFLOW.md` once. Load
-`handoff.py context ISSUE --stage plan --include RESEARCH_URL` when supplied.
+`handoff.py packet ISSUE --stage plan --include RESEARCH_URL` when supplied.
 Resolve ambiguous artifacts and check later discussion/issue edits. Set Planning
 without regressing active implementation/review. Small-task target: 2–4 minutes.
 
@@ -28,11 +28,22 @@ without regressing active implementation/review. Small-task target: 2–4 minute
    affected components; 2–4 implementation steps; targeted tests and required repo/CI
    checks; documented baseline failures; manual checks only where genuinely needed.
    Separate required acceptance from optional coverage improvements. Avoid long code
-   sketches, duplicate architecture essays, or full-suite reruns without a reason.
+    sketches, duplicate architecture essays, or full-suite reruns without a reason.
 
-Publish **Implementation plan** via `handoff.py publish ... --input RESEARCH_URL`.
-Explicitly supersede an old plan when replacing it. For small work aim for 500–900
-words plus the matrix. Set Ready when the plan is prepared; Ready is not approval.
+Before publication, perform one completeness self-check: does every required contract
+ID have a proving check or a justified manual-review mapping? Are negative responses,
+identity/state invariants, realistic fixtures, normalization, interface consumers and
+documentation assumptions explicit where relevant? Do not add another planning agent
+by default; request an independent plan audit only for a named consequential uncertainty.
+
+Use `~/dotfiles/opencode/schemas/plan.example.json` to publish a v2 **Implementation plan** with
+`handoff.py record ISSUE plan --data TEMP.json --input RESEARCH_URL`. Reference the
+current contract revision, exact research fact IDs, steps, coverage map and approved
+`check_manifest`. Read existing repository `.opencode/workflow/checks.json` definitions
+when present; choose actual affected checks rather than copying example paths. Record
+justified baseline exclusions separately. Do not create/edit the repository manifest
+during read-only planning. `~/dotfiles/opencode/tracking/references/records.md` explains runner formats.
+Explicitly supersede an old plan. Set Ready when prepared; Ready is not approval.
 
 Return the exact plan URL and `/execute ISSUE_URL PLAN_URL`. Stop. The user's
 explicit `/execute` of the identified plan supplies implementation authorization;

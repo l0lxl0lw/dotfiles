@@ -21,9 +21,21 @@ targets, not permission to omit a material question.
    examples with observable outcomes; decisions and rationale; unresolved technical
    questions for research. Use valid identifiers in happy-path examples and distinct
    malformed-input examples when identifiers are involved. No proposed solution is
-   required just to create a ticket.
+required just to create a ticket.
+
+After creating/refining the issue, load `handoff.py packet ISSUE --stage ticket`.
+Publish a v2 contract using `~/dotfiles/opencode/schemas/contract.example.json`:
+stable requirement IDs, exact expected outcomes, constraints/exclusions, agreed
+decisions and unresolved material choices. Reconcile the issue and covered comments
+before copying the packet's `checkpoint_candidate`. Do not invent a digest or hide
+an ambiguous decision in a summary. Use `handoff.py record ISSUE contract --data TEMP.json`
+and explicitly supersede the previous contract when replacing it. Technical questions
+belong in research, not in a falsely settled product decision.
 
 ## GitHub and Orca identity contract
+
+Load the relevant identity/status section of `~/dotfiles/opencode/tracking/references/operations.md` for
+these operations; do not replay its legacy handoff examples as the v2 protocol.
 
 Treat the request as a **new ticket** unless the user supplies the exact existing
 issue or explicitly asks to update it. Similar issues are references, not permission
@@ -52,5 +64,6 @@ the new-ticket milestone (the earlier status call may have preceded attachment).
 For an approved existing-ticket update, preserve useful content and later work;
 do not reset status/assignees or invoke `link-orca`.
 
-Return issue creation/update, assignee/Project 4 fields, and Orca attachment as
-separate outcomes, plus one next command: `/research ISSUE_URL`. Stop here.
+Return issue creation/update, assignee/Project 4 fields, and Orca attachment as separate
+outcomes. Include the contract URL and `/research ISSUE_URL`. Record only a verified milestone via the existing
+checkpoint helper. Do not let a tracking failure masquerade as a missing product decision.

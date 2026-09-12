@@ -11,6 +11,7 @@ permission:
     "/tmp/**": allow
     "/private/tmp/**": allow
     "/var/folders/**": allow
+    "**/T/opencode/**": allow
   question: allow
   todowrite: allow
   task: deny

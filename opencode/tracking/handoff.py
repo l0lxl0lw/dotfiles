@@ -12,7 +12,7 @@ import sys
 
 import track
 
-STAGES = ("research", "plan", "verification", "review", "decisions")
+STAGES = ("research", "plan", "verification", "review", "decisions", "contract")
 HEADINGS = {"research": "Research", "plan": "Implementation plan", "verification": "Verification",
             "review": "Review", "decisions": "Decisions"}
 MARKER = re.compile(r"<!-- opencode-workflow:v1 (\{[^\n]*\}) -->")
@@ -77,6 +77,9 @@ def issue_and_comments(value):
 
 
 def metadata(comment):
+    if "<!-- opencode-workflow:v2 " in comment.get("body", ""):
+        import packet
+        return packet.parse(comment)
     matches = MARKER.findall(comment.get("body", ""))
     if len(matches) != 1:
         return None
@@ -181,12 +184,31 @@ def main():
     ctx.add_argument("--include", action="append", default=[])
     post = sub.add_parser("publish")
     post.add_argument("issue")
-    post.add_argument("stage", choices=STAGES)
+    post.add_argument("stage", choices=[stage for stage in STAGES if stage != "contract"])
     post.add_argument("body", type=Path)
     post.add_argument("--input", action="append", default=[])
     post.add_argument("--supersedes", action="append", default=[])
     post.add_argument("--verdict", choices=["pass", "changes_requested", "blocked"])
+    compact = sub.add_parser("packet", help="Load a stage-specific v2 task packet; legacy artifacts remain readable")
+    compact.add_argument("issue")
+    compact.add_argument("--stage", choices=NEEDED, required=True)
+    compact.add_argument("--include", action="append", default=[])
+    compact.add_argument("--history", action="store_true")
+    record = sub.add_parser("record", help="Publish a validated v2 record")
+    record.add_argument("issue")
+    record.add_argument("stage", choices=STAGES)
+    record.add_argument("--data", type=Path)
+    record.add_argument("--run", help="Create verification record from a local runner receipt")
+    record.add_argument("--input", action="append", default=[])
+    record.add_argument("--supersedes", action="append", default=[])
+    gate = sub.add_parser("gate", help="Check current v2 approval and recorded evidence before commit/readiness")
+    gate.add_argument("issue")
+    gate.add_argument("--plan", required=True)
+    gate.add_argument("--review")
+    sub.add_parser("snapshot-v2", help="Content identity stable across commit of unchanged content")
     args = p.parse_args()
+    if args.action in ("packet", "record", "gate", "snapshot-v2"):
+        return v2_action(args)
     source = snapshot()
     if args.action == "snapshot":
         result = source
@@ -197,6 +219,133 @@ def main():
         else:
             result = publish(issue, comments, args.stage, args.body.read_text(), source,
                              args.input, args.supersedes, args.verdict)
+    print(json.dumps(result, indent=2))
+
+
+def v2_gate(issue, comments, plan_url, review_url=None, cwd=None):
+    import packet
+    import workflow_state as state
+    import verify
+    source = state.snapshot(cwd)
+    if source["partially_staged_files"]:
+        raise RuntimeError("Resolve partial staging before claiming commit readiness")
+    review = packet.select(comments, "review", review_url, required=True)
+    meta = packet.parse(review)
+    record = meta["record"]
+    if meta["source"].get("digest") != source["digest"] or record["verdict"] != "pass":
+        raise RuntimeError("Review is stale or does not pass")
+    if record["plan_url"] != plan_url:
+        raise RuntimeError("Review applies to a different plan")
+    validate_review_pass(issue, comments, record, source, cwd)
+    return {"ready": True, "review": review["html_url"], "plan": plan_url, "source": source,
+            "scope": "Recorded review/check readiness only; no Git operation or merge authorization"}
+
+
+def validate_review_pass(issue, comments, record, source, cwd=None):
+    import packet
+    import workflow_state as state
+    import verify
+    plan, contract = verify.approved_plan(issue, comments, record["plan_url"])
+    if record.get("contract_revision") != contract["revision"]:
+        raise RuntimeError("Review contract revision is stale")
+    previous = None
+    if record.get("previous_review"):
+        artifact = next((c for c in comments if c["html_url"] == record["previous_review"]), None)
+        if not artifact or not packet.parse(artifact) or packet.parse(artifact)["stage"] != "review":
+            raise RuntimeError("Previous review evidence is unavailable")
+        previous = packet.parse(artifact)["record"]
+    packet.review_record(record, previous)
+    verification = packet.select(comments, "verification", required=True)
+    if packet.parse(verification)["record"]["run_id"] != record["verification_run"]:
+        raise RuntimeError("Review does not reference current verification")
+    verify.readiness(state.repo(cwd), issue, comments, record["plan_url"], record["verification_run"], source)
+    if record["verdict"] != "pass" or any(f["required"] and f["status"] != "resolved" for f in record["findings"]):
+        raise RuntimeError("Cannot pass with unresolved required findings")
+    manual = {x.get("requirement"): x for x in record.get("manual_evidence", [])}
+    required = {x["id"] for x in contract["requirements"] if x["required"]}
+    for requirement, row in plan["coverage"].items():
+        if requirement in required and not row.get("checks"):
+            evidence = manual.get(requirement, {})
+            packet.text(evidence.get("observed"), "manual acceptance evidence")
+            packet.strings(evidence.get("locations"), "manual source locations")
+            if not evidence["locations"]:
+                raise RuntimeError("Manual evidence requires actual source references")
+
+
+def record_v2(issue, comments, kind, record, inputs=(), supersedes=(), cwd=None):
+    import packet
+    import workflow_state as state
+    import verify
+    validate_links(issue, comments, [*inputs, *supersedes])
+    choices = packet.active(comments, kind)
+    previous = None if len(choices) > 1 and {c["html_url"] for c in choices} <= set(supersedes) else packet.select(comments, kind)
+    if previous and previous["html_url"] not in supersedes:
+        # Identical publication retries are checked below, before requiring replacement.
+        old = packet.parse(previous)
+    else:
+        old = None
+    for url in supersedes:
+        item = next(c for c in comments if c["html_url"] == url)
+        if not metadata(item) or metadata(item)["stage"] != kind:
+            raise RuntimeError("Only supersede the same artifact stage")
+    if kind != "contract":
+        contract_artifact, _ = packet.current_contract(issue, comments)
+        inputs = tuple(dict.fromkeys([contract_artifact["html_url"], *inputs]))
+    if kind == "verification":
+        run = verify.load_run(state.repo(cwd), record["run_id"])
+        if run["issue"] != issue["url"]:
+            raise RuntimeError("Verification belongs to another issue")
+        record = {"version": 2, "run_id": record["run_id"], "plan_url": run["plan_url"],
+                  "contract_revision": run["contract_revision"],
+                  "checks": [{k: c[k] for k in ("id", "status", "exit_code", "test_count", "skips", "reused")} for c in run["checks"]]}
+        inputs = tuple(dict.fromkeys([*inputs, run["plan_url"]]))
+    # A retry of the exact current review must not ask it to be its own predecessor.
+    validation_comments = [c for c in comments if not (kind == "review" and old and c["html_url"] == previous["html_url"] and old["record"] == record)]
+    record = packet.validate_record(kind, record, issue, validation_comments, cwd)
+    source = state.snapshot(cwd)
+    if kind == "verification" and run["source"]["digest"] != source["digest"]:
+        raise RuntimeError("Cannot publish verification for a different source state")
+    if kind == "review":
+        plan, contract = verify.approved_plan(issue, comments, record["plan_url"])
+        inputs = tuple(dict.fromkeys([*inputs, record["plan_url"]]))
+        verification = packet.select(comments, "verification", required=True)
+        if packet.parse(verification)["record"]["run_id"] != record["verification_run"]:
+            raise RuntimeError("Review must use the current published verification")
+        inputs = tuple(dict.fromkeys([*inputs, verification["html_url"]]))
+        if record["verdict"] == "pass":
+            validate_review_pass(issue, comments, record, source, cwd)
+    text, meta = packet.envelope(kind, record, source, inputs, supersedes)
+    for comment in packet.active(comments, kind):
+        prior = packet.parse(comment)
+        if comment["html_url"] not in supersedes and prior and prior["stage"] == kind and prior["record"] == record and prior["source"].get("digest") == source["digest"] and prior.get("inputs", []) == list(inputs):
+            return {"url": comment["html_url"], "outcome": "already_published", "metadata": prior}
+    if old:
+        raise RuntimeError("Explicit --supersedes is required when replacing the active " + kind)
+    url = track.run("gh", "issue", "comment", issue["url"], "--body", text)
+    if not re.fullmatch(re.escape(issue["url"]) + r"#issuecomment-\d+", url):
+        raise RuntimeError("Unexpected publication URL; inspect before retrying")
+    return {"url": url, "outcome": "published", "metadata": meta}
+
+
+def v2_action(args):
+    import packet
+    import workflow_state as state
+    if args.action == "snapshot-v2":
+        result = state.snapshot()
+    else:
+        issue, comments = issue_and_comments(args.issue)
+        if args.action == "packet":
+            validate_links(issue, comments, args.include)
+            result = packet.build(issue, comments, args.stage, args.include, history=args.history)
+        elif args.action == "gate":
+            result = v2_gate(issue, comments, args.plan, args.review)
+        else:
+            if bool(args.data) == bool(args.run):
+                raise RuntimeError("Supply exactly one of --data or --run")
+            if args.run and args.stage != "verification":
+                raise RuntimeError("--run is only for verification")
+            record = {"version": 2, "run_id": args.run} if args.run else json.loads(args.data.read_text())
+            result = record_v2(issue, comments, args.stage, record, args.input, args.supersedes)
     print(json.dumps(result, indent=2))
 
 

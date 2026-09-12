@@ -5,7 +5,7 @@ description: Use for /execute on a GitHub issue and approved plan, optionally wi
 
 # Execute: implement the contract, then prove it
 
-Read `~/dotfiles/opencode/tracking/WORKFLOW.md` once. Load compact execute context,
+Read `~/dotfiles/opencode/tracking/WORKFLOW.md` once. Load `handoff.py packet ISSUE --stage execute`,
 pinning the exact plan and supplied Review with repeated `--include` arguments.
 Do not infer scope from parent conversation or treat a plan's checked boxes as proof
 that review findings are fixed. Resolve conflicting plans or changed product decisions.
@@ -39,17 +39,27 @@ If compact context contains a current changes-requested Review but the caller di
 not pin it, resolve that artifact before editing. Do not blindly repeat the original
 plan while leaving its known findings open.
 
-When a Review URL is supplied, treat it as a scoped repair pass against the same
-contract. Address actionable findings, add the missing regression cases, rerun
-affected checks, and record each finding as fixed or disputed with evidence. A
-disputed material finding must return to review; it is not silently closed. Do not
-restart ticket/research/planning unless the fix changes the agreed scope.
+When a Review URL is supplied, use the packet's open finding IDs and repair delta.
+Treat it as a scoped repair pass against the same contract. Address actionable
+findings, add missing regression cases, and record each ID as fixed/disputed/unresolved
+with evidence. Fetch the full prior Review only to recover needed details and resolution
+history. A disputed material finding returns to review. Inspect affected invariants
+and new regressions, but do not restart research/planning unless scope actually changes.
 
-Publish **Verification** via `handoff.py publish ... --input PLAN_URL` (and
-`--input REVIEW_URL` for fixes). Include acceptance row → test/result, commands,
-baseline failures/skips, deviations, and remaining work. The helper binds evidence
-to the current HEAD and changed-file content digest; finish code edits before posting.
-Supersede the previous Verification artifact when replacing it.
+After authorized implementation, initialize/reconcile the repository check manifest
+from the exact approved plan (`verify.py init ISSUE --plan PLAN_URL`). An incompatible
+existing manifest is preserved; reconcile deliberately and revise the plan when its
+required definitions need to change. Run `verify.py run ISSUE --plan PLAN_URL` to record
+actual exits, test/skip details, code/contract/environment fingerprints and private logs.
+Do not replace the runner receipt with a prose claim. Use `--reuse` only when matching
+source and declared assumptions really hold; changes to external data require fresh checks.
+
+Publish **Verification** with `handoff.py record ISSUE verification --run RUN_ID`
+(plus `--input REVIEW_URL` for fixes and `--supersedes PREVIOUS_VERIFICATION_URL`). Failed
+receipts remain publishable as truthful evidence but cannot satisfy a pass. Finish code
+edits before recording checks; source changes during a check invalidate its evidence.
+Return finding resolutions and baseline/skipped/missing checks concisely beside the URL;
+full logs remain local and fetchable with `verify.py show RUN_ID`.
 
 Return the Verification URL and `/review ISSUE_URL PLAN_URL` (plus previous Review
 URL on a repair). Implementation complete is not review pass. Stop before commit.

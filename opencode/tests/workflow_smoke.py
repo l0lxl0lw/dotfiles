@@ -5,6 +5,7 @@ No GitHub writes or application edits. Uses installed OpenCode config and a temp
 README fixture. Not included in unittest discovery. Run after opencode_merge_config.
 """
 import concurrent.futures
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -26,10 +27,16 @@ def main():
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         base = f"http://127.0.0.1:{port}"
-        env = {**os.environ, "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1", "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1"}
-        env["OPENCODE_CONFIG_CONTENT"] = json.dumps({"command": {"workflow-smoke": {
+        path = Path(__file__).resolve().parents[1] / "runtime/launch.py"
+        spec = importlib.util.spec_from_file_location("smoke_launch", path)
+        launch = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(launch)
+        env = launch.environment(launch.build_bundle(), "balanced")
+        config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
+        config["command"]["workflow-smoke"] = {
             "agent": "workflow-research", "model": "openai/gpt-6-astra", "variant": "medium", "subtask": True,
-            "description": "Read-only fresh-session wiring check", "template": "$ARGUMENTS"}}})
+            "description": "Read-only fresh-session wiring check", "template": "$ARGUMENTS"}
+        env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
 
         def api(method, path, data=None, timeout=180):
             url = base + path + "?" + urllib.parse.urlencode({"directory": str(directory)})

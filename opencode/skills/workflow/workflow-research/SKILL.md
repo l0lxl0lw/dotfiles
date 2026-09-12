@@ -6,7 +6,7 @@ description: Use for /research on a GitHub issue. Produce bounded, source-pinned
 # Research: answer the unknowns once
 
 Read `~/dotfiles/opencode/tracking/WORKFLOW.md` once. Load compact issue context with
-`handoff.py context ISSUE --stage research`, including any exact artifact links.
+`handoff.py packet ISSUE --stage research`, including any exact artifact links.
 Read discussion for changed decisions. Set Researching only if later work is not
 already active. A small-task target is 2–4 minutes, not an exhaustive repository tour.
 
@@ -30,11 +30,12 @@ already active. A small-task target is 2–4 minutes, not an exhaustive reposito
    into a new requirement. A real complexity discovery can justify `--deep` scope;
    name the question and reason before expanding. No artificial minimum agent count.
 
-Publish one compact **Research** artifact via `handoff.py publish`: source snapshot,
-5–10 decisive file/range references, relevant mechanism/constraints, reusable example,
-test commands/prerequisites, and remaining decisions (or none). Target 400–700 words
-for small work, no transcript or pasted source files. Explicitly supersede a previous
-Research artifact when replacing it; preserve its URL as history.
+Publish one v2 **Research** record using `~/dotfiles/opencode/schemas/research.example.json` and
+`handoff.py record ISSUE research --data TEMP.json --input CONTRACT_URL`. Facts have
+stable IDs, concise verified claims, and 5–10 decisive source locations; the helper
+binds their file hashes. Include test prerequisites and open technical questions.
+Do not paste transcripts or entire source files. Explicitly supersede replaced research.
+Stale facts require targeted source checks, not automatic full reinvestigation.
 
 Return the exact comment URL and `/plan ISSUE_URL RESEARCH_URL`. Do not implement,
 produce a second technical plan here, or advance project status to Planning.

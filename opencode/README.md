@@ -1,5 +1,88 @@
 # OpenCode Config
 
+## V2: compact task packets and recorded verification
+
+The native six-command cycle now uses explicit requirement IDs, source-linked facts,
+approved check definitions, real runner receipts, and finding-based repairs. Fresh
+children remain; the dispatcher still returns short links/outcomes rather than code
+history. See `tracking/WORKFLOW.md` for the short common contract and
+`tracking/references/records.md` for the formats and migration procedure.
+
+Normal shell `opencode` synchronizes managed links, then launches from a content-
+addressed snapshot of this OpenCode resource tree. It keeps real HOME and credentials.
+`profiles.json` controls both command and agent routing:
+
+| Profile | Implementation/fixes | Other workflow stages |
+|---|---|---|
+| `balanced` (default) | Sol xhigh | Astra medium planning/review; Luna Fast dispatch/commit |
+| `baseline` | Sol medium | Same |
+| `astra-high` | Astra high | Same |
+
+These are candidates informed by a single known-task screen, not universal performance
+guarantees. K/L passed with a clearer shared plan; there was no fresh medium control
+under that protocol. Record first-submission work and repairs, not just review rounds.
+Fewer total/cache tokens does not establish a lower dollar bill.
+
+```sh
+# Shell helpers (source the updated functions or start a new shell first)
+opencode
+opencode_workflow --profile baseline --
+opencode_workflow --profile astra-high --
+opencode_workflow --doctor --github
+
+# Direct IDE/API entry point: the same launch contract, without shell-function reliance
+python3 ~/dotfiles/opencode/runtime/launch.py --profile balanced -- serve --hostname 127.0.0.1 --port 4096
+
+# Inspect non-secret snapshot identity without starting a model
+python3 ~/dotfiles/opencode/runtime/launch.py --prepare
+```
+
+`--doctor` checks resource integrity, executable availability and temporary filesystem
+writes; `--github` adds a read-only authenticated API probe. It does not pretend to
+prove native model inference or patch permissions: the separate live smoke does that.
+`--live` passes through the incoming live config without new snapshot/profile overrides.
+Existing IDE/Orca hooks and other non-workflow files in `OPENCODE_CONFIG_DIR` are
+preserved through a composed catalog of links. Conflicting custom definitions of owned
+workflow entries require explicit reconciliation or `--live`, rather than silent
+overwriting. Other machine-local JSON settings remain local.
+
+Every resource snapshot roots helper/document paths in its own copy. Live dotfiles
+updates therefore do not change helpers midway through that run. A new top-level
+launch picks up new resources; nested launches retain their existing snapshot.
+Restart OpenCode to activate catalog/config changes. No custom routing plugin is added.
+Snapshot-local skill names include a revision prefix to prevent global-catalog
+collisions. Public slash commands keep their familiar names. Workflow agents receive
+the pinned prompt/permissions explicitly and hide the old owned skill aliases; project
+skills with other names remain available. Unsupported complex YAML in owned workflow
+frontmatter fails explicitly rather than silently losing permissions.
+
+### Before and after
+
+The commands remain `/ticket → /research → /plan → /execute → /review → /commit`.
+Before, fresh workers interpreted prose verification and replayed unmarked discussion.
+After, each stage receives the current exact contract, relevant records, changed
+discussion and applicable evidence. Repairs load open finding IDs and a real local
+repair diff, not another full research pass. Initial review still inspects real code.
+
+New/edited/deleted comments are reconciled via content hashes, not an ID-only watermark.
+Required text is never truncated for a token target. Old bodies are fetchable with
+`--history`; legacy v1 artifacts remain readable but are not silently promoted to gated
+v2 approval. Exact machine branch observations have separate integrity-bound metadata;
+edited notes remain material discussion. Packet size is reported in bytes.
+
+The approved plan includes a repository-owned `.opencode/workflow/checks.json` manifest.
+`verify.py init` creates it only during authorized execution and preserves conflicting
+existing content. `verify.py run` captures actual commands, statuses, skips and private
+logs; `handoff.py record ... verification --run ID` publishes compact evidence. A
+passing review and `handoff.py gate` require current recorded proof and no unresolved
+material findings. This checks evidence completeness, not the semantic adequacy of tests.
+
+Whole-content identity survives staging/committing unchanged bytes. Partial staging,
+source changes, changed contracts/check definitions, or declared environment/toolchain
+changes invalidate applicability. Explicit `--reuse` requires unchanged external-state
+assumptions; missing local evidence requires real reruns. No automatic baseline-failure
+waiver or destructive legacy migration is introduced.
+
 ## Balanced GitHub development workflow
 
 The command and specialist roles originated in
@@ -50,7 +133,7 @@ navigate into the stage child to inspect its work and return to the dispatcher.
 | Product scoping | workflow-ticket / Astra | Focused questions; acceptance examples; new issue/project/Orca |
 | Research | workflow-research / Astra | One bounded investigation; optional precise specialists |
 | Planning | workflow-plan / Astra | Reuse research; API/state/error/test matrix; concrete steps |
-| Implementation/fixes | workflow-execute / Sol | Approved vertical slice, targeted tests, Verification artifact |
+| Implementation/fixes | workflow-execute / Sol xhigh | Approved vertical slice, runner evidence, Verification artifact |
 | Independent review | workflow-review / Astra | Actual diff and contract; pass/changes_requested/blocked |
 | Local commit | workflow-commit / Luna Fast | Existing git-commit skill and compact evidence |
 
@@ -81,21 +164,17 @@ cutoffs and no permission to omit required checks to hit a timer.
 
 ### Compact, content-bound handoffs
 
-`tracking/handoff.py` fetches paginated issue comments once per context load. It
-retains the issue and all unmarked discussion, indexes historical structured notes,
-and emits only the relevant artifact bodies. Exact URLs can be pinned; multiple
-unsuperseded plans are reported as ambiguous instead of silently choosing one.
-Legacy comments remain available verbatim, so older issues may still have a larger
-context. The helper never silently discards unmarked discussion; new structured
-artifacts use explicit supersession to keep their own handoffs compact.
+`tracking/handoff.py packet` fetches paginated comments once per stage entry, then
+projects v2 records into a stage-specific view. Reconciled discussion need not be
+replayed; changed or unacknowledged text remains explicit. Multiple active plans are
+ambiguous unless selected/superseded deliberately. Legacy `context` behavior remains
+available and is the safe fallback until a v2 contract checkpoint is established.
 
-Verification and review comments record HEAD, a changed-content digest, and exact
-input artifact links. The digest notices unstaged, staged, untracked, deleted and
-mode/symlink changes, including partial-index divergence. It is unchanged by staging
-the same complete content. A different digest invalidates claims of unchanged tested
-code; a matching digest still does not establish approval of later product decisions.
-Changed submodules/special files require explicit evidence rather than a misleading
-digest. Source/metadata summaries are not a substitute for inspecting the real diff.
+V2 comments record HEAD provenance separately from effective-content identity and
+exact input links. The digest notices unstaged, staged, untracked, deleted and
+mode/symlink changes, including partial-index divergence, and survives a commit of
+unchanged content. Changed submodules/special files require explicit handling. A
+source match does not approve later decisions or replace inspection of the actual diff.
 
 Publishing identical content and metadata is idempotent and returns the original
 comment URL. Replacements use explicit `--supersedes` links; earlier artifacts are
@@ -281,17 +360,16 @@ through the shell wrapper, which syncs before invoking the real binary. The glob
 OpenCode directory must already exist (normally created by OpenCode); the sync does
 not create it on machines where OpenCode has not been set up.
 
-Desktop/IDE launches and direct binary invocations bypass the wrapper: sync manually
-and set `OPENCODE_DISABLE_EXTERNAL_SKILLS=1` and
-`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` in that launch environment. Quit and restart
-OpenCode after changes; running sessions retain their loaded catalog.
-`OPENCODE_CONFIG_DIR` can add another config directory but does not change this
-sync's XDG global destination.
+Desktop/IDE launches and direct binaries bypass the shell wrapper. Configure them to
+invoke `runtime/launch.py -- ...` for the same pinned profile, or explicitly use live
+mode with the compatibility-scan flags above. `OPENCODE_CONFIG_DIR` does not change
+the symlink sync's XDG destination. Quit/restart OpenCode after configuration changes.
 
 ## Local Settings
 
 The sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`. Workflow
-role defaults live in tracked command/agent frontmatter; provider credentials,
+role profiles live in `profiles.json`; matching command/agent frontmatter supplies
+direct-launch defaults. Provider credentials,
 global overrides and the optional `subagent_depth` setting remain machine-local.
 
 There is deliberately no placeholder global `AGENTS.md`: OpenCode uses
@@ -311,6 +389,7 @@ are mocked. The optional live-model smoke is separate from unit-test discovery:
 
 ```sh
 python3 -B opencode/tests/workflow_smoke.py
+python3 -B opencode/tests/runtime_smoke.py
 ```
 
 It uses installed configuration and a temporary README fixture to check all six
@@ -319,3 +398,7 @@ routing. It does not create issues or edit application code. It requires configu
 models and `subagent_depth: 2`. See
 [the verification record](tracking/BALANCED_WORKFLOW_VERIFICATION.md) for the tested
 version and limits; it is not an end-to-end speed benchmark of the new workflow.
+The runtime smoke additionally checks the actual profile/skill resolution, a successful
+temporary `apply_patch`, a denied application patch in a disposable worktree, and a
+real Sol-xhigh child response. Both smoke programs make small live model calls and
+are opt-in; automated unit tests mock GitHub writes. No speed claim is inferred from them.

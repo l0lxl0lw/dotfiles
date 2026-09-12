@@ -3,4 +3,6 @@
 [[ -f "$XDG_CONFIG_HOME/opencode/skills/git-commit/SKILL.md" ]] || exit 91
 [[ "$OPENCODE_DISABLE_EXTERNAL_SKILLS" == 1 ]] || exit 92
 [[ "$OPENCODE_DISABLE_CLAUDE_CODE_SKILLS" == 1 ]] || exit 93
+[[ -f "$OPENCODE_WORKFLOW_ROOT/profiles.json" && -d "$OPENCODE_CONFIG_DIR/skills" ]] || exit 94
+python3 -c 'import json,os; c=json.loads(os.environ["OPENCODE_CONFIG_CONTENT"]); v=os.environ.get("WORKFLOW_EXPECT_VARIANT","xhigh"); assert c["command"]["execute"]["variant"]==c["agent"]["workflow-execute"]["variant"]==v; assert c["command"]["execute"]["subtask"] is True' || exit 95
 exit 23

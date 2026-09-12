@@ -6,11 +6,12 @@ test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/opencode-config-test.XXXXXX") || exit 1
 test_tmp=${test_tmp:a}
 trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
-unset XDG_CONFIG_HOME
+unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_PROFILE OPENCODE_WORKFLOW_REVISION
 mkdir -p "$HOME/dotfiles/opencode"
-for name in skills commands agents; do
+for name in skills commands agents runtime; do
   ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
 done
+ln -s "$repo_root/opencode/profiles.json" "$HOME/dotfiles/opencode/profiles.json"
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
 
@@ -98,4 +99,6 @@ rm "$dst/skills/git-commit"
 opencode 'argument with spaces'
 result=$?
 [[ $result == 23 ]] || fail "wrapper status/arguments/pre-launch sync: $result"
+WORKFLOW_EXPECT_VARIANT=medium opencode_workflow --profile baseline -- 'argument with spaces'
+[[ $? == 23 ]] || fail "explicit baseline profile forwarding"
 print -- "PASS: ${#skills} OpenCode skills, XDG/default paths, external-skill isolation, safe pruning, config preservation, idempotence and wrapper"

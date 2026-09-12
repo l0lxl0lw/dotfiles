@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "PYTHON",
+      "argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "opencode/tests", "-p", "*_test.py"],
+      "kind": "test",
+      "format": "unittest",
+      "required": true,
+      "allow_skips": false,
+      "env_keys": ["PYTHONPATH", "TMPDIR"]
+    },
+    {
+      "id": "SHELL",
+      "argv": ["zsh", "zsh/tests/opencode_config_test.zsh"],
+      "kind": "test",
+      "format": "script",
+      "success_pattern": "^PASS: .*OpenCode skills",
+      "required": true,
+      "allow_skips": false
+    }
+  ]
+}
