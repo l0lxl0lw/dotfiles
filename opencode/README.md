@@ -14,9 +14,9 @@ addressed snapshot of this OpenCode resource tree. It keeps real HOME and creden
 
 | Profile | Implementation/fixes | Other workflow stages |
 |---|---|---|
-| `balanced` (default) | Sol xhigh | Astra medium planning/review; Luna Fast dispatch/commit |
+| `balanced` | Sol xhigh | Astra medium planning/review; Luna Fast dispatch/commit |
 | `baseline` | Sol medium | Same |
-| `astra-high` | Astra high | Same |
+| `astra-high` (default) | Astra high | Same |
 
 These are candidates informed by a single known-task screen, not universal performance
 guarantees. K/L passed with a clearer shared plan; there was no fresh medium control
@@ -27,11 +27,11 @@ Fewer total/cache tokens does not establish a lower dollar bill.
 # Shell helpers (source the updated functions or start a new shell first)
 opencode
 opencode_workflow --profile baseline --
-opencode_workflow --profile astra-high --
+opencode_workflow --profile balanced --  # explicit K configuration
 opencode_workflow --doctor --github
 
 # Direct IDE/API entry point: the same launch contract, without shell-function reliance
-python3 ~/dotfiles/opencode/runtime/launch.py --profile balanced -- serve --hostname 127.0.0.1 --port 4096
+python3 ~/dotfiles/opencode/runtime/launch.py --profile astra-high -- serve --hostname 127.0.0.1 --port 4096
 
 # Inspect non-secret snapshot identity without starting a model
 python3 ~/dotfiles/opencode/runtime/launch.py --prepare
@@ -133,7 +133,7 @@ navigate into the stage child to inspect its work and return to the dispatcher.
 | Product scoping | workflow-ticket / Astra | Focused questions; acceptance examples; new issue/project/Orca |
 | Research | workflow-research / Astra | One bounded investigation; optional precise specialists |
 | Planning | workflow-plan / Astra | Reuse research; API/state/error/test matrix; concrete steps |
-| Implementation/fixes | workflow-execute / Sol xhigh | Approved vertical slice, runner evidence, Verification artifact |
+| Implementation/fixes | workflow-execute / Astra high | Approved vertical slice, runner evidence, Verification artifact |
 | Independent review | workflow-review / Astra | Actual diff and contract; pass/changes_requested/blocked |
 | Local commit | workflow-commit / Luna Fast | Existing git-commit skill and compact evidence |
 

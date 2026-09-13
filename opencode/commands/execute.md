@@ -1,8 +1,8 @@
 ---
 description: Implement the approved issue plan, or fix an explicitly supplied review.
 agent: workflow-execute
-model: openai/gpt-5.6-sol
-variant: xhigh
+model: openai/gpt-6-astra
+variant: high
 subtask: true
 ---
 
