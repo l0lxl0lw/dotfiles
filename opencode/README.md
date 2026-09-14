@@ -1,5 +1,29 @@
 # OpenCode Config
 
+## Standalone learning skills
+
+Six independent teaching procedures live under `opencode/skills/learning/`, each
+with a matching slash command. They contain their own grounding, interaction, and
+completion rules and do not depend on the existing understanding skills or `_lib`.
+They support general topics, supplied material, and codebase-specific learning;
+codebase claims require inspecting the actual source.
+
+| Command | Learning activity |
+|---|---|
+| `/learning-curve-destroyer` | Practical crash course toward a concrete task; four-hour default budget |
+| `/real-error-simulator` | Scenario first, guided retries, then a worked solution and transfer case |
+| `/impossible-language` | One foundational idea, plain-language analogy, and three understanding checks |
+| `/personal-learning-path` | Goal/deadline-based daily tasks; defaults to seven days of 45 minutes |
+| `/hidden-gap-detector` | Five diagnostic questions exposing foundational gaps in claimed mastery |
+| `/forced-feynman` | Learner-first teach-back; probe jargon, skipped reasoning, and false simplifications |
+
+Pass a topic or material after the command, plus a goal, budget, or repository path
+when relevant. Each skill asks for missing essentials and waits for your attempts.
+For example: `/personal-learning-path SQL joins; goal: debug reporting queries;
+7 days, 45 minutes/day`. Progress stays in chat unless you explicitly request a
+saved record. Run `opencode_merge_config`, then restart through the launcher to
+load the new catalog into a fresh resource snapshot.
+
 ## Private configuration
 
 The launcher reads `~/dotfiles-private/opencode/config.json`, or the explicit
