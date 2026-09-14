@@ -7,8 +7,8 @@ legacy handoff behavior during migration.
 
 ## Project and identity
 
-- Every repository uses https://github.com/orgs/opencfo-ai/projects/4 as the
-  personal task tracker, including repositories outside the `opencfo-ai` organization.
+- Use the project selected by `tracking.owner` and `tracking.number` in private
+  workflow configuration. Missing configuration blocks project operations; never guess a target.
 - Assign every newly created ticket to the authenticated GitHub user (`@me`).
 - Accept full issue URLs or numbers resolved against the current repository.
 - At each stage, use `handoff.py packet ISSUE --stage STAGE` once. It paginates

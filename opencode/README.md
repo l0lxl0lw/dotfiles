@@ -1,5 +1,39 @@
 # OpenCode Config
 
+## Private configuration
+
+The launcher reads `~/dotfiles-private/opencode/config.json`, or the explicit
+`OPENCODE_PRIVATE_CONFIG` file. This is our helper's format, not native OpenCode config:
+
+```json
+{"version":1,"skills_paths":["skills"],"tracking":{"owner":"example-org","number":1}}
+```
+
+Paths are relative to the private config file; private skills are exposed using native
+`skills.paths`. Each private skill also gets a `/<skill-name>` command at launch time.
+The command contains a skill-tool reference and `$ARGUMENTS`, not the private skill body.
+Duplicate private/public skill names and existing command-name collisions fail explicitly.
+Repeated nested launches preserve unchanged wrappers; removed private registrations lose
+their generated command wrappers. Custom command edits are preserved and conflicts reported.
+Missing optional
+private configuration leaves the generic workflow usable; project mutations require an
+explicit tracking target. Private files are not copied into public resource snapshots.
+Do not store credentials in this interface: resolve them within the private adapter.
+Restart OpenCode after private/public catalog changes. Direct IDE/API launches through
+`runtime/launch.py` get the same private configuration as shell launches.
+
+To add a private command, create `<configured-skills-path>/<name>/SKILL.md` with matching
+`name:` frontmatter and a description, then restart through the launcher. No public
+command file or public symlink to the private skill is needed. This covers private
+**skill-backed commands**, not arbitrary private agent/plugin/command-directory syncing.
+
+Privacy boundary: public Git and resource bundles contain generic registration code
+only. Private paths remain in local runtime configuration; invoking the command loads
+the skill into the model context. Keep passwords/tokens out of skill bodies, descriptions,
+command arguments and published artifacts. Private scripts should resolve credentials
+from ignored files or credential stores without printing their values. This separation
+does not make private skill instructions invisible to the model that executes them.
+
 ## V2: compact task packets and recorded verification
 
 The native six-command cycle now uses explicit requirement IDs, source-linked facts,
@@ -92,8 +126,8 @@ benchmark of native Plan/Build versus the original retained-session workflow.
 See `tracking/UPSTREAM.md` for the pinned source and `tracking/LICENSE.agentic` for
 its license. Edit these files directly in dotfiles; the Agentic CLI is not required.
 
-All work uses [Azu's Tasks, organization project #4](https://github.com/orgs/opencfo-ai/projects/4),
-including issues from repositories outside the OpenCFO organization. New tickets are
+The tracking destination is selected in private workflow configuration,
+including for issues outside that project's organization. New tickets are
 assigned to the authenticated GitHub user. Issues hold requirements; comments hold
 research, plans, review and progress. Commands: `/ticket`, `/research`, `/plan`,
 `/execute`, `/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for
@@ -188,7 +222,7 @@ When `/ticket` creates an issue inside an Orca-managed worktree, it also calls t
 tracking helper to set Orca's native `linkedIssue`. The helper verifies GitHub and
 Orca repository identity, preserves a different existing link until replacement is
 explicitly approved, and rereads Orca before reporting success. Outside Orca, ticket
-creation and Project 4 setup continue normally. Retry an unavailable attachment with:
+creation and configured-project setup continue normally. Retry an unavailable attachment with:
 
 ```
 python3 ~/dotfiles/opencode/tracking/track.py link-orca ISSUE_URL

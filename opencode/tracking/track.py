@@ -13,9 +13,8 @@ import subprocess
 import sys
 import tempfile
 import operational
+from private_config import tracking_project
 
-OWNER = "opencfo-ai"
-NUMBER = 4
 STATUSES = ["Backlog", "Researching", "Planning", "Ready", "Implementing", "In review", "Done"]
 SYNC = ["Not started", "Unchecked", "Up to date", "Needs sync", "Syncing", "Conflicts", "Verifying"]
 STATE = Path(os.environ.get("OPENCODE_TRACK_STATE", str(Path.home() / ".local/state/opencode-track")))
@@ -113,12 +112,14 @@ def registry():
 
 
 def project():
+    OWNER, NUMBER = tracking_project()
     p = gh("project", "view", str(NUMBER), "--owner", OWNER, "--format", "json")
     fields = gh("project", "field-list", str(NUMBER), "--owner", OWNER, "--limit", "100", "--format", "json")
     return p["id"], {f["name"]: f for f in fields["fields"]}
 
 
 def configure():
+    OWNER, NUMBER = tracking_project()
     pid, fields = project()
     for name, choices in [("Status", STATUSES), ("Branch sync", SYNC)]:
         if name in fields:
@@ -135,7 +136,7 @@ def configure():
         else:
             run("gh", "project", "field-create", str(NUMBER), "--owner", OWNER, "--name", name,
                 "--data-type", "SINGLE_SELECT", "--single-select-options", ",".join(choices))
-    print("Configured https://github.com/orgs/opencfo-ai/projects/4")
+    print(f"Configured project {OWNER}/{NUMBER}")
 
 
 def issue_details(value):
@@ -374,7 +375,8 @@ def workflow_status(value, stage):
 
 
 def item(value):
-    return gh("project", "item-add", str(NUMBER), "--owner", OWNER, "--url", value, "--format", "json")["id"]
+    owner, number = tracking_project()
+    return gh("project", "item-add", str(number), "--owner", owner, "--url", value, "--format", "json")["id"]
 
 
 def set_field(value, name, selection):

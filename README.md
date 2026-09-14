@@ -36,5 +36,7 @@ Quit and restart OpenCode after catalog changes so it reloads the skills.
 
 Machine-specific and secret config lives in a separate private repo at `~/dotfiles-private`;
 `zsh/zshrc.conf` sources `~/dotfiles-private/zsh/*` if that directory exists.
+The OpenCode launcher also reads that repo's `opencode/config.json` for private skill
+paths and project-tracking targets. See `opencode/README.md` for the interface.
 
 This repo git-pulls itself once a day on shell start.

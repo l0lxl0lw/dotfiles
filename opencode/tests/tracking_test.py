@@ -18,7 +18,7 @@ try:
     spec.loader.exec_module(track)
 finally:
     sys.path.pop(0)
-ISSUE = "https://github.com/opencfo-ai/backend/issues/123"
+ISSUE = "https://github.com/example-org/backend/issues/123"
 
 
 class TrackingTest(unittest.TestCase):
@@ -191,7 +191,7 @@ class CommentTest(unittest.TestCase):
 
 
 class IssueUrlTest(unittest.TestCase):
-    def test_accepts_issue_outside_opencfo_organization(self):
+    def test_accepts_issue_outside_tracking_organization(self):
         value = "https://github.com/l0lxl0lw/dotfiles/issues/4"
         with patch.object(track, "gh", return_value={"number": 4, "url": value}) as api:
             self.assertEqual(track.issue_url(value), value)
@@ -561,7 +561,7 @@ class OrcaCommandContractTest(unittest.TestCase):
         contract = " ".join((root / "skills/workflow/workflow-ticket/SKILL.md").read_text().split())
         self.assertIn("link-orca ISSUE", contract)
         self.assertIn("Keep existing link (Recommended)", contract)
-        self.assertIn("Return issue creation/update, assignee/Project 4 fields, and Orca attachment as separate outcomes", contract)
+        self.assertIn("Return issue creation/update, assignee/configured-project fields, and Orca attachment as separate outcomes", contract)
         self.assertIn("or invoke `link-orca`", contract)
         self.assertLess(contract.index("gh issue create"), contract.index("link-orca ISSUE"))
         self.assertIn("neither downstream failure undoes the created issue or excuses skipping the other outcome", contract)

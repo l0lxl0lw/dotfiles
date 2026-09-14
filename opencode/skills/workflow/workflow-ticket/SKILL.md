@@ -1,6 +1,6 @@
 ---
 name: workflow-ticket
-description: Use for /ticket or an explicit request to create or refine a GitHub workflow issue. Scope the contract before research; preserve Project 4 and Orca tracking.
+description: Use for /ticket or an explicit request to create or refine a GitHub workflow issue. Scope the contract before research; preserve configured project and Orca tracking.
 ---
 
 # Ticket: define the problem and boundaries
@@ -44,14 +44,14 @@ native choices: **Create a new ticket (Recommended)**, **Update the existing tic
 **Cancel**. Only the second answer authorizes updating the named issue.
 
 For a new ticket use `gh issue create --assignee @me --body-file ...`. Add it to
-https://github.com/orgs/opencfo-ai/projects/4, set Status **Backlog**, and run
+the privately configured project using `track.py add ISSUE`, set Status **Backlog**, and run
 `track.py sync-state ISSUE 'Not started'`. Then run:
 
 ```sh
 python3 ~/dotfiles/opencode/tracking/track.py link-orca ISSUE
 ```
 
-Use the exact URL returned by GitHub. Attempt Project 4 setup and Orca attachment
+Use the exact URL returned by GitHub. Attempt configured-project setup and Orca attachment
 independently: neither downstream failure undoes the created issue or excuses
 skipping the other outcome. Verify assignment and project fields. On an Orca link
 conflict, ask **Keep existing link (Recommended)** or **Replace with new issue**;
@@ -64,6 +64,6 @@ the new-ticket milestone (the earlier status call may have preceded attachment).
 For an approved existing-ticket update, preserve useful content and later work;
 do not reset status/assignees or invoke `link-orca`.
 
-Return issue creation/update, assignee/Project 4 fields, and Orca attachment as separate
+Return issue creation/update, assignee/configured-project fields, and Orca attachment as separate
 outcomes. Include the contract URL and `/research ISSUE_URL`. Record only a verified milestone via the existing
 checkpoint helper. Do not let a tracking failure masquerade as a missing product decision.

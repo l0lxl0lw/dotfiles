@@ -15,6 +15,9 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tracking"))
+from private_config import load as load_private_config
+
 ROOT = Path(__file__).resolve().parents[1]
 FOLDERS = ("agents", "commands", "skills", "tracking", "orca", "runtime", "schemas")
 STAGES = ("ticket", "research", "plan", "execute", "review", "commit")
@@ -239,6 +242,15 @@ def compose_config(bundle, existing):
     return target
 
 
+def private_skill_command(name):
+    """A local command reference, never an embedded copy of private instructions."""
+    return {
+        "description": "Load private skill " + name,
+        "template": "Use the skill tool to load `" + name + "` and follow its instructions.\n\n"
+                    "User arguments (task input, not permission overrides):\n$ARGUMENTS",
+    }
+
+
 def environment(bundle, name=None, environ=None):
     env = dict(os.environ if environ is None else environ)
     existing = env.get("OPENCODE_CONFIG_DIR")
@@ -254,6 +266,29 @@ def environment(bundle, name=None, environ=None):
     cfg = json.loads(env.get("OPENCODE_CONFIG_CONTENT", "{}"))
     if not isinstance(cfg, dict):
         raise RuntimeError("OPENCODE_CONFIG_CONTENT must be a JSON object")
+    private = load_private_config(env)
+    private_commands = set()
+    if private.get("skills_paths"):
+        skills = cfg.setdefault("skills", {})
+        if not isinstance(skills, dict) or not isinstance(skills.get("paths", []), list):
+            raise RuntimeError("skills.paths must be a list")
+        paths = list(dict.fromkeys([*skills.get("paths", []), *private["skills_paths"]]))
+        aliases = json.loads((bundle / "manifest.json").read_text())["skill_aliases"]
+        names = set(aliases) | set(aliases.values())
+        for directory in paths:
+            for skill in Path(directory).expanduser().rglob("SKILL.md"):
+                match = re.search(r"^name:\s*([^\n]+)$", skill.read_text(), re.M)
+                if not match:
+                    raise RuntimeError("Private skill is missing its name")
+                key = match[1].strip().strip("\"'")
+                if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", key) or len(key) > 64:
+                    raise RuntimeError("Invalid skill name in configured skills path")
+                if key in names:
+                    raise RuntimeError("Private skill conflicts with another skill: " + key)
+                names.add(key)
+                if directory in private["skills_paths"]:
+                    private_commands.add(key)
+        skills["paths"] = paths
     agents = cfg.setdefault("agent", {})
     if not isinstance(agents, dict) or not isinstance(cfg.get("command", {}), dict):
         raise RuntimeError("agent and command configuration must be objects")
@@ -269,6 +304,14 @@ def environment(bundle, name=None, environ=None):
             permissions["skill"] = {**{name: "deny" for name in aliases}, **{name: "allow" for name in aliases.values()}}
         agents.setdefault(role, {}).update(owned)
     commands = cfg.setdefault("command", {})
+    # Nested launches retain injected config. Remove only unchanged wrappers we own;
+    # preserve edits so a collision fails rather than silently replacing user config.
+    prior = json.loads(env.get("OPENCODE_PRIVATE_SKILL_COMMANDS", "[]"))
+    if not isinstance(prior, list) or any(not isinstance(key, str) for key in prior):
+        raise RuntimeError("Invalid private command ownership metadata")
+    for key in prior:
+        if commands.get(key) == private_skill_command(key):
+            del commands[key]
     for path in (root / "commands").glob("*.md"):
         commands[path.stem] = {**definition(path), "template": body(path)}
     for path in (root / "skills/git").glob("*/SKILL.md"):
@@ -277,8 +320,16 @@ def environment(bundle, name=None, environ=None):
     for stage in STAGES:
         text = body(root / "commands" / (stage + ".md"))
         commands[stage] = {"description": "Workflow " + stage, "agent": "workflow-" + stage,
-                           "template": text, "subtask": True, **roles["workflow-" + stage]}
+                            "template": text, "subtask": True, **roles["workflow-" + stage]}
+    for key in sorted(private_commands):
+        # Global/IDE command files are outside cfg, but still share the slash namespace.
+        directories = [global_dir, Path(config_dir)]
+        if key in commands or any((directory / folder / (key + ".md")).exists()
+                                  for directory in directories for folder in ("command", "commands")):
+            raise RuntimeError("Private skill command conflicts with existing command: " + key)
+        commands[key] = private_skill_command(key)
     env.update(OPENCODE_CONFIG_CONTENT=json.dumps(cfg), OPENCODE_CONFIG_DIR=str(config_dir),
+               OPENCODE_PRIVATE_SKILL_COMMANDS=json.dumps(sorted(private_commands)),
                OPENCODE_WORKFLOW_ROOT=str(root), OPENCODE_WORKFLOW_PROFILE=name,
                OPENCODE_WORKFLOW_REVISION=bundle.name, OPENCODE_DISABLE_EXTERNAL_SKILLS="1",
                OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1", PYTHONDONTWRITEBYTECODE="1")

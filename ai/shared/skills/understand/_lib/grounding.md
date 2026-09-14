@@ -7,7 +7,7 @@ says.
 ## Scope: topic and path
 
 Every skill here is invoked as `/<skill> <topic>` and optionally takes a path:
-`/quiz-me 3-way matching ~/workspace/opencfo/backend`.
+`/quiz-me order processing /path/to/backend`.
 
 - **No topic** → ask what to work on. One question, then proceed.
 - **No path** → use the current working directory.

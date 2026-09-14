@@ -38,6 +38,10 @@ unrecognized notes remain material. Record technical unknowns as research questi
 
 ## Correctness and repair
 
+For cross-repository UI/API/DB features, load `full-stack-slice` and the project's
+private adapter skill. Bind browser acceptance to both source trees and the leased
+fixture/environment, not just the repository containing the check manifest.
+
 The plan maps each required criterion to declared checks or justified manual review.
 Preserve negative cases, actual route/identity behavior, state invariants, realistic
 fixtures, compatibility consumers and documentation expectations when relevant.
@@ -63,7 +67,7 @@ once, then continue targeted work; do not silently lower quality or change model
 
 ## Operations and completion
 
-Load `references/operations.md` for GitHub identity, Project 4, Git/sync or Orca updates.
+Load `references/operations.md` for GitHub identity, project tracking, Git/sync or Orca updates.
 Keep one implementation branch per issue; report partial tracking failures separately.
 Use the existing verified milestone helpers, preserving user notes and conflicting links.
 Orca supervision is opt-in; load `../orca/COORDINATION.md` only for supervised runs.
