@@ -8,9 +8,10 @@ trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_PROFILE OPENCODE_WORKFLOW_REVISION
 mkdir -p "$HOME/dotfiles/opencode"
-for name in skills commands agents runtime; do
+for name in skills commands agents runtime tui; do
   ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
 done
+ln -s "$repo_root/opencode/tui.json" "$HOME/dotfiles/opencode/tui.json"
 ln -s "$repo_root/opencode/profiles.json" "$HOME/dotfiles/opencode/profiles.json"
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
@@ -24,6 +25,8 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
+assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/opencode/tui.json"
+assert_link_to "$HOME/.config/opencode/tui/skill-commands.js" "$repo_root/opencode/tui/skill-commands.js"
 for f in "$repo_root"/opencode/agents/*.md; do
   assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
 done
@@ -31,7 +34,7 @@ for f in "$repo_root"/opencode/commands/*.md; do
   assert_link_to "$HOME/.config/opencode/commands/${f:t}" "$f"
 done
 for f in "$repo_root"/opencode/skills/git/*/SKILL.md; do
-  assert_link_to "$HOME/.config/opencode/commands/${f:h:t}.md" "$f"
+  [[ ! -e "$HOME/.config/opencode/commands/${f:h:t}.md" ]] || fail "redundant Git command link"
 done
 skills=("$repo_root"/opencode/skills/**/SKILL.md(N.))
 (( ${#skills} > 0 )) || fail "empty OpenCode catalog"
@@ -82,10 +85,14 @@ mkdir -p "$dst/commands" "$dst/plugins"
 ln -s "$HOME/dotfiles/opencode/handoff" "$dst/dotfiles-handoff"
 ln -s "$HOME/dotfiles/opencode/commands/implement-plan.md" "$dst/commands/implement-plan.md"
 ln -s "$HOME/dotfiles/opencode/skills/git/retired/SKILL.md" "$dst/commands/git-retired.md"
+ln -s "$HOME/dotfiles/opencode/skills/git/git-commit/SKILL.md" "$dst/commands/git-commit.md"
+ln -s "$HOME/dotfiles/opencode/commands/quiz-me.md" "$dst/commands/quiz-me.md"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
+rm "$dst/tui.json"
 print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.json"
 opencode_merge_config || fail "retired handoff cleanup"
 [[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" && ! -L "$dst/commands/git-retired.md" ]] || fail "retired managed links survived"
+[[ ! -L "$dst/commands/git-commit.md" && ! -L "$dst/commands/quiz-me.md" ]] || fail "redundant skill command links survived"
 [[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "foreign plugin removed"
 [[ -f "$dst/tui.json" && ! -L "$dst/tui.json" ]] || fail "machine-local TUI config removed"
 

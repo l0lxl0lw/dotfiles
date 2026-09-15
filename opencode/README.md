@@ -397,19 +397,25 @@ directories and other installers' symlinks are left alone with a warning on coll
 An unchanged, collision-free catalog produces no writes or output. Duplicate names
 within the OpenCode catalog are reported on each sync.
 
-Git skills are also exposed as top-level slash commands. On every run,
-`opencode_merge_config` links each canonical `opencode/skills/git/<name>/SKILL.md`
-directly to the live command catalog. `/git-commit`, `/git-pr`, and the other Git
-entries therefore use the same tracked instructions as the native skill catalog.
-Deleting a Git skill prunes both live registrations on the next sync; no command
-alias is stored separately in the repository.
+Git and understanding skills use automatic slash registration, with no separate
+command files or Git-command symlinks. The sync prunes the retired managed links.
+Workflow skills retain `/ticket`, `/research`, `/plan`, `/execute`, `/review`, and
+`/commit` commands, which select their stage agents and models. The other files in
+`commands/` provide tracking, sync, and Orca-specific behavior.
 
-Understanding skills have thin slash-command wrappers that load the corresponding
-skill and pass through the user's arguments: `/explain-code-flow`,
-`/explain-college-level`, `/poke-holes`, and `/quiz-me`. The procedures remain in
-the skill files. Workflow skills use their existing `/ticket`, `/research`,
-`/plan`, `/execute`, `/review`, and `/commit` commands, which also select their
-stage agents and models; no duplicate `/workflow-*` commands are registered.
+The shared `tui/skill-commands.js` plugin exposes every discovered skill as a slash
+command and a Skills entry in the command palette, including project-local skills
+and `/workflow-*` skills. Internal `wf-<hash>-*` snapshot aliases are hidden from
+both menus while remaining available to workflows. OpenCode's resolved command catalog remains the source
+of truth: existing custom/MCP commands and TUI slash names or aliases take priority.
+Selecting a skill inserts `/<name> ` so arguments can be entered before submission;
+OpenCode executes its native skill command with the original skill content and base
+directory. New skills only need a `SKILL.md`, not a separate command wrapper.
+
+The sync installs the managed `tui.json` when no machine-local TUI config occupies
+that path and no `tui.jsonc` exists. If you already have a custom TUI config, add
+`"./tui/skill-commands.js"` to its `plugin` array. Restart OpenCode after adding skills
+or changing the plugin. This menu integration targets OpenCode's terminal UI.
 
 ## Loading
 

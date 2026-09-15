@@ -574,7 +574,7 @@ opencode_merge_config() {
   _agentcfg_sync_skill_sources "$opencode_dir/skills" \
     "$repo/skills"
 
-  local f command_name
+  local f
   # Managed native agents. Preserve foreign files; prune only our retired links.
   if [[ -d "$repo/agents" ]]; then
     mkdir -p "$opencode_dir/agents"
@@ -591,23 +591,21 @@ opencode_merge_config() {
     mkdir -p "$opencode_dir/plugins"
     _agentcfg_link "$f" "$opencode_dir/plugins/${f:t}" "OpenCode plugin '${f:t}'"
   done
+  for f in "$repo"/tui/*.js(N-.); do
+    mkdir -p "$opencode_dir/tui"
+    _agentcfg_link "$f" "$opencode_dir/tui/${f:t}" "OpenCode TUI plugin '${f:t}'"
+  done
+  if [[ -f "$repo/tui.json" && ! -e "$opencode_dir/tui.jsonc" ]]; then
+    _agentcfg_link "$repo/tui.json" "$opencode_dir/tui.json" "OpenCode TUI config"
+  fi
   for f in "$opencode_dir"/commands/*(N@); do
     _agentcfg_is_managed "$f" || continue
-    command_name="${f:t:r}"
-    [[ -f "$repo/commands/${f:t}" || -f "$repo/skills/git/$command_name/SKILL.md" ]] && continue
+    [[ -f "$repo/commands/${f:t}" ]] && continue
     rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
   done
   for f in "$repo"/commands/*.md(N-.); do
     mkdir -p "$opencode_dir/commands"
     _agentcfg_link "$f" "$opencode_dir/commands/${f:t}" "OpenCode command '${f:t}'"
-  done
-  # Git skills are also user-facing slash commands. Link the canonical SKILL.md
-  # directly so removing a skill prunes both live registrations on the next sync.
-  for f in "$repo"/skills/git/*/SKILL.md(N-.); do
-    command_name="${f:h:t}"
-    [[ -f "$repo/commands/$command_name.md" ]] && continue
-    mkdir -p "$opencode_dir/commands"
-    _agentcfg_link "$f" "$opencode_dir/commands/$command_name.md" "OpenCode skill command '$command_name'"
   done
 
   # Remove links installed by the retired fresh-session handoff. Real files and
@@ -615,8 +613,7 @@ opencode_merge_config() {
   for f in \
     "$opencode_dir/dotfiles-handoff" \
     "$opencode_dir/commands/implement-plan.md" \
-    "$opencode_dir/plugins/fresh-session.js" \
-    "$opencode_dir/tui.json"; do
+    "$opencode_dir/plugins/fresh-session.js"; do
     _agentcfg_is_managed "$f" || continue
     rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
   done
