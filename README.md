@@ -15,6 +15,7 @@
 | `ai/grok/` | Grok CLI skills, agents, hooks, global `AGENTS.md`, and tracked settings — see [ai/grok/README.md](ai/grok/README.md) |
 | `opencode/` | OpenCode-native agents, commands, skills, and tracking - see [opencode/README.md](opencode/README.md) |
 | `ai/shared/` | Skills shared by Claude, Codex, and Grok; see [ai/shared/README.md](ai/shared/README.md) |
+| `ai/memory/` | Local Obsidian Life vault capture and shared assistant memory; see [ai/memory/README.md](ai/memory/README.md) |
 | `vim/` `tmux/` `emacs/` | editor and multiplexer config (`emacs/` is manual, not wired into `deploy.sh`) |
 
 All four agent integrations use symlinks in their user-level directories (`~/.claude`,
@@ -24,11 +25,15 @@ symlinks pointing back into this repo, so tools that install into the same direc
 gstack, Codex's own bundled skills, another vendor's Grok hooks — are left alone.
 
 Claude is synced manually with `claude_merge_config`. Codex syncs from a `codex()` shell
-wrapper since it has no hook mechanism; for the lifetime of each launch it also stages the
+wrapper; for the lifetime of each launch it also stages the
 current Git repository's `.claude/skills` under Codex's user skill directory without
 writing anything into the repository. Grok syncs from both its wrapper and a tracked
 `SessionStart` hook (the wrapper guarantees the config is current before launch; the hook
 covers sessions started outside the shell).
+
+The optional [Life memory setup](ai/memory/README.md) uses native Claude/Codex lifecycle
+hooks and an OpenCode plugin for local Obsidian conversation capture. Codex hooks require
+review/trust through `/hooks` in a fresh session.
 
 OpenCode syncs skills from its `opencode()` wrapper without modifying JSON/JSONC settings.
 For launches outside the shell, run `opencode_merge_config` before starting a new session.
