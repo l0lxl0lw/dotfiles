@@ -9,7 +9,23 @@ Read `~/.config/life-memory/config.json` for the vault and runtime paths. Read t
 
 ## Recall
 
-Search canonical topic/project/person notes and aliases first. Read their summary, then relevant relations, then source passages if needed. Cite vault-relative wikilinks and timestamps or message headings. Do not load the whole archive. Verify stale code-project state against the current checkout. Explicitly distinguish fact, preference, plan, outcome, interpretation, and hypothesis.
+Read `System/Retrieval guide.md`. Start with local canonical topic/project/person summaries and aliases. Use the configured Python with `recall.py` (beside `memory.py`) for bounded, offline lookup:
+
+```sh
+<python> <runtime-directory>/recall.py search "question or keywords"
+<python> <runtime-directory>/recall.py read "Wiki/Projects/Job search.md"
+<python> <runtime-directory>/recall.py context "Wiki/Projects/Job search.md"
+<python> <runtime-directory>/recall.py read "Meetings/<meeting>.md" --section "Questions asked and Azu's answers"
+<python> <runtime-directory>/recall.py search "distinctive phrase" --scope outline
+<python> <runtime-directory>/recall.py search "exact evidence" --scope transcript
+<python> <runtime-directory>/recall.py read "Sources/Granola/<id>/<revision>/Transcript.md" --layer transcript --section Transcript --offset 0 --limit 4000
+```
+
+Default search excludes raw sources and session logs, and refreshes its local index from changed files. Read returns gist/quick answers and a section menu. Expand one relevant section at a time; use `next_offset` for continuation instead of loading the whole transcript. Results are candidates: read and verify evidence before asserting an answer. For paraphrases or sparse keyword matches, use Basic Memory semantic/hybrid search filtered to `retrieval_layer=canonical` or `retrieval_layer=meeting`; then read the returned exact local path. Search unprocessed conversation sources when canonical notes have gaps. Do not treat a weak lexical match as proof or an empty result as proof of absence.
+
+Follow only relevant relationships. Local `context` uses exact paths/permalinks and refuses fuzzy identity substitution. If using Basic Memory `build_context`, verify the returned primary path equals the requested note; otherwise use local context. Never accept an unrelated primary as the requested entity. Cite vault-relative wikilinks with section, timestamp, or paragraph references. Verify stale code-project state against the current checkout. Explicitly distinguish fact, preference, plan, outcome, interpretation, and hypothesis.
+
+Granola is an ingestion/refresh source, **not a dependency of recall**. Imported outlines and transcripts must be local. Do not call Granola to answer a question that local evidence can answer; fetch only missing or explicitly refreshed sources and archive them before synthesis. Report unavailable evidence honestly.
 
 ## Automatic checkpoint
 
@@ -26,6 +42,10 @@ After substantive discussion or at a checkpoint reminder, record durable facts w
 ## Ingest and connect
 
 Preserve the original source and capture date, author/channel, URL, language, and caption quality. Split large sources into meaningful concepts only when independently useful. Use a canonical title and aliases; one entity must not acquire duplicate notes because different assistants name it differently. Cite each extracted claim to source sections. A source can support multiple notes and a note can draw on multiple sources. Update existing notes and indexes, not just the new note.
+
+Spend effort at ingestion so recall is cheap. Canonical notes need short answers and dated changes, not only link lists. Use `retrieval_layer: canonical` for Wiki/entity summaries and `retrieval_layer: meeting` for meetings. Provide descriptive titles, supported aliases, explained relationships, and explicit unknowns. Prefer one consolidated topic note over duplicate summaries. Keep later outcomes distinct from historical commitments and unsent drafts distinct from confirmed facts.
+
+Every Granola meeting needs: (1) gist and concise answers/decisions/follow-ups, (2) detailed discussion and Q&A where supported, (3) the **complete original outline as actual text in the meeting Markdown**, preserving headings and nested bullets, and (4) a full locally archived transcript with original labels and paragraph references. An embed or remote URL alone is insufficient. Transcript-derived corrections must be outside the original outline. Use `granola_layers.py` to materialize staged sources and validate transcript projections; its managed blocks reject conflicting human edits. Never replace a previous original source revision or silently clear a stale-synthesis flag. Explicitly record unavailable transcripts rather than asserting completeness. Re-read managed note content after writing; verify passage/source links and refresh retrieval indexes.
 
 ## Review and maintain
 

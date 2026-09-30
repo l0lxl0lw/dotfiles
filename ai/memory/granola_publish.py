@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from granola_mcp import text_content
 from memory import atomic, digest, encode, locked, now, settings, write_note
+from granola_layers import staged_nodes, publish as publish_layers, source_id, managed, frontmatter
 
 
 def decode_json_response(data):
@@ -38,12 +39,17 @@ def save_new(cfg, rel, content):
 
 def append_links(cfg, rel, description, links):
     p = cfg["vault"] / rel
-    content = p.read_text() if p.exists() else "# " + p.stem + "\n\n" + description + "\n\n## Meetings and related notes\n"
+    original = p.read_bytes() if p.exists() else b""
+    content = original.decode() if original else "# " + p.stem + "\n\n" + description + "\n\n## Meetings and related notes\n"
+    if not original and rel.startswith("Wiki/"):
+        kind = {"Projects": "project", "People": "person", "Organizations": "organization", "Concepts": "concept", "Maps": "map"}.get(p.parent.name, "note")
+        content = frontmatter("# " + p.stem + "\n\n## Gist\n\n" + description + "\n\n## Meetings and related notes\n", {
+            "title": p.stem, "type": kind, "retrieval_layer": "navigation" if kind == "map" else "canonical"})
     missing = [link for link in links if f"[[{link}]]" not in content]
     if not missing and p.exists():
         return
     content += "\n" + "\n".join("- [[" + link + "]]" for link in missing) + "\n"
-    write_note(cfg, {"path": rel, "content": content, "expected_sha256": digest(p.read_bytes() if p.exists() else b"")})
+    write_note(cfg, {"path": rel, "content": content, "expected_sha256": digest(original)})
 
 
 def main():
@@ -52,12 +58,8 @@ def main():
     inventory = json.loads((staging / "inventory.json").read_text())
     synthesis = json.loads((staging / "synthesis.json").read_text())
     account = decode_json_response(json.loads((staging / "account.json").read_text()))
-    nodes = {}
-    for batch in sorted(staging.glob("notes-*.json")):
-        data = json.loads(batch.read_text())
-        if data.get("isError"):
-            raise ValueError("Notes batch contains a tool error")
-        nodes.update(parse_meetings(text_content(data)))
+    staged = staged_nodes(staging)
+    nodes = {sid: (node, raw) for sid, (node, raw, _) in staged.items() if sid in {m['id'] for m in inventory}}
     ids = {m["id"] for m in inventory}
     if ids != set(nodes) or ids != set(synthesis["meetings"]):
         raise ValueError("Inventory, retrieved notes and reviewed synthesis IDs must match exactly")
@@ -67,6 +69,13 @@ def main():
                 raise ValueError("Unsafe note title in reviewed synthesis")
     published = []
     with locked(cfg):
+        existing = {}
+        for path in (cfg["vault"] / "Meetings").glob("*.md"):
+            sid = source_id(path.read_text())
+            if sid:
+                if sid in existing:
+                    raise ValueError(f"Duplicate meeting source ID: {sid}")
+                existing[sid] = str(path.relative_to(cfg["vault"]))[:-3]
         for m in inventory:
             sid = m["id"]
             entry = synthesis["meetings"][sid]
@@ -79,7 +88,7 @@ def main():
             source = f"Sources/Granola/{sid}/{revision}"
             source_path = cfg["vault"] / source
             date = datetime.strptime(m["date"][:12].strip(), "%b %d, %Y").date().isoformat()
-            meeting = f"Meetings/{date} — {entry['title']} — {sid[:8]}"
+            meeting = existing.get(sid, f"Meetings/{date} — {entry['title']} — {sid[:8]}")
             summary = html.unescape(node.findtext("summary") or "").strip()
             private_notes = html.unescape(node.findtext("private_notes") or "").strip()
             if not (source_path / "Notes.md").exists():
@@ -90,7 +99,7 @@ def main():
                 notes += "## Known participants\n\n" + m["participants"] + "\n\n"
                 notes += "## Private notes\n\n" + (private_notes or "No private notes returned.") + "\n\n"
                 notes += "## Summary\n\n" + (summary or "No summary returned.") + f"\n\n## Related synthesis\n\n[[{meeting}]]\n"
-                atomic(source_path / "Notes.md", notes)
+                atomic(source_path / "Notes.md", frontmatter(notes, {"title": f"{date} — {entry['title']} — original Granola outline", "type": "source", "retrieval_layer": "source", "source_id": sid}))
                 if transcript_response:
                     atomic(source_path / "original-transcript-response.json", json.dumps(transcript_response, ensure_ascii=False, indent=2))
                 if has_transcript:
@@ -101,7 +110,7 @@ def main():
                     text += "## Recording context\n\n```json\n" + json.dumps(context, ensure_ascii=False, indent=2) + "\n```\n\n## Transcript\n\n"
                     for i, paragraph in enumerate(transcript["transcript"].split("\n\n"), 1):
                         text += paragraph + f"\n\n^utterance-{i:05d}\n\n"
-                    atomic(source_path / "Transcript.md", text + f"## Related synthesis\n\n[[{meeting}]]\n")
+                    atomic(source_path / "Transcript.md", frontmatter(text + f"## Related synthesis\n\n[[{meeting}]]\n", {"title": f"{date} — {entry['title']} — full transcript", "type": "source", "retrieval_layer": "transcript", "source_id": sid}))
             relations = [f"- part_of [[Wiki/Projects/{entry['project']}]]"]
             relations += [f"- involves [[Wiki/Organizations/{name}]]" for name in entry["organizations"]]
             relations += [f"- mentions [[Wiki/People/{name}]]" for name in entry["people"]]
@@ -134,23 +143,28 @@ def main():
                 append_links(cfg, f"Wiki/{category}/{name}.md", description, links)
         append_links(cfg, "Wiki/Maps/Meetings.md", "Meetings imported from Granola, grouped by context through the linked project notes. Original source revisions and transcripts are preserved.",
                      [p["meeting"] for p in published] + ["Wiki/Projects/" + name for name in synthesis["projects"]])
-        append_links(cfg, "Wiki/Maps/Work.md", "", ["Wiki/Maps/Meetings", "Wiki/Projects/Job search", "Wiki/Projects/OpenCFO delivery and transition"])
-        for area in ("Home", "Personal"):
-            append_links(cfg, f"Wiki/Maps/{area}.md", "", ["Wiki/Projects/Family tax planning"])
         append_links(cfg, "Wiki/Maps/Projects.md", "", ["Wiki/Projects/" + name for name in synthesis["projects"]])
         append_links(cfg, "Home.md", "", ["Wiki/Maps/Meetings", "System/Granola import"])
-        receipt = {"imported_at": now(), "workspace": account["active_workspace"], "meetings": published,
-                   "scope": "Connected user's captured or listed-participant meetings in active workspace, custom range 2000-01-01 through 2026-09-28"}
+        scope_path = staging / "inventory-scope.json"
+        scope = json.loads(scope_path.read_text()) if scope_path.exists() else {"scope": "Selected staged inventory; original request bounds not recorded"}
+        receipt = {"imported_at": now(), "workspace": account["active_workspace"], "meetings": published, "scope": scope}
         atomic(staging / "import-receipt.json", json.dumps(receipt, ensure_ascii=False, indent=2))
         report = f"# Granola import\n\nImported: {now()}\n\nWorkspace: {account['active_workspace']['display_name']}\n\n"
         report += f"{len(published)} meetings; {sum(p['transcript'] for p in published)} nonempty transcripts.\n\n"
-        report += "Scope: meetings captured by you or listing you as a participant in the active Granola workspace. Custom date request: 2000-01-01 through 2026-09-28. This is the returned accessible inventory, not proof of all historical meetings or other workspaces.\n\n"
+        report += "Scope: selected staged inventory, not proof of all historical meetings or other workspaces.\n\n```json\n" + json.dumps(scope, indent=2) + "\n```\n\n"
         report += "Notes and available transcripts were retrieved via the official Granola MCP server. Source revisions are content-addressed. Existing human-edited notes are preserved on rerun. Summaries derive from Granola's meeting summaries; transcripts are available for detailed verification, not exhaustively fact-checked.\n\n"
         report += "The connection is installed in OpenCode. Restart OpenCode to expose Granola tools directly in a normal session. No periodic Granola polling job has been enabled.\n\n## Meetings\n\n"
         report += "\n".join(f"- [[{p['meeting']}]] — {p['kind']}; transcript {'available' if p['transcript'] else 'missing'}" for p in published) + "\n"
         path = cfg["vault"] / "System/Granola import.md"
-        write_note(cfg, {"path": "System/Granola import.md", "content": report, "expected_sha256": digest(path.read_bytes() if path.exists() else b"")})
-    print(json.dumps({"meetings": len(published), "transcripts": sum(p["transcript"] for p in published), "new_meetings": sum(p["created"] for p in published)}))
+        original = path.read_bytes() if path.exists() else b""
+        state = staging / "report-hashes.json"
+        hashes = json.loads(state.read_text()) if state.exists() else {}
+        report = report.replace("# Granola import", "## Latest importer receipt", 1)
+        content = managed(original.decode() or "# Granola import\n", "import-report", report, hashes)
+        write_note(cfg, {"path": "System/Granola import.md", "content": content, "expected_sha256": digest(original)})
+        atomic(state, json.dumps(hashes))
+    layers = publish_layers(cfg, staging)
+    print(json.dumps({"meetings": len(published), "transcripts": sum(p["transcript"] for p in published), "new_meetings": sum(p["created"] for p in published), "layered_meetings": layers["meetings"]}))
 
 
 if __name__ == "__main__":

@@ -8,11 +8,16 @@ import xml.etree.ElementTree as ET
 from fastmcp import Client
 from granola_mcp import transport, serialized, text_content
 from memory import atomic, settings
+from granola_layers import staged_nodes
 
 
-def inventory():
+def inventory(name="meeting-inventory"):
     folder = settings()["state"] / "granola"
-    data = json.loads((folder / "meeting-inventory.json").read_text())
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+        raise ValueError("Inventory name must be a simple staging filename stem")
+    data = json.loads((folder / (name + ".json")).read_text())
+    if data.get("isError"):
+        raise ValueError("Inventory response contains a tool error")
     text = text_content(data)
     atomic(folder / "meeting-inventory.md", text)
     match = re.search(r"<meetings_data\b.*?</meetings_data>", text, re.S)
@@ -23,6 +28,7 @@ def inventory():
     if int(root.attrib["count"]) != len(rows):
         raise ValueError("Inventory count mismatch; check server truncation")
     atomic(folder / "inventory.json", json.dumps(rows, indent=2, ensure_ascii=False))
+    atomic(folder / "inventory-scope.json", json.dumps({"staged_response": name + ".json", "returned_range": root.attrib}, indent=2))
     return folder, rows
 
 
@@ -30,22 +36,28 @@ async def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["inventory", "fetch"])
     parser.add_argument("--refresh", action="store_true", help="Refetch notes/transcripts rather than reuse private staging")
+    parser.add_argument("--inventory", default="meeting-inventory", help="Saved inventory response stem in private staging")
     args = parser.parse_args()
-    folder, rows = inventory()
+    folder, rows = inventory(args.inventory)
     if args.action == "inventory":
         print(json.dumps(rows, indent=2, ensure_ascii=False))
         return
+    known = staged_nodes(folder)
     async with Client(transport(), timeout=90) as client:
         for i in range(0, len(rows), 10):
             ids = [r["id"] for r in rows[i:i+10]]
-            dest = folder / f"notes-{i // 10}.json"
-            if args.refresh or not dest.exists():
+            if args.refresh or any(sid not in known for sid in ids):
                 result = serialized(await client.call_tool("get_meetings", {"meeting_ids": ids}))
                 if result["isError"]:
                     raise RuntimeError("Granola notes request failed")
-                atomic(dest, json.dumps(result, indent=2, ensure_ascii=False))
-            result = json.loads(dest.read_text())
-            atomic(dest.with_suffix(".md"), text_content(result))
+                raw_nodes = re.findall(r"<meeting\b[^>]*>.*?</meeting>", text_content(result), re.S)
+                by_id = {ET.fromstring(raw).attrib["id"]: raw for raw in raw_nodes}
+                if set(by_id) != set(ids):
+                    raise ValueError("Returned note identities differ from requested batch")
+                for sid, raw in by_id.items():
+                    # Current snapshot per ID avoids reusing the wrong positional batch
+                    # after inventory grows or ordering changes. Archives stay immutable.
+                    atomic(folder / "current-notes" / (sid + ".json"), json.dumps({"raw": raw, "response": result}, ensure_ascii=False, indent=2))
         for r in rows:
             dest = folder / (r["id"] + "-transcript.json")
             if dest.exists() and not args.refresh:

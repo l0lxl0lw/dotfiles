@@ -163,6 +163,7 @@ High-connectivity default: add every supported useful connection without a numer
 - implements [[Wiki/Concepts/Meaningful cross-links]]
 - complements [[System/Memory rules]]
 """)
+    seed("System/Retrieval guide.md", (ROOT / "ai/memory/retrieval-guide.md").read_text())
     seed("System/How to use this vault.md", f"""# How to use this vault
 
 Open this folder in Obsidian: `{VAULT}`. Start at [[Home]].

@@ -60,6 +60,8 @@ class MemoryTest(unittest.TestCase):
                 m.vault_path(self.cfg, path)
         with self.assertRaises(ValueError):
             m.write_note(self.cfg, {"path": "Sources/a.md", "expected_sha256": empty, "content": "overwrite source"})
+        with self.assertRaises(ValueError):
+            m.write_note(self.cfg, {"path": "Wiki/../Sources/a.md", "expected_sha256": empty, "content": "overwrite source"})
 
     def test_stop_reminder_does_not_loop(self):
         p = self.cfg["state"] / "native.jsonl"

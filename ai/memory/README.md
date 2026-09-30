@@ -117,7 +117,7 @@ skill-path entries, and skill symlinks. Keep the vault and state until explicitl
 ## Verification
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3.12 -m unittest discover -s ai/memory -p 'test_*.py'
+PYTHONDONTWRITEBYTECODE=1 ~/.local/share/life-memory-venv/bin/python -m unittest discover -s ai/memory -p 'test_*.py'
 PYTHONDONTWRITEBYTECODE=1 python3.12 ai/memory/smoke_opencode.py
 node --check ai/memory/life-memory.js
 ```
@@ -168,3 +168,45 @@ the transcript. Source-provided speaker labels are preserved; a microphone chann
 not prove speaker identity. Unknown follow-up completion remains unknown. The import is
 scoped to the active workspace and its accessible results; it does not prove all historical
 meetings were available. No periodic Granola synchronization is installed.
+
+## Layered, offline recall
+
+Use the venv Python (includes PyYAML) for `recall.py` and `granola_layers.py`.
+The protocol is in [retrieval-guide.md](retrieval-guide.md), also seeded into the vault as
+`System/Retrieval guide.md` and required by the shared memory skill.
+
+```sh
+~/.local/share/life-memory-venv/bin/python ai/memory/recall.py search "question or keywords"
+~/.local/share/life-memory-venv/bin/python ai/memory/recall.py read "Wiki/Projects/Job search.md"
+~/.local/share/life-memory-venv/bin/python ai/memory/recall.py context "Wiki/Projects/Job search.md"
+~/.local/share/life-memory-venv/bin/python ai/memory/recall.py search "precise evidence" --scope transcript
+~/.local/share/life-memory-venv/bin/python ai/memory/granola_layers.py
+```
+
+Local recall defaults to canonical/meeting summaries, with section menus and bounded
+reads; original outlines, transcripts, and session logs require explicit scope expansion.
+It uses a disposable SQLite FTS index in private state, refreshes changed files on search,
+and makes no network or model calls. Semantic/hybrid Basic Memory search remains available
+for paraphrases, filtered by `retrieval_layer` where appropriate. Exact local context
+resolution refuses fuzzy substitutions. Search results require evidence verification.
+
+`granola_layers.py` reconciles existing meeting IDs against staged Granola responses,
+archives full transcripts, verifies every projected paragraph, and embeds the complete
+original outline as actual text at the bottom of each meeting. The gist and discussion
+stay above the source detail. It preserves source revisions and human writing; edits to
+managed blocks cause a conflict instead of being overwritten. A changed source revision
+marks synthesis as needing review. Missing/unavailable transcripts prevent a completeness
+claim; resolve or document the gap before finishing the import.
+
+For an updated inventory, save a scoped `list_meetings` response and pass its filename stem
+to `granola_import.py inventory --inventory <stem>` or `fetch --inventory <stem>`.
+Fetch stores refreshed notes by meeting ID, avoiding stale positional batches. Review and
+update private synthesis before `granola_publish.py`; it now finishes with layered
+publication. No transcript/outline retrieval from Granola is needed for normal recall
+after a successful import. Rerun the local publisher to verify source completeness.
+
+`verify_retrieval.py` checks archived transcript equality, inline outline completeness,
+and file/heading/block citations. Pass `--cases <private-json>` for source-ranking and
+support-term regression cases; keep personal queries and expected notes in private state.
+These checks establish local completeness and tested retrieval behavior, not universal
+answer accuracy. Use explicit source review for uncertain or conflicting claims.
