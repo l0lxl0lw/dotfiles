@@ -22,7 +22,19 @@ export default async ({ client, directory }) => {
   async function capture(id) {
     const response = await client.session.messages({ path: { id }, query: { directory } })
     if (response.error || !Array.isArray(response.data)) throw new Error("Life memory: session.messages failed")
-    await run(["capture", "opencode"], { session_id: id, cwd: directory, messages: response.data })
+    // Do this before serialization too: workspace diffs can recursively contain
+    // the memory capture itself. The Python receiver repeats the guard for
+    // already-running clients which have not reloaded this plugin yet.
+    const messages = response.data.map(row => {
+      const info = { ...row.info }
+      if (info.summary && typeof info.summary === "object") {
+        const { diffs, ...summary } = info.summary
+        if (Object.keys(summary).length) info.summary = summary
+        else delete info.summary
+      }
+      return { ...row, info }
+    })
+    await run(["capture", "opencode"], { session_id: id, cwd: directory, messages })
   }
   return {
     "experimental.chat.system.transform": async (input, output) => {

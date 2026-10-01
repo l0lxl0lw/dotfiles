@@ -5,11 +5,11 @@ from pathlib import Path
 import plistlib
 import shlex
 import subprocess
-from memory import atomic, digest
+from memory import atomic, digest, CONFIG
 
 HOME = Path.home()
 ROOT = Path(__file__).resolve().parents[2]
-VAULT = HOME / "Documents/Obsidian/Life"
+VAULT = Path(json.loads(CONFIG.read_text())["vault"]).expanduser() if CONFIG.exists() else HOME / "Library/CloudStorage/Dropbox/sync/obsidian/Life"
 STATE = HOME / ".local/state/life-memory"
 PYTHON = str(HOME / ".local/share/life-memory-venv/bin/python")
 BM = str(HOME / ".local/share/life-memory-venv/bin/basic-memory")
@@ -43,7 +43,7 @@ def main():
               "Sources/Conversations", "Sources/Videos", "Sources/Articles", "Sources/Documents",
               "System/Templates", ".memory/raw", ".obsidian"):
         (VAULT / d).mkdir(parents=True, exist_ok=True)
-    cfg = HOME / ".config/life-memory/config.json"
+    cfg = CONFIG
     if not cfg.exists():
         atomic(cfg, json.dumps({"vault": str(VAULT), "state": str(STATE), "python": PYTHON, "basic_memory": BM,
                                "runtime": RUNTIME, "enabled": True,

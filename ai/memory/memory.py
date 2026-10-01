@@ -4,11 +4,13 @@ import argparse
 import contextlib
 import datetime as dt
 import fcntl
+import gzip
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -104,6 +106,189 @@ def messages(client, rows):
     return result
 
 
+def capture_record(client, row):
+    """Exclude derived workspace diffs, never message text or tool evidence.
+
+    OpenCode diffs can describe this capture file itself. Keeping them inside
+    subsequent captures recursively embeds the archive in its own history.
+    """
+    if client != "opencode":
+        return row
+    result = dict(row)
+    info = dict(row.get("info", {}))
+    if isinstance(info.get("summary"), dict):
+        summary = {k: v for k, v in info["summary"].items() if k != "diffs"}
+        if summary:
+            info["summary"] = summary
+        else:
+            info.pop("summary")
+    result["info"] = info
+    return result
+
+
+def raw_root(cfg):
+    return Path(cfg.get("raw_directory", cfg["vault"] / ".memory/raw")).expanduser()
+
+
+def archive_manifest(cfg):
+    path = cfg["vault"] / ".memory/archive-manifest.json"
+    return path, json.loads(path.read_text()) if path.exists() else {"version": 1, "entries": []}
+
+
+def stream_digest(stream):
+    sha = hashlib.sha256()
+    size = 0
+    for block in iter(lambda: stream.read(1024 * 1024), b""):
+        sha.update(block)
+        size += len(block)
+    return sha.hexdigest(), size
+
+
+def archive_file(cfg, source, kind):
+    """Store immutable compressed bytes, verify them, then publish the catalog.
+
+    The caller holds the shared capture lock. No source is removed here.
+    Dropbox upload completion is deliberately not inferred from local success.
+    """
+    if not cfg.get("raw_archive"):
+        raise ValueError("Configure raw_archive before archiving raw evidence")
+    root = Path(cfg["raw_archive"]).expanduser()
+    with source.open("rb") as f:
+        sha, size = stream_digest(f)
+    rel = f"raw/{source.stem}/{sha}.jsonl.gz"
+    target = root / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.exists():
+        fd, temp = tempfile.mkstemp(dir=target.parent, prefix=".archive-")
+        try:
+            with os.fdopen(fd, "wb") as out:
+                with gzip.GzipFile(filename="", mode="wb", fileobj=out, mtime=0) as zipped:
+                    with source.open("rb") as f:
+                        shutil.copyfileobj(f, zipped)
+                out.flush()
+                os.fsync(out.fileno())
+            with gzip.open(temp, "rb") as f:
+                if stream_digest(f) != (sha, size):
+                    raise ValueError("Archive verification failed")
+            os.replace(temp, target)
+        finally:
+            if os.path.exists(temp):
+                os.unlink(temp)
+    with gzip.open(target, "rb") as f:
+        if stream_digest(f) != (sha, size):
+            raise ValueError(f"Archive corrupt: {target}")
+    path, manifest = archive_manifest(cfg)
+    entry = {"session_key": source.stem, "kind": kind, "sha256": sha,
+             "bytes": size, "compressed_bytes": target.stat().st_size,
+             "archive": rel, "captured_at": now()}
+    if not any(e["archive"] == rel for e in manifest["entries"]):
+        manifest["entries"].append(entry)
+        atomic(path, encode(manifest) + b"\n")
+    # An archive remains discoverable even when recovering without the vault.
+    atomic(root / "archive-manifest.json", encode(manifest) + b"\n")
+    return entry
+
+
+def migrate_raw_file(cfg, source):
+    """Lossless original archive plus deduplicated operational records.
+
+    All original revisions remain recoverable from the verified gzip. Only
+    derived OpenCode diff metadata is removed from the operational copy.
+    """
+    target = raw_root(cfg) / source.name
+    if target.resolve() == source.resolve():
+        raise ValueError("raw_directory must be outside the legacy raw folder")
+    if target.resolve().is_relative_to(cfg["vault"].resolve()):
+        raise ValueError("Keep operational raw records outside the vault")
+    entry = archive_file(cfg, source, "legacy-original")
+    client = source.name.split("-", 1)[0]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp = tempfile.mkstemp(dir=target.parent, prefix=".migrate-")
+    try:
+        seen = set()
+        count = 0
+        with os.fdopen(fd, "wb") as out:
+            # A resumed session may already have newer records at the new path.
+            for original in [source] + ([target] if target.exists() else []):
+                with original.open() as f:
+                    for line in f:
+                        row = capture_record(client, json.loads(line))
+                        data = encode(row)
+                        sha = digest(data)
+                        if sha not in seen:
+                            seen.add(sha)
+                            out.write(data + b"\n")
+                            count += 1
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(temp, target)
+    finally:
+        if os.path.exists(temp):
+            os.unlink(temp)
+    sf = cfg["state"] / "sessions" / (source.stem + ".json")
+    if sf.exists():
+        state = json.loads(sf.read_text())
+        state.update(raw=str(target), records=count, capture_format=2)
+        atomic(sf, encode(state))
+    # Original bytes have been decompressed and SHA-256 verified above; the
+    # catalog is durable before removing this redundant uncompressed copy.
+    source.unlink()
+    return {**entry, "operational_bytes": target.stat().st_size, "records": count}
+
+
+def archive_raw(cfg, migrate=False):
+    if migrate:
+        return [migrate_raw_file(cfg, p) for p in sorted((cfg["vault"] / ".memory/raw").glob("*.jsonl"))]
+    return [archive_file(cfg, p, "operational-snapshot") for p in sorted(raw_root(cfg).glob("*.jsonl"))]
+
+
+def verify_archives(cfg):
+    _, manifest = archive_manifest(cfg)
+    root = Path(cfg["raw_archive"]).expanduser()
+    histories = 0
+    for e in manifest["entries"]:
+        with gzip.open(root / e["archive"], "rb") as f:
+            if stream_digest(f) != (e["sha256"], e["bytes"]):
+                raise ValueError(f"Archive corrupt: {e['archive']}")
+        current = raw_root(cfg) / (e["session_key"] + ".jsonl")
+        if e["kind"] == "legacy-original" and current.exists():
+            client = e["session_key"].split("-", 1)[0]
+            with current.open() as f:
+                seen = {digest(encode(capture_record(client, json.loads(line)))) for line in f}
+            with gzip.open(root / e["archive"], "rt") as f:
+                for line in f:
+                    sha = digest(encode(capture_record(client, json.loads(line))))
+                    if sha not in seen:
+                        raise ValueError(f"Operational history is missing a preserved revision: {current}")
+            histories += 1
+    return {"verified_archives": len(manifest["entries"]),
+            "verified_operational_histories": histories}
+
+
+def restore_raw(cfg, sha, destination):
+    _, manifest = archive_manifest(cfg)
+    matches = [e for e in manifest["entries"] if e["sha256"] == sha]
+    if len(matches) != 1:
+        raise ValueError("Use a unique full SHA-256 from archive-list")
+    e = matches[0]
+    source = Path(cfg["raw_archive"]).expanduser() / e["archive"]
+    with gzip.open(source, "rb") as f:
+        if stream_digest(f) != (e["sha256"], e["bytes"]):
+            raise ValueError("Archive verification failed; refusing restore")
+    target = Path(destination).expanduser()
+    if not target.is_absolute() or not target.parent.is_dir():
+        raise ValueError("Restore needs an absolute destination with an existing parent")
+    # Exclusive create protects existing evidence and operational files.
+    with target.open("xb") as out, gzip.open(source, "rb") as f:
+        shutil.copyfileobj(f, out)
+        out.flush()
+        os.fsync(out.fileno())
+    with target.open("rb") as f:
+        if stream_digest(f) != (e["sha256"], e["bytes"]):
+            raise ValueError("Restored file failed verification")
+    return {"restored": str(target), "sha256": sha, "bytes": e["bytes"]}
+
+
 def capture(cfg, client, payload):
     if not cfg.get("enabled", True) or os.environ.get("LIFE_MEMORY_DISABLED") == "1":
         return None
@@ -128,12 +313,16 @@ def capture(cfg, client, payload):
                 if line.endswith(b"\n"):
                     raise
     key = sf.stem
-    raw = cfg["vault"] / ".memory" / "raw" / (key + ".jsonl")
+    raw = raw_root(cfg) / (key + ".jsonl")
+    legacy = cfg["vault"] / ".memory/raw" / raw.name
+    if raw.resolve() != legacy.resolve() and legacy.exists():
+        migrate_raw_file(cfg, legacy)
     existing = [json.loads(line) for line in raw.read_text().splitlines()] if raw.exists() else []
     seen = {digest(encode(r)) for r in existing}
     # Compare full records, retaining revisions as well as compacted-away records.
     added = []
     for row in incoming:
+        row = capture_record(client, row)
         h = digest(encode(row))
         if h not in seen:
             seen.add(h)
@@ -146,8 +335,10 @@ def capture(cfg, client, payload):
     rel = "Sources/Conversations/" + key + ".md"
     lines = ["---", "type: conversation", "client: " + client,
              "session_id: " + json.dumps(sid), "---", "# " + key,
-             "", "Generated transcript projection; original records (including tool details) are in",
-             "`" + str(raw.relative_to(cfg["vault"])) + "`. External attachments remain references.",
+             "", "Generated transcript projection; structured records (including tool details) are in",
+             "`" + str(raw) + "`. External attachments remain references.",
+             "Archived originals are cataloged in `.memory/archive-manifest.json`; see [[System/Memory storage]]."
+             if cfg.get("raw_archive") else "",
              "", "See [[System/Memory rules]] and [[System/Memory status]].", ""]
     for i, msg in enumerate(projection, 1):
         lines += [f"## Message {i} — {msg['role']}", "", str(msg["time"]), "", msg["text"], ""]
@@ -155,7 +346,7 @@ def capture(cfg, client, payload):
         atomic(cfg["vault"] / rel, "\n".join(lines))
     record = {**old, "client": client, "session_id": sid, "source": rel,
               "raw": str(raw), "last_capture": now(), "records": len(rows),
-              "user_hash": user_hash, "cwd": payload.get("cwd", old.get("cwd", ""))}
+              "user_hash": user_hash, "cwd": payload.get("cwd", old.get("cwd", "")), "capture_format": 2}
     if payload.get("transcript_path"):
         record["transcript_path"] = payload["transcript_path"]
     atomic(sf, encode(record))
@@ -279,10 +470,25 @@ def backup(cfg, force=False):
     if target.exists() and not force:
         return str(target)
     temp = target.with_suffix(".partial")
+    # Raw evidence has a separately verified archive. Git/LFS objects are
+    # rebuildable history, not part of a portable searchable-vault snapshot.
+    if cfg.get("raw_archive"):
+        archive_raw(cfg)
     with zipfile.ZipFile(temp, "w", zipfile.ZIP_DEFLATED) as archive:
-        for p in cfg["vault"].rglob("*"):
-            if p.is_file() and not p.is_symlink():
-                archive.write(p, str(p.relative_to(cfg["vault"])))
+        for parent, dirs, files in os.walk(cfg["vault"], followlinks=False):
+            parent = Path(parent)
+            rel = parent.relative_to(cfg["vault"])
+            dirs[:] = [d for d in dirs if not (parent / d).is_symlink()
+                       and d != ".git"
+                       and not (rel.parts == (".obsidian",) and d == "cache")
+                       and not (cfg.get("raw_archive") and rel.parts == (".memory",) and d == "raw")]
+            for name in files:
+                p = parent / name
+                if p.is_file() and not p.is_symlink():
+                    archive.write(p, str(p.relative_to(cfg["vault"])))
+    with zipfile.ZipFile(temp) as archive:
+        if archive.testzip() is not None:
+            raise ValueError("Backup ZIP verification failed")
     os.replace(temp, target)
     # Bounded rolling local copies; independent/off-device backup still recommended.
     for p in sorted(folder.glob("Life-????-??-??.zip"))[:-14]:
@@ -292,7 +498,7 @@ def backup(cfg, force=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["hook", "capture", "status", "pending", "ack", "read-note", "write-note", "doctor", "maintenance", "backup", "brief"])
+    parser.add_argument("command", choices=["hook", "capture", "status", "pending", "ack", "read-note", "write-note", "doctor", "maintenance", "backup", "brief", "migrate-raw", "archive-raw", "archive-list", "archive-verify", "restore-raw"])
     parser.add_argument("args", nargs="*")
     args = parser.parse_args()
     cfg = settings()
@@ -334,6 +540,18 @@ def main():
                 result = report(cfg)
             elif args.command == "doctor":
                 result = doctor(cfg)
+            elif args.command == "migrate-raw":
+                result = archive_raw(cfg, migrate=True)
+            elif args.command == "archive-raw":
+                result = archive_raw(cfg)
+            elif args.command == "archive-list":
+                result = archive_manifest(cfg)[1]
+                if args.args:
+                    result = [e for e in result["entries"] if e["session_key"] == args.args[0]]
+            elif args.command == "archive-verify":
+                result = verify_archives(cfg)
+            elif args.command == "restore-raw":
+                result = restore_raw(cfg, *args.args)
             elif args.command == "backup":
                 result = {"backup": backup(cfg, force=True)}
             elif args.command == "maintenance":

@@ -1,18 +1,22 @@
 # Life memory
 
-One local Obsidian vault shared by Claude Code, Codex and OpenCode. Code and instructions
+One local Markdown vault shared by Claude Code, Codex and OpenCode. Obsidian is an optional
+editor; it does not need to be installed or running for capture and retrieval. Code and instructions
 are tracked here; personal notes, transcripts, client registrations and runtime state stay
 outside dotfiles.
 
 ## Installed layout
 
-- Vault: `~/Documents/Obsidian/Life`
+- Vault: `vault` in `~/.config/life-memory/config.json` (the installer reuses this path)
+- Default vault on macOS: `~/Library/CloudStorage/Dropbox/sync/obsidian/Life`
 - Config: `~/.config/life-memory/config.json`
 - Python/Basic Memory: `~/.local/share/life-memory-venv/bin/`
 - State/queue/config backups/note history: `~/.local/state/life-memory/`
-- Original structured records: vault `.memory/raw/`
+- Operational structured records: `raw_directory` in local config (legacy default: vault `.memory/raw/`)
+- Optional compressed original/snapshot archives: `raw_archive` in local config
+- Archive catalog: vault `.memory/archive-manifest.json`, mirrored to the archive root
 - Readable conversation projections: vault `Sources/Conversations/`
-- Daily local zip backups (14 retained): `~/Library/Application Support/Life Memory/Backups/`
+- Daily ZIP backups (14 retained): configured `backup` folder; may be a Dropbox folder
 - LaunchAgent: `~/Library/LaunchAgents/local.life-memory.maintenance.plist`
 
 The portable skill is `../shared/skills/integrations/life-memory/SKILL.md`. Claude/Codex
@@ -29,6 +33,12 @@ survive client compaction. The readable OpenCode projection uses the latest revi
 each message, while the raw archive retains prior versions. External attachments are not
 copied. Original structured records aren't byte-identical copies of the native file.
 
+OpenCode `info.summary.diffs` is **derived workspace metadata**, not message/tool
+content. Both the plugin and receiver exclude it. Capturing a diff of the capture
+file itself otherwise creates a recursive growth loop. Summary text, message
+revisions, tool arguments/results, and other record fields remain preserved.
+The receiver guard also protects already-running clients until their plugin reloads.
+
 SessionStart/UserPromptSubmit adds a short orientation. Stop requests at most one memory
 checkpoint per observed user-input revision and avoids recursive stop-hook blocking.
 Agents use normal model access for synthesis, cross-links, and weekly reviews. No separate
@@ -43,7 +53,8 @@ event can still lose its uncaptured tail; this is not a guarantee of zero-loss j
 The five-minute maintenance job catches up **registered** Claude/Codex transcript paths,
 refreshes full-text indexing, and creates one daily local backup. It doesn't bulk-import
 old chats or crawl unrelated projects. OpenCode capture requires its plugin to be active.
-Backup copies are on the same Mac; independent device-loss backup remains separate.
+Backup copies are local until the configured cloud client finishes uploading them;
+writing into a Dropbox folder does not itself verify off-device durability.
 
 Runtime `read-note`/`write-note` implement optimistic concurrency (expected SHA-256 plus a
 shared lock) for agent writes. Do not bypass this with MCP writes or direct edits to
@@ -53,13 +64,15 @@ by the synthesized-note writer. Earlier note bytes are retained in note-history.
 
 ## Setup on another Mac
 
-Requires Python 3.12+, installed/authenticated assistant CLIs, and Obsidian.
+Requires Python 3.12+ and installed/authenticated assistant CLIs. The default
+vault uses Dropbox's macOS CloudStorage location; install Dropbox first or configure a
+different `vault` path in the Life memory config before running setup.
 
 ```sh
 python3.12 -m venv ~/.local/share/life-memory-venv
 ~/.local/share/life-memory-venv/bin/pip install --pre 'basic-memory==0.23.2'
 python3.12 ~/dotfiles/ai/memory/setup.py
-BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory project add life ~/Documents/Obsidian/Life --local --default
+BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory project add life ~/Library/CloudStorage/Dropbox/sync/obsidian/Life --local --default
 BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory config set auto_update false
 BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory config set ensure_frontmatter_on_sync false
 ```
@@ -84,7 +97,18 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.life-memory.mainte
 ```
 
 In Codex, use `/hooks` to review/trust the installed definitions. Do not fake or bypass
-native hook trust. Open `~/Documents/Obsidian/Life` as a folder vault in Obsidian.
+native hook trust. Open the configured `vault` path as a folder vault in Obsidian.
+
+The vault can live in a Dropbox folder. Update the runtime `vault` setting,
+Basic Memory project path (`basic-memory project move life NEW_PATH`), OpenCode
+reference and Obsidian vault registration together. Keep the central vault available
+offline for local indexing. Update saved assistant workspace/session directories and
+current vault guidance too, then verify capture and retrieval before removing an old
+compatibility symlink. Restart clients that cached the previous path. Git is optional:
+do not copy `.git` or its LFS cache into the
+Dropbox vault. Cloud folder synchronization is separate from dated backups and does
+not supply the runtime lock across different computers; avoid simultaneous agent
+writes from multiple Macs.
 
 ## Operations
 
@@ -94,6 +118,11 @@ python3.12 ~/dotfiles/ai/memory/memory.py pending
 python3.12 ~/dotfiles/ai/memory/memory.py doctor
 python3.12 ~/dotfiles/ai/memory/memory.py maintenance
 python3.12 ~/dotfiles/ai/memory/memory.py backup
+python3.12 ~/dotfiles/ai/memory/memory.py migrate-raw
+python3.12 ~/dotfiles/ai/memory/memory.py archive-raw
+python3.12 ~/dotfiles/ai/memory/memory.py archive-list [SESSION_KEY]
+python3.12 ~/dotfiles/ai/memory/memory.py archive-verify
+python3.12 ~/dotfiles/ai/memory/memory.py restore-raw FULL_SHA256 /absolute/new/file.jsonl
 python3.12 ~/dotfiles/ai/memory/import_video.py VIDEO_ID
 ```
 
@@ -105,6 +134,44 @@ explicit. Existing archived videos aren't overwritten on rerun.
 
 `backup` refreshes today's snapshot immediately, useful after a bulk import; normal
 maintenance creates one snapshot per day without replacing that day's existing copy.
+
+## Raw evidence storage and migration
+
+For a lightweight Git vault, configure `raw_directory` **outside** the vault
+(for example, a `raw` directory under the configured runtime state) and `raw_archive`
+to a local, writable archive root (optionally inside Dropbox). Keep the live notes
+at the same vault path. Never put credentials in these settings.
+
+`migrate-raw` runs under the shared capture lock. For each legacy `.memory/raw/*.jsonl`
+it creates a content-addressed gzip of the **exact original bytes**, decompresses it
+and verifies SHA-256 and byte count, publishes catalogs, writes deduplicated
+operational records with derived OpenCode diffs removed, updates session state,
+then removes the redundant legacy file. Resumed sessions auto-migrate if necessary.
+Existing operational records are merged rather than overwritten on a retry.
+Unchanged messages and readable conversation text are retained; old source headers
+may still name the historical raw path, whose basename resolves via `archive-list`.
+
+`archive-raw` writes immutable, content-addressed **per-session snapshots**, not a
+single growing ZIP. Identical bytes reuse an existing archive. Changed snapshots
+are retained without automatic deletion; archive growth/retention remains explicit.
+Daily backup invokes this before packaging the vault. It includes readable notes,
+transcripts and the catalog, excludes `.git`, Obsidian cache and separately archived
+raw data, then checks the ZIP CRC. Large ordinary attachments remain in the ZIP.
+Raw originals/snapshots live beside the ZIPs, not inside them. Keep both for recovery.
+
+`archive-list` provides session keys, checksums, kinds, relative paths and sizes.
+`restore-raw` accepts a full checksum and a new absolute destination, verifies the
+archive, refuses overwrite, and verifies the restored bytes. Normal recall searches
+local Markdown; raw archives are for targeted evidence recovery, not routine search.
+On a replacement machine, restore the vault and archive root, configure their paths,
+install the runtime, and rebuild the disposable search index. Operational raw files
+can be restored from the latest `operational-snapshot` entries if needed.
+
+Remove legacy raw paths from the vault Git index with `git rm -r --cached --
+.memory/raw/`, ignore that directory, and remove its LFS attribute only after archive
+verification. Existing Git/LFS history remains intact. Do not rewrite published
+history or remove remote objects as part of routine migration. A verified LFS prune
+can reclaim eligible local cached objects separately.
 
 Pause using `enabled: false` in local config and restart clients, or launch one process
 with `LIFE_MEMORY_DISABLED=1`. That flag also needs to be set on a long-running server
