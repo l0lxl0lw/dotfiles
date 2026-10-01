@@ -19,7 +19,8 @@ ai/
         ├── omc/
         ├── understand/
         ├── utilities/
-        └── workflow/
+        ├── workflow/
+        └── writing/
 ```
 
 `claude_merge_config`, `codex_merge_config`, `grok_merge_config`, and
