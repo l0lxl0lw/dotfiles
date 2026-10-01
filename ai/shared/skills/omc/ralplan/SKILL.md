@@ -5,6 +5,11 @@ description: Alias for /plan --consensus — iterative planning with Planner, Ar
 
 # Ralplan (Consensus Planning Alias)
 
+Load `omc-plan` with `--consensus`; the `/plan` examples below refer to OMC's
+command, not a host's unrelated planning command. Verify OMC's named specialist
+agents are installed before starting. If unavailable, report that dependency and
+offer ordinary planning instead of pretending consensus agents ran.
+
 Ralplan is a shorthand alias for `/plan --consensus`. It triggers iterative planning with Planner, Architect, and Critic agents until consensus is reached, with **RALPLAN-DR structured deliberation** (short mode by default, deliberate mode for high-risk work).
 
 ## Usage

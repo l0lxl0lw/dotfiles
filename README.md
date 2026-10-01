@@ -14,7 +14,7 @@
 | `ai/codex/` | Codex CLI skills and global `AGENTS.md` — see [ai/codex/README.md](ai/codex/README.md) |
 | `ai/grok/` | Grok CLI skills, agents, hooks, global `AGENTS.md`, and tracked settings — see [ai/grok/README.md](ai/grok/README.md) |
 | `opencode/` | OpenCode-native agents, commands, skills, and tracking - see [opencode/README.md](opencode/README.md) |
-| `ai/shared/` | Skills shared by Claude, Codex, and Grok; see [ai/shared/README.md](ai/shared/README.md) |
+| `ai/shared/` | Canonical skills shared by Claude, Codex, Grok, and OpenCode; see [ai/shared/README.md](ai/shared/README.md) |
 | `ai/memory/` | Local Obsidian Life vault capture and shared assistant memory; see [ai/memory/README.md](ai/memory/README.md) |
 | `vim/` `tmux/` `emacs/` | editor and multiplexer config (`emacs/` is manual, not wired into `deploy.sh`) |
 

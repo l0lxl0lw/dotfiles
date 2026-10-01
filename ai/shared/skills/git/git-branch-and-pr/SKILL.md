@@ -8,13 +8,15 @@ effort: medium
 
 # Branch and PR
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Take uncommitted changes sitting on the default branch, move them to a new feature branch as **one commit**, and open a pull request.
 
 Related: `git-pr` opens a PR for a branch that already exists. `git-push-to-main` skips the PR entirely.
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-branch-and-pr/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-branch-and-pr/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -81,7 +83,7 @@ digraph branchandpr {
 
 2. Run the analysis script **from the repo root**:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-branch-and-pr/scripts/analyze-changes.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-branch-and-pr/scripts/analyze-changes.sh
    ```
 
    It outputs git status and branch info, default-branch detection, staged and unstaged diffs, untracked files, recent commits (for style reference), and README / PR template existence.
@@ -90,7 +92,7 @@ digraph branchandpr {
 
 3. Run every repo-local check the analysis marked **REQUIRED**, before drafting anything:
    ```bash
-   bash ~/.claude/skills/git-branch-and-pr/scripts/repo-check.sh run <name>
+   bash ~/dotfiles/ai/shared/skills/git/git-branch-and-pr/scripts/repo-check.sh run <name>
    ```
    The script applies that check's `fail-on` regex: **0** passed, **1** FAILED, **2** not
    runnable (a gap, not a pass). Relevance is judged against the working tree — staged,
@@ -165,13 +167,13 @@ digraph branchandpr {
 
 8. Stage files:
    ```bash
-   bash ~/.claude/skills/git-branch-and-pr/scripts/stage-files.sh --all
+   bash ~/dotfiles/ai/shared/skills/git/git-branch-and-pr/scripts/stage-files.sh --all
    ```
    Or name specific files.
 
 9. Create the one commit:
    ```bash
-   bash ~/.claude/skills/git-branch-and-pr/scripts/create-commit.sh "<the confirmed message>"
+   bash ~/dotfiles/ai/shared/skills/git/git-branch-and-pr/scripts/create-commit.sh "<the confirmed message>"
    ```
    The script rejects AI attribution.
 

@@ -4,6 +4,12 @@ description: Self-referential loop until task completion with configurable verif
 ---
 
 <Purpose>
+Host compatibility: the OMC loop/state tools and named specialist agents below
+require an installed OMC integration. Verify they exist before starting; if absent,
+report the missing integration and ask whether to use the host's ordinary workflow.
+Use native tool names and supported foreground/background execution; do not invent
+`run_in_background` support or claim that a persistence hook is running.
+
 Ralph is a PRD-driven persistence loop that keeps working on a task until ALL user stories in prd.json have passes: true and are reviewer-verified. It wraps parallel execution with session persistence, automatic retry on failure, structured story tracking, and mandatory verification before completion.
 </Purpose>
 

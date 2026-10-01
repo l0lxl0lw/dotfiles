@@ -8,6 +8,8 @@ effort: medium
 
 # Push Branch
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Commit the current changes on a feature branch and push them. If a PR is open for the branch, this is what updates it.
 
 This is the everyday loop: make a change, commit, push. Use it for review feedback and CI fixes on an existing PR.
@@ -16,7 +18,7 @@ Related: `git-commit` commits without pushing. `git-push-to-main` does the same 
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-push-branch/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-push-branch/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -86,7 +88,7 @@ digraph pushbranch {
 
 1. Run from the repo root:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-push-branch/scripts/analyze-branch.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-push-branch/scripts/analyze-branch.sh
    ```
 
 2. Act on the exit code:
@@ -137,12 +139,12 @@ digraph pushbranch {
 ### Phase 5: Stage and Commit
 
 8. ```bash
-   bash ~/.claude/skills/git-push-branch/scripts/stage-files.sh --all
+   bash ~/dotfiles/ai/shared/skills/git/git-push-branch/scripts/stage-files.sh --all
    ```
    Or name specific files.
 
 9. ```bash
-   bash ~/.claude/skills/git-push-branch/scripts/create-commit.sh "commit message here"
+   bash ~/dotfiles/ai/shared/skills/git/git-push-branch/scripts/create-commit.sh "commit message here"
    ```
    Add `--amend` for the squash case. The script rejects AI attribution.
 
@@ -150,7 +152,7 @@ digraph pushbranch {
 
 10. Run every repo-local check the analysis marked **REQUIRED**:
     ```bash
-    bash ~/.claude/skills/git-push-branch/scripts/repo-check.sh run <name>
+    bash ~/dotfiles/ai/shared/skills/git/git-push-branch/scripts/repo-check.sh run <name>
     ```
     The script applies that check's `fail-on` regex: **0** passed, **1** FAILED, **2** not
     runnable (a gap, not a pass). Relevance was judged against everything the PR will contain

@@ -558,7 +558,7 @@ grok() {
   command grok "$@"
 }
 
-# Link OpenCode-owned skills and native commands/agents into its config directory.
+# Link shared skills and OpenCode native commands/agents into its config directory.
 # Existing machine-local JSON/JSONC files remain untouched.
 opencode_merge_config() {
   emulate -L zsh
@@ -572,7 +572,7 @@ opencode_merge_config() {
 
   _agentcfg_reset
   _agentcfg_sync_skill_sources "$opencode_dir/skills" \
-    "$repo/skills"
+    "$HOME/dotfiles/ai/shared/skills"
 
   local f
   # Managed native agents. Preserve foreign files; prune only our retired links.

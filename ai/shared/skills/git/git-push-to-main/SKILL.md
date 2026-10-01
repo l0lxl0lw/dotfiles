@@ -9,6 +9,8 @@ effort: medium
 
 # Push to Main
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Commit the current changes on the default branch and push directly to the remote. For verified work that does not need a PR.
 
 **This skill runs start to finish without stopping.** Invoking it *is* the confirmation: the user has already decided the work belongs on the remote default branch. Do not ask which commit message to use, whether to squash or stack, or whether to push — decide, do it, and report at the end. The only two places the user is pulled in are a rebase conflict (Phase 2) and a force-push (Phase 6), because neither can be resolved correctly without them.
@@ -17,7 +19,7 @@ Related: `git-push-branch` does the same job on a feature branch. `git-branch-an
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-push-to-main/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-push-to-main/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -64,7 +66,7 @@ digraph pushmain {
 
 2. Run the analysis script **from the repo root**:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-push-to-main/scripts/analyze-changes.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-push-to-main/scripts/analyze-changes.sh
    ```
 
    It fetches origin, then reports status, whether you are **behind the remote**, unpushed commits, staged/unstaged diffs, untracked files, recent commits, and the README check.
@@ -103,7 +105,7 @@ digraph pushmain {
 
 7. Stage files:
    ```bash
-   bash ~/.claude/skills/git-push-to-main/scripts/stage-files.sh --all
+   bash ~/dotfiles/ai/shared/skills/git/git-push-to-main/scripts/stage-files.sh --all
    ```
    Or name specific files.
 
@@ -111,7 +113,7 @@ digraph pushmain {
 
 8. Create the commit:
    ```bash
-   bash ~/.claude/skills/git-push-to-main/scripts/create-commit.sh "commit message here"
+   bash ~/dotfiles/ai/shared/skills/git/git-push-to-main/scripts/create-commit.sh "commit message here"
    ```
    The script refuses any message containing AI attribution.
 

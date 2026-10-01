@@ -15,6 +15,8 @@ effort: medium
 
 # Explain the uncommitted diff
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 <!-- The rendering contract below (spine, column 90, notation, consequence leaf) is
      duplicated in git-explain-branch/SKILL.md. Change both together. -->
 
@@ -80,7 +82,7 @@ digraph explain_diff {
 ## Collect it in one call
 
 ```bash
-bash ~/.claude/skills/git-explain-diff/scripts/collect-worktree.sh
+bash ~/dotfiles/ai/shared/skills/git/git-explain-diff/scripts/collect-worktree.sh
 ```
 
 Accepts `--max-lines N` (per-file diff size above which a file is counted, not read;

@@ -269,7 +269,7 @@ emit_repo_checks_section() {
         else
             echo "  $name  [skipped — $reason]"
         fi
-        echo "    run:      bash ~/.claude/skills/$skill_name/scripts/repo-check.sh run $name"
+        echo "    run:      bash \"$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/$skill_name/scripts/repo-check.sh\" run $name"
         echo "    command:  $cmd"
         [[ -n "$failon" ]] && echo "    fail if output matches:  $failon"
         [[ -n "$fix"    ]] && echo "    fix:      $fix"

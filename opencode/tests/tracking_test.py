@@ -558,7 +558,7 @@ class OrcaCommandContractTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         command = (root / "commands/ticket.md").read_text()
         self.assertIn("workflow-ticket", command)
-        contract = " ".join((root / "skills/workflow/workflow-ticket/SKILL.md").read_text().split())
+        contract = " ".join((root.parent / "ai/shared/skills/workflow/workflow-ticket/SKILL.md").read_text().split())
         self.assertIn("link-orca ISSUE", contract)
         self.assertIn("Keep existing link (Recommended)", contract)
         self.assertIn("Return issue creation/update, assignee/configured-project fields, and Orca attachment as separate outcomes", contract)

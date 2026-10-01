@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tracking"))
 from private_config import load as load_private_config
 
 ROOT = Path(__file__).resolve().parents[1]
-FOLDERS = ("agents", "commands", "skills", "tracking", "orca", "runtime", "schemas")
+FOLDERS = ("agents", "commands", "tracking", "orca", "runtime", "schemas")
 STAGES = ("ticket", "research", "plan", "execute", "review", "commit")
 
 
@@ -27,12 +27,16 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def sources(root):
-    files = {"profiles.json": (root / "profiles.json").read_bytes()}
+def source_paths(root):
+    files = {"profiles.json": root / "profiles.json"}
     for folder in FOLDERS:
         for path in sorted((root / folder).rglob("*")):
             if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
-                files[str(path.relative_to(root))] = path.read_bytes()
+                files[str(path.relative_to(root))] = path
+    shared = root.parent / "ai/shared/skills"
+    for path in sorted(shared.rglob("*")):
+        if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
+            files["skills/" + str(path.relative_to(shared))] = path
     return files
 
 
@@ -110,9 +114,10 @@ def build_bundle(root=ROOT, state=None):
             if state.resolve() == parent or parent in state.resolve().parents:
                 raise RuntimeError("Workflow resource state must live outside the source repository")
             break
-    files = sources(root)
+    paths = source_paths(root)
+    files = {name: path.read_bytes() for name, path in paths.items()}
     source_hashes = {k: digest(v) for k, v in files.items()}
-    modes = {k: bool((root / k).stat().st_mode & 0o111) for k in files}
+    modes = {k: bool(path.stat().st_mode & 0o111) for k, path in paths.items()}
     key = digest(json.dumps({"files": source_hashes, "executable": modes}, sort_keys=True).encode())
     target = state / "resources" / key
     if target.exists():
@@ -134,14 +139,16 @@ def build_bundle(root=ROOT, state=None):
             if name.endswith(".md"):
                 pinned = str(target / "opencode")
                 text = raw.decode().replace("~/dotfiles/opencode", pinned).replace(str(root), pinned)
+                text = text.replace("~/dotfiles/ai/shared/skills", pinned + "/skills")
+                text = text.replace(str(root.parent / "ai/shared/skills"), pinned + "/skills")
                 if name.endswith("/SKILL.md"):
                     text = re.sub(r"^name:\s*([^\n]+)$", lambda m: "name: " + aliases[m[1].strip().strip("\"'")], text, count=1, flags=re.M)
                 for old, alias in aliases.items():
                     text = text.replace("`" + old + "`", "`" + alias + "`")
                     text = text.replace("the " + old + " skill", "the " + alias + " skill")
                 # Keep shell snippets working when the resource root contains spaces.
-                text = re.sub(r"python3 " + re.escape(pinned) + r"(/[\w./-]+)",
-                              lambda m: 'python3 "' + pinned + m.group(1) + '"', text)
+                text = re.sub(r"(python3|bash) " + re.escape(pinned) + r"(/[\w./-]+)",
+                              lambda m: m[1] + ' "' + pinned + m[2] + '"', text)
                 raw = text.encode()
             destination.write_bytes(raw)
             destination.chmod(0o755 if modes[name] else 0o644)
@@ -251,7 +258,7 @@ def private_skill_command(name):
     }
 
 
-def environment(bundle, name=None, environ=None):
+def environment(bundle, name=None, environ=None, directory=None):
     env = dict(os.environ if environ is None else environ)
     existing = env.get("OPENCODE_CONFIG_DIR")
     global_dir = Path(env.get("XDG_CONFIG_HOME", str(Path(env.get("HOME", str(Path.home()))) / ".config"))) / "opencode"
@@ -314,9 +321,6 @@ def environment(bundle, name=None, environ=None):
             del commands[key]
     for path in (root / "commands").glob("*.md"):
         commands[path.stem] = {**definition(path), "template": body(path)}
-    for path in (root / "skills/git").glob("*/SKILL.md"):
-        if path.parent.name not in commands:
-            commands[path.parent.name] = {"description": "Git workflow " + path.parent.name, "template": body(path)}
     for stage in STAGES:
         text = body(root / "commands" / (stage + ".md"))
         commands[stage] = {"description": "Workflow " + stage, "agent": "workflow-" + stage,
@@ -333,6 +337,124 @@ def environment(bundle, name=None, environ=None):
                OPENCODE_WORKFLOW_ROOT=str(root), OPENCODE_WORKFLOW_PROFILE=name,
                OPENCODE_WORKFLOW_REVISION=bundle.name, OPENCODE_DISABLE_EXTERNAL_SKILLS="1",
                OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1", PYTHONDONTWRITEBYTECODE="1")
+    return skill_environment(env, directory)
+
+
+def skill_files(directory):
+    """Follow installed skill links, excluding templates nested inside a skill."""
+    if not directory.is_dir():
+        return {}
+    result = {}
+    visited = set()
+    for base, dirs, files in os.walk(directory, followlinks=True):
+        physical = Path(base).resolve()
+        if physical in visited:
+            dirs[:] = []
+            continue
+        visited.add(physical)
+        dirs[:] = sorted(d for d in dirs if d not in (".git", "node_modules", "__pycache__"))
+        if "SKILL.md" not in files:
+            continue
+        dirs[:] = []
+        path = Path(base) / "SKILL.md"
+        text = path.read_text()
+        front = text.split("---", 2)
+        match = re.search(r"^name:\s*([^\n]+)$", front[1], re.M) if len(front) == 3 else None
+        if not match:
+            raise RuntimeError("Skill lacks name: " + str(path))
+        name = match[1].strip().strip("\"'")
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name) or len(name) > 64:
+            raise RuntimeError("Invalid skill name: " + str(path))
+        if name in result:
+            raise RuntimeError("Duplicate skill in one source: " + name + " in " + str(directory))
+        result[name] = path.resolve()
+    return result
+
+
+def project_skill_sources(directory):
+    """Least to most specific; stop at the current worktree, including linked ones."""
+    directory = Path(directory).resolve()
+    proc = subprocess.run(["git", "-C", str(directory), "rev-parse", "--show-toplevel"],
+                          text=True, capture_output=True)
+    stop = Path(proc.stdout.strip()).resolve() if proc.returncode == 0 else directory
+    ancestors = []
+    current = directory
+    while True:
+        ancestors.append(current)
+        if current == stop or current.parent == current:
+            break
+        current = current.parent
+    return [parent / folder / "skills" for parent in reversed(ancestors)
+            for folder in (".claude", ".agents", ".opencode")]
+
+
+def skill_environment(environ, directory=None):
+    """Add explicit project sources and executable fallback commands without editing HOME."""
+    env = dict(environ)
+    cwd = Path(directory or Path.cwd()).resolve()
+    home = Path(env.get("HOME", str(Path.home())))
+    global_dir = Path(env.get("XDG_CONFIG_HOME", str(home / ".config"))) / "opencode"
+    cfg = json.loads(env.get("OPENCODE_CONFIG_CONTENT", "{}"))
+    skills = cfg.setdefault("skills", {})
+    commands = cfg.setdefault("command", {})
+    # Remove only our own previous additions on a nested launch from another repo.
+    prior = json.loads(env.get("OPENCODE_SKILL_CATALOG", "{}"))
+    old_paths = set(prior.get("paths", []))
+    paths = [p for p in skills.get("paths", []) if p not in old_paths]
+    for key, value in prior.get("commands", {}).items():
+        if commands.get(key) == value:
+            del commands[key]
+    selected = skill_files(global_dir / "skills")
+    for raw in paths:
+        source = home / raw[2:] if raw.startswith("~/") else Path(raw)
+        selected.update(skill_files(source if source.is_absolute() else cwd / source))
+    projects = {}
+    for source in project_skill_sources(cwd):
+        found = skill_files(source)
+        for name in projects.keys() & found.keys():
+            if projects[name] != found[name]:
+                print(f"Project skill '{name}': {found[name]} overrides {projects[name]}", file=sys.stderr)
+        projects.update(found)
+    selected.update(projects)
+    # Explicit paths expose compatibility-directory skills. The execution overlay
+    # enforces the chosen winner independently of native discovery ordering.
+    added = [str(path.parent) for path in projects.values() if str(path.parent) not in paths]
+    skills["paths"] = [*paths, *added]
+    occupied = set(commands) | set(selected)
+    for source in (global_dir, cwd / ".opencode"):
+        for folder in ("commands", "command"):
+            occupied.update(p.stem for p in (source / folder).glob("*.md"))
+    generated = {}
+    for name, path in sorted(selected.items()):
+        if re.match(r"wf-[a-f0-9]+-", name):
+            continue
+        alias = "skill-" + name
+        while alias in occupied:
+            alias = "skill-" + alias
+        occupied.add(alias)
+        # Read by exact path: this also handles a native command hiding the skill
+        # or a project definition overriding a same-name global definition.
+        value = {"description": "Skill fallback: " + name,
+                 "template": "Read " + json.dumps(str(path)) + " and follow that skill. "
+                             "Its base directory is " + json.dumps(str(path.parent)) + ". "
+                             "Use the host's native tools; AskUserQuestion means its question dialog "
+                             "(or ask in chat when unavailable). Load the skill before acting.\n\n"
+                             "User arguments:\n$ARGUMENTS"}
+        commands[alias] = value
+        generated[alias] = value
+    overlay = str((Path(env.get("OPENCODE_WORKFLOW_ROOT", str(ROOT))) / "runtime/project-skills.js").resolve())
+    # Replace our prior snapshot plugin on nested launches; preserve other plugins.
+    plugins = [p for p in cfg.get("plugin", []) if p != prior.get("plugin")]
+    plugin = Path(overlay).as_uri()
+    if plugin not in plugins:
+        plugins.append(plugin)
+    cfg["plugin"] = plugins
+    env["OPENCODE_SKILL_CATALOG"] = json.dumps({"paths": added, "commands": generated,
+                                               "projects": {name: str(path) for name, path in projects.items()},
+                                               "plugin": plugin})
+    env["OPENCODE_CONFIG_CONTENT"] = json.dumps(cfg)
+    env["OPENCODE_DISABLE_EXTERNAL_SKILLS"] = "1"
+    env["OPENCODE_DISABLE_CLAUDE_CODE_SKILLS"] = "1"
     return env
 
 
@@ -370,7 +492,8 @@ def main():
         if not binary:
             raise RuntimeError("opencode is not on PATH")
         argv = args.args[1:] if args.args[:1] == ["--"] else args.args
-        env = {**os.environ, "OPENCODE_DISABLE_EXTERNAL_SKILLS": "1", "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1"}
+        directory = argv[0] if argv and Path(argv[0]).is_dir() else None
+        env = skill_environment(os.environ, directory)
         os.execve(binary, [binary, *argv], env)
     pinned = os.environ.get("OPENCODE_WORKFLOW_ROOT")
     bundle = Path(pinned).parent if pinned else build_bundle()
@@ -379,7 +502,9 @@ def main():
     if args.doctor:
         print(json.dumps(doctor(bundle, name, args.github), indent=2))
         return
-    env = environment(bundle, name)
+    argv = args.args[1:] if args.args[:1] == ["--"] else args.args
+    directory = argv[0] if argv and Path(argv[0]).is_dir() else None
+    env = environment(bundle, name, directory=directory)
     if args.prepare:
         print(json.dumps({k: env[k] for k in ("OPENCODE_CONFIG_DIR", "OPENCODE_WORKFLOW_ROOT",
                          "OPENCODE_WORKFLOW_PROFILE", "OPENCODE_WORKFLOW_REVISION")}, indent=2))

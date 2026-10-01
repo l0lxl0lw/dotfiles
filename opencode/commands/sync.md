@@ -10,7 +10,7 @@ Issue: $ARGUMENTS
 Read the issue and helper `list` output. Verify the current worktree and branch
 match the registration. This command explicitly authorizes sync for that branch.
 Read the git-sync skill and its scripts from
-`~/dotfiles/opencode/skills/git/git-sync/`; use those paths rather than Claude paths,
+`~/dotfiles/ai/shared/skills/git/git-sync/`; use those canonical paths,
 and use the native question tool wherever it says AskUserQuestion.
 Set Branch sync to Syncing immediately before the operation. Follow the skill's
 rebase eligibility rules and merge fallback. Resolve conflicts with the user,

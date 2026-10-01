@@ -56,6 +56,18 @@ test("hides workflow snapshot aliases while retaining ordinary workflow skills",
   ]);
 });
 
+test("a TUI built-in collision selects an executable server fallback", async () => {
+  const fixture = host([
+    { name: "help", source: "skill", description: "A project help skill" },
+    { name: "skill-help", source: "command", description: "Skill fallback: help", template: "Read skill file" },
+  ]);
+  await plugin.tui(fixture.api);
+  const command = fixture.layers[0].commands[0];
+  assert.equal(command.slashName, "skill-help");
+  await command.run();
+  assert.deepEqual(fixture.inserted, [{ text: "/skill-help " }]);
+});
+
 test("does not register after disposal or silently accept a failed catalog request", async () => {
   const fixture = host([{ name: "sample", source: "skill" }]);
   fixture.controller.abort();

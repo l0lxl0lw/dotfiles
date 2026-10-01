@@ -48,7 +48,7 @@ if git diff --cached --quiet; then
     echo ""
     echo "Stage files first with:"
     echo "  git add <files>"
-    echo "  or: bash ~/.claude/skills/git-commit/scripts/stage-files.sh --all"
+    echo "  or: bash \"$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/stage-files.sh\" --all"
     exit 1
 fi
 

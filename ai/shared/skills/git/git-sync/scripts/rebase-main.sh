@@ -73,7 +73,7 @@ report_conflicts() {
         echo ""
         echo "Abort and merge instead:"
         echo "  bash $0 --abort"
-        echo "  bash ~/.claude/skills/git-sync/scripts/merge-main.sh <default_branch>"
+        echo "  bash \"$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/merge-main.sh\" <default_branch>"
         return 20
     fi
 

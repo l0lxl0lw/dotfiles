@@ -8,6 +8,8 @@ effort: medium
 
 # Merge PR
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Merge the open PR for the current branch — but only once it is genuinely mergeable: not a draft, no conflicts, CI green, branch protection satisfied.
 
 This is the step between `git-pr` (opens it) and `git-cleanup` (deletes the branch afterwards).
@@ -16,7 +18,7 @@ This is the step between `git-pr` (opens it) and `git-cleanup` (deletes the bran
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-merge-pr/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-merge-pr/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -52,7 +54,7 @@ digraph mergepr {
 
 1. Run from the repo root:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-merge-pr/scripts/check-mergeable.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-merge-pr/scripts/check-mergeable.sh
    ```
 
 2. Act on the exit code. **Only 0 proceeds.**
@@ -94,7 +96,7 @@ digraph mergepr {
 ### Phase 3: Merge
 
 6. ```bash
-   bash ~/.claude/skills/git-merge-pr/scripts/merge-pr.sh <pr_number> <strategy>
+   bash ~/dotfiles/ai/shared/skills/git/git-merge-pr/scripts/merge-pr.sh <pr_number> <strategy>
    ```
 
    The script re-confirms the PR is still OPEN, then merges. It does **not** pass `--delete-branch` (cleanup is `git-cleanup`'s job, behind its own verified gate) and does **not** pass `--admin` (bypassing branch protection is never automatic).

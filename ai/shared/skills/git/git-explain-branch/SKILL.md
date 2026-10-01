@@ -16,6 +16,8 @@ effort: medium
 
 # Explain the branch against main
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 <!-- The rendering contract below (spine, column 90, notation, consequence leaf) is
      duplicated in git-explain-diff/SKILL.md. Change both together. -->
 
@@ -80,7 +82,7 @@ digraph explain_branch {
 ## Collect it in one call
 
 ```bash
-bash ~/.claude/skills/git-explain-branch/scripts/collect-branch.sh
+bash ~/dotfiles/ai/shared/skills/git/git-explain-branch/scripts/collect-branch.sh
 ```
 
 Accepts `--no-fetch` (offline, or already fetched), `--base <ref>` (compare against

@@ -8,13 +8,15 @@ effort: medium
 
 # Commit
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Analyze the uncommitted changes and create a commit on whatever branch you are on. **This skill never pushes** — that is deliberate.
 
 Related: `git-push-branch` commits *and* pushes on a feature branch. `git-push-to-main` does the same on the default branch.
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-commit/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-commit/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -57,7 +59,7 @@ digraph commit {
 
 1. Run the analysis script **from the repo root** to get the full picture:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-commit/scripts/analyze-changes.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-commit/scripts/analyze-changes.sh
    ```
 
    It outputs git status, unpushed commit count and list, staged and unstaged diffs, untracked files, recent commits (for style reference), and whether a README exists.
@@ -89,21 +91,21 @@ digraph commit {
 
 6. Stage files:
    ```bash
-   bash ~/.claude/skills/git-commit/scripts/stage-files.sh --all
+   bash ~/dotfiles/ai/shared/skills/git/git-commit/scripts/stage-files.sh --all
    ```
    Or name specific files:
    ```bash
-   bash ~/.claude/skills/git-commit/scripts/stage-files.sh file1.js file2.js
+   bash ~/dotfiles/ai/shared/skills/git/git-commit/scripts/stage-files.sh file1.js file2.js
    ```
 
 7. Create the commit with the confirmed message:
    ```bash
-   bash ~/.claude/skills/git-commit/scripts/create-commit.sh "commit message here"
+   bash ~/dotfiles/ai/shared/skills/git/git-commit/scripts/create-commit.sh "commit message here"
    ```
    Add `--amend` when the dialog came back **Squash into the last commit**.
    Or amend for the squash case:
    ```bash
-   bash ~/.claude/skills/git-commit/scripts/create-commit.sh "updated message" --amend
+   bash ~/dotfiles/ai/shared/skills/git/git-commit/scripts/create-commit.sh "updated message" --amend
    ```
    The script refuses any message containing AI attribution.
 

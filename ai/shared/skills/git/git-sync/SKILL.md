@@ -8,6 +8,8 @@ effort: medium
 
 # Sync
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Bring the latest default branch into the current feature branch. **Prefer a rebase; fall back to a merge when a rebase would be worse than one.** If either conflicts, walk the user through **every conflict, one at a time**, and apply the choice they make for each.
 
 Never auto-pick a side. Every conflict is the user's decision.
@@ -16,7 +18,7 @@ Committing and pushing at the end is **optional** — the user may be syncing pu
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-sync/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-sync/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -133,7 +135,7 @@ digraph sync {
 
 1. Run from the repo root:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-sync/scripts/analyze-state.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/analyze-state.sh
    ```
 
 2. Refuse to proceed if:
@@ -154,7 +156,7 @@ digraph sync {
 ### Phase 3: Fetch, and Fast-Forward the Local Default Branch by Ref
 
 5. ```bash
-   bash ~/.claude/skills/git-sync/scripts/sync-main.sh <default> <feature>
+   bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/sync-main.sh <default> <feature>
    ```
    On failure (exit 2) the local default branch diverged. Restore the stash and report.
 
@@ -179,7 +181,7 @@ digraph sync {
 ### Phase 5a: Rebase
 
 7. ```bash
-   bash ~/.claude/skills/git-sync/scripts/rebase-main.sh <default>
+   bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/rebase-main.sh <default>
    ```
    It creates a safety branch (`backup/pre-rebase-<branch>-<sha>`) before touching anything, then rebases.
 
@@ -192,7 +194,7 @@ digraph sync {
 
 8. After resolving (Phase 6):
    ```bash
-   bash ~/.claude/skills/git-sync/scripts/rebase-main.sh --continue
+   bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/rebase-main.sh --continue
    ```
    It refuses to continue while markers remain, then re-reports. Loop until exit 0, or until exit 20 sends you to the merge path.
 
@@ -201,7 +203,7 @@ digraph sync {
 ### Phase 5b: Merge
 
 9. ```bash
-   bash ~/.claude/skills/git-sync/scripts/merge-main.sh <default>
+   bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/merge-main.sh <default>
    ```
    - Exit 0 — clean merge, already committed. Go to Phase 7.
    - Exit 10 — conflicts. Go to Phase 6, then finalize at step 14.
@@ -225,7 +227,7 @@ Identical for both paths. Handle **one file at a time**; `Read` it and process i
 
 13. When every file is done:
     ```bash
-    bash ~/.claude/skills/git-sync/scripts/verify-resolution.sh
+    bash ~/dotfiles/ai/shared/skills/git/git-sync/scripts/verify-resolution.sh
     ```
     If it exits 1, go back — do not commit a file with markers.
 

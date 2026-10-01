@@ -19,11 +19,18 @@ export default {
       if (command.source !== "skill") reserved.add(command.name);
     }
 
+    // The launcher creates server-side /skill-<name> fallbacks. In particular,
+    // a skill hidden by a native/custom command still has an executable command;
+    // TUI-only aliases would insert names the server cannot execute.
+    const fallbacks = new Map(data
+      .filter((command) => command.description?.startsWith("Skill fallback: "))
+      .map((command) => [command.description.slice("Skill fallback: ".length), command]));
+
     api.keymap.registerLayer({
       commands: data
         .filter((command) =>
           command.source === "skill" &&
-          !reserved.has(command.name) &&
+          (!reserved.has(command.name) || fallbacks.has(command.name)) &&
           !/^wf-[a-f0-9]+-/i.test(command.name)
         )
         .map((command) => ({
@@ -32,10 +39,11 @@ export default {
           title: command.name,
           desc: command.description,
           category: "Skills",
-          slashName: command.name,
+          slashName: reserved.has(command.name) ? fallbacks.get(command.name).name : command.name,
           async run() {
             api.ui.dialog.clear();
-            await api.client.tui.appendPrompt({ text: `/${command.name} ` });
+            const name = reserved.has(command.name) ? fallbacks.get(command.name).name : command.name;
+            await api.client.tui.appendPrompt({ text: `/${name} ` });
           },
         })),
     });

@@ -2,7 +2,7 @@
 
 ## Standalone learning skills
 
-Six independent teaching procedures live under `opencode/skills/learning/`, each
+Six independent teaching procedures live under `ai/shared/skills/learning/`, each
 with a matching slash command. They contain their own grounding, interaction, and
 completion rules and do not depend on the existing understanding skills or `_lib`.
 They support general topics, supplied material, and codebase-specific learning;
@@ -197,7 +197,7 @@ navigate into the stage child to inspect its work and return to the dispatcher.
 
 Location/pattern specialists use Luna Fast; consequential code/history analysis
 uses Astra. Specialists cannot spawn more specialists. Stage commands and agents
-choose roles/models; `skills/workflow/` owns the methods; `tracking/WORKFLOW.md` owns
+choose roles/models; `ai/shared/skills/workflow/` owns the methods; `tracking/WORKFLOW.md` owns
 the common tracking contract. Git mechanics remain in the existing Git skills.
 
 ### Faster without skipping correctness
@@ -308,7 +308,7 @@ the plural native directories. Foreign symlinks/collisions are not overwritten.
 Configuration of field options refuses a populated project if options differ.
 
 Quit and restart OpenCode after installation. Machine-local JSON settings remain
-local. Git workflows load directly from `opencode/skills/git/`; project tracking
+local. Git workflows load from `ai/shared/skills/git/`; project tracking
 behavior remains in the OpenCode commands and tracking helper.
 
 For optional nested specialists from fresh stage children, set this in your existing
@@ -367,10 +367,17 @@ protocols. GitHub writes and Orca metadata writes are mocked in automated tests;
 project fields are checked against the live API on setup.
 
 OpenCode is a peer of Claude, Codex and Grok. `opencode_merge_config` in
-`zsh/functions.zsh` links all active `opencode/skills/**/SKILL.md` directories into
+`zsh/functions.zsh` links all active `ai/shared/skills/**/SKILL.md` directories into
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/<name>` using the shared sync helpers.
-The shell wrapper disables OpenCode's compatibility scans of `~/.claude/skills` and
-`~/.agents/skills`, so those shared catalogs do not leak into OpenCode.
+The shell wrapper disables home-directory compatibility scans of `~/.claude/skills`
+and `~/.agents/skills`. The launcher explicitly adds project-local skills from
+`.claude`, `.agents`, and `.opencode` between the worktree root and launch directory.
+Nearer directories win; within a directory `.opencode` wins over `.agents`, then
+`.claude`. Project definitions override the shared catalog without global installs.
+The launcher's `runtime/project-skills.js` plugin enforces the selected definition
+at execution time because native duplicate discovery can finish out of order.
+It preserves native skill permission checks and explicit custom commands. Raw
+`debug skill` metadata can reflect another duplicate; `--pure` disables the overlay.
 
 ## Skills
 
@@ -380,7 +387,7 @@ the path to concrete side effects and supplies suggested breakpoints. Both use t
 skill's shared tracing reference and renderer. It replaces the separate OpenCode
 `trace-callpath` skill.
 
-Put OpenCode skills in `opencode/skills/<category>/<name>/SKILL.md`.
+Put public skills in `ai/shared/skills/<category>/<name>/SKILL.md`.
 Categories are allowed; the sync flattens skill directories by basename. Use matching
 `name` and `description` frontmatter, for example:
 
@@ -395,7 +402,7 @@ Whole skill directories are symlinked, preserving scripts, templates and referen
 The helper only replaces/prunes symlinks owned by dotfiles; existing real files,
 directories and other installers' symlinks are left alone with a warning on collisions.
 An unchanged, collision-free catalog produces no writes or output. Duplicate names
-within the OpenCode catalog are reported on each sync.
+within a discovery source are rejected by the launcher.
 
 Git and understanding skills use automatic slash registration, with no separate
 command files or Git-command symlinks. The sync prunes the retired managed links.
@@ -411,6 +418,13 @@ of truth: existing custom/MCP commands and TUI slash names or aliases take prior
 Selecting a skill inserts `/<name> ` so arguments can be entered before submission;
 OpenCode executes its native skill command with the original skill content and base
 directory. New skills only need a `SKILL.md`, not a separate command wrapper.
+
+The launcher also generates `/skill-<name>` fallback commands referencing the exact
+selected skill file, with another `skill-` prefix if needed to avoid a collision.
+These keep every filesystem skill callable when a custom command owns its ordinary
+name. Existing short workflow commands retain their agent/model routing. Shared
+skill contents and sibling resources are included in immutable workflow snapshots;
+there is no maintained `opencode/skills` source tree.
 
 The sync installs the managed `tui.json` when no machine-local TUI config occupies
 that path and no `tui.jsonc` exists. If you already have a custom TUI config, add
@@ -440,12 +454,18 @@ There is deliberately no placeholder global `AGENTS.md`: OpenCode uses
 `~/.claude/CLAUDE.md` as a fallback only when its own global `AGENTS.md` is absent.
 Installing an empty one would silently suppress those existing instructions.
 
-OpenCode skills are locally owned and may use OpenCode-specific commands, plugins,
-subagents and paths.
+Shared skills use host-native tools and canonical resource paths. OpenCode-specific
+agent/model routing and terminal behavior live in this directory. Skills requiring
+OMC, MCPs, tracking helpers, or private adapters still require those integrations.
 
 ## Verification
 
 Run `zsh zsh/tests/opencode_config_test.zsh` for isolated sync and wrapper checks.
+Run `node --test opencode/tests/*.test.mjs` for terminal-menu and project-overlay behavior.
+Run `OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s opencode/tests -p 'skill_catalog_test.py'`
+for installed-binary discovery/config checks in an isolated HOME (no model calls).
+Run `python3 -B opencode/tests/catalog_smoke.py` after syncing to check the complete
+installed skill and command catalogs through a temporary local server (no model calls).
 
 Run `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'` for tracking,
 handoff selection, idempotent publication, and real-Git snapshot tests. GitHub writes

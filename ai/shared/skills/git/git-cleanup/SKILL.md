@@ -8,13 +8,15 @@ effort: medium
 
 # Post-Merge Cleanup
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 Confirm the PR for the current branch genuinely merged, then delete the branch and refresh the default branch. Two steps, in this order and only this order.
 
 **The merge check is a hard gate, not a formality.** Deleting a branch whose work is not upstream is data loss — the commits become unreachable. Nothing destructive runs until `verify-merged.sh` exits 0.
 
 ## Scripts
 
-Helper scripts in `~/.claude/skills/git-cleanup/scripts/`:
+Helper scripts in `~/dotfiles/ai/shared/skills/git/git-cleanup/scripts/` (or `scripts/` relative to this skill's physical directory):
 
 | Script | Purpose |
 |--------|---------|
@@ -74,7 +76,7 @@ digraph cleanup {
 
 1. Run the gate from the repo root:
    ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/git-cleanup/scripts/verify-merged.sh'
+   bash ~/dotfiles/ai/shared/skills/git/git-cleanup/scripts/verify-merged.sh
    ```
 
 2. Act on the exit code. **Only exit 0 proceeds.**
@@ -95,7 +97,7 @@ digraph cleanup {
 
 3. Run the cleanup:
    ```bash
-   bash ~/.claude/skills/git-cleanup/scripts/cleanup-branch.sh <branch> <default> --merge-verified
+   bash ~/dotfiles/ai/shared/skills/git/git-cleanup/scripts/cleanup-branch.sh <branch> <default> --merge-verified
    ```
 
    It fetches with `--prune`, switches to the default branch, pulls `--ff-only`, deletes the local branch (`-d`, falling back to `-D`), and deletes the remote branch if GitHub did not already auto-delete it.

@@ -9,6 +9,8 @@ effort: medium
 
 # Orca sync fan-out
 
+Read `../_lib/portability.md` relative to this skill's physical directory first.
+
 One PR lands on the default branch and every other Orca workspace is now stale. This surveys them
 and hands each agent the job of catching itself up.
 
@@ -38,7 +40,7 @@ to stderr so stdout stays parseable.
 ### Phase 1: Survey
 
 1. ```bash
-   bash -c 'cd "$(git rev-parse --show-toplevel)" && bash ~/.claude/skills/orca-sync-fanout/scripts/survey.sh'
+   bash ~/dotfiles/ai/shared/skills/git/orca-sync-fanout/scripts/survey.sh
    ```
 
 2. Show the user a table of every workspace with `behind > 0` — display name, branch, commits

@@ -6,8 +6,8 @@
 #   list-skills.sh --desc     one skill per line, with its description
 #   list-skills.sh --names    one skill name per line, no grouping, for piping
 #
-# A repo's own skills are whatever lives under its .claude/skills, .agents/skills,
-# .codex/skills or .grok/skills -- they shadow a global skill of the same name.
+# Project skills include .opencode/skills, .agents/skills, .claude/skills,
+# .codex/skills and .grok/skills -- they shadow a global skill of the same name.
 set -uo pipefail
 
 repo_only=0
@@ -72,7 +72,8 @@ emit() { # emit <rank|group override or ""> <skills-dir>
   [ -d "$dir" ] || return 0
   for skill in "$dir"/*/; do
     [ -f "$skill/SKILL.md" ] || continue
-    name="$(basename "$skill")"
+    name="$(awk '/^name:[[:space:]]/ {sub(/^name:[[:space:]]*/, ""); gsub(/[\047\042]/, ""); print; exit}' "$skill/SKILL.md")"
+    [ -n "$name" ] || name="$(basename "$skill")"
     case "$name" in _*) continue ;; esac
     if [ -n "$override" ]; then
       group="$override"
@@ -88,10 +89,19 @@ root="$(git rev-parse --show-toplevel 2>/dev/null)" || root=""
 in_git=1; [ -n "$root" ] || { root="$PWD"; in_git=0; }
 
 collected="$(
-  for d in .claude/skills .agents/skills .codex/skills .grok/skills; do
-    emit "0|this repo · $d" "$root/$d"
+  current="$PWD"
+  while :; do
+    for d in .opencode/skills .agents/skills .claude/skills .codex/skills .grok/skills; do
+      label="$d"
+      [ "$current" = "$root" ] || label="${current#"$root"/}/$d"
+      emit "0|this repo · $label" "$current/$d"
+    done
+    [ "$current" = "$root" ] && break
+    [ "$current" = / ] && break
+    current="$(dirname "$current")"
   done
   if [ "$repo_only" -eq 0 ]; then
+    emit "" "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills"
     emit "" "$HOME/.claude/skills"
     # installed_plugins.json names the version of each plugin actually in use;
     # the cache keeps older ones around, and listing those would show the same
@@ -114,7 +124,7 @@ fi
 if [ -z "$collected" ]; then
   if [ "$repo_only" -eq 1 ]; then
     [ "$in_git" -eq 1 ] \
-      && echo "No repo skills: $root defines none (looked in .claude/skills, .agents/skills, .codex/skills, .grok/skills)." \
+      && echo "No repo skills: $root defines none (looked in .opencode/skills, .agents/skills, .claude/skills, .codex/skills, .grok/skills)." \
       || echo "Not inside a git repo, and $PWD defines no skills."
   else
     echo "No skills found."
@@ -124,7 +134,7 @@ fi
 
 tmp="$(mktemp -t list-skills)" || exit 1
 trap 'rm -f "$tmp"' EXIT
-printf '%s\n' "$collected" | LC_ALL=C sort -t"$(printf '\t')" -k1,1 -k2,2 > "$tmp"
+printf '%s\n' "$collected" | awk -F'\t' '!seen[($1 ~ /^0\|/ ? "repo" : "global") FS $2]++' | LC_ALL=C sort -t"$(printf '\t')" -k1,1 -k2,2 > "$tmp"
 
 width="${COLUMNS:-0}"
 [ "$width" -gt 20 ] 2>/dev/null || width="$(tput cols 2>/dev/null)" || width=0

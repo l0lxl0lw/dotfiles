@@ -8,9 +8,11 @@ trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_PROFILE OPENCODE_WORKFLOW_REVISION
 mkdir -p "$HOME/dotfiles/opencode"
-for name in skills commands agents runtime tui; do
+for name in commands agents runtime tui; do
   ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
 done
+mkdir -p "$HOME/dotfiles/ai"
+ln -s "$repo_root/ai/shared" "$HOME/dotfiles/ai/shared"
 ln -s "$repo_root/opencode/tui.json" "$HOME/dotfiles/opencode/tui.json"
 ln -s "$repo_root/opencode/profiles.json" "$HOME/dotfiles/opencode/profiles.json"
 compdef() { :; }
@@ -33,16 +35,16 @@ done
 for f in "$repo_root"/opencode/commands/*.md; do
   assert_link_to "$HOME/.config/opencode/commands/${f:t}" "$f"
 done
-for f in "$repo_root"/opencode/skills/git/*/SKILL.md; do
+for f in "$repo_root"/ai/shared/skills/git/*/SKILL.md; do
   [[ ! -e "$HOME/.config/opencode/commands/${f:h:t}.md" ]] || fail "redundant Git command link"
 done
-skills=("$repo_root"/opencode/skills/**/SKILL.md(N.))
+skills=("$repo_root"/ai/shared/skills/**/SKILL.md(N.))
 (( ${#skills} > 0 )) || fail "empty OpenCode catalog"
 for f in "${skills[@]}"; do
   assert_link_to "$HOME/.config/opencode/skills/${f:h:t}" "${f:h}"
 done
 [[ ! -e "$HOME/.config/opencode/skills/_lib" ]] || fail "helper directory became a skill"
-[[ ! -e "$HOME/.config/opencode/skills/readme" ]] || fail "shared skill leaked into OpenCode"
+assert_link_to "$HOME/.config/opencode/skills/readme" "$repo_root/ai/shared/skills/utilities/readme"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
 
 # A path containing spaces must be honored without touching the default tree.
