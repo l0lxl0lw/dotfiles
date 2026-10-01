@@ -8,7 +8,7 @@ outside dotfiles.
 ## Installed layout
 
 - Vault: `vault` in `~/.config/life-memory/config.json` (the installer reuses this path)
-- Default vault on macOS: `~/Library/CloudStorage/Dropbox/sync/obsidian/Life`
+- Default vault for a new setup: `~/Documents/Life`; existing configured vaults are reused
 - Config: `~/.config/life-memory/config.json`
 - Python/Basic Memory: `~/.local/share/life-memory-venv/bin/`
 - State/queue/config backups/note history: `~/.local/state/life-memory/`
@@ -64,15 +64,27 @@ by the synthesized-note writer. Earlier note bytes are retained in note-history.
 
 ## Setup on another Mac
 
-Requires Python 3.12+ and installed/authenticated assistant CLIs. The default
-vault uses Dropbox's macOS CloudStorage location; install Dropbox first or configure a
-different `vault` path in the Life memory config before running setup.
+The guided route is `~/dotfiles/deploy.sh --only life-memory`. It offers Python
+3.12 and an isolated Basic Memory environment, asks for selected installed clients,
+vault and daily-backup paths, and offers native MCP registration and launchd.
+It obtains consent before setup; changed JSON settings and launchd definitions get
+content-addressed backups under `~/.local/state/life-memory/config-backups`.
+Those backups are separate from `deploy.sh --restore`.
+
+For manual setup, Python 3.12+ and installed/authenticated assistant CLIs are
+required. Use `--clients claude,codex,opencode` to select integrations and
+`--vault /absolute/path` / `--backup /absolute/path` to choose storage. A fresh setup
+defaults to `~/Documents/Life`; an existing vault cannot be relocated through setup.
+Dropbox is optional; install/sync it first if selecting a Dropbox path.
+OpenCode JSONC and settings symlinks require manual reconciliation; setup fails
+before creating notes/hooks in those cases. `XDG_CONFIG_HOME` and `CODEX_HOME`
+are respected for the corresponding clients.
 
 ```sh
 python3.12 -m venv ~/.local/share/life-memory-venv
 ~/.local/share/life-memory-venv/bin/pip install --pre 'basic-memory==0.23.2'
-python3.12 ~/dotfiles/ai/memory/setup.py
-BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory project add life ~/Library/CloudStorage/Dropbox/sync/obsidian/Life --local --default
+python3.12 ~/dotfiles/ai/memory/setup.py --clients claude,codex,opencode --vault "$HOME/Documents/Life"
+BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory project add life "$HOME/Documents/Life" --local --default
 BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory config set auto_update false
 BASIC_MEMORY_NO_PROMOS=1 ~/.local/share/life-memory-venv/bin/basic-memory config set ensure_frontmatter_on_sync false
 ```

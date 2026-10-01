@@ -1,5 +1,15 @@
 # OpenCode Config
 
+## Fresh-machine setup
+
+Run `~/dotfiles/deploy.sh --only opencode`. The wizard offers missing OpenCode,
+Python and GitHub CLI installations, creates the initial configuration directory,
+and synchronizes tracked resources with backup/skip choices for collisions.
+It respects `XDG_CONFIG_HOME`. Sign in to your provider inside OpenCode and run
+`gh auth login` for GitHub workflows. Check the models in `profiles.json` against
+your account's access. Quit and restart OpenCode after catalog changes.
+See the [root README](../README.md) for updates, restoration and optional memory.
+
 ## Standalone learning skills
 
 Six independent teaching procedures live under `ai/shared/skills/learning/`, each

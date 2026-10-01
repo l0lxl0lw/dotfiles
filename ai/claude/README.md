@@ -315,7 +315,7 @@ my-project/
 
 ## How It Works
 
-1. **Auto-sync**: `~/dotfiles/zsh/zshrc.conf` pulls the dotfiles repo from GitHub daily
+1. **Explicit updates**: run `git pull --ff-only` from `~/dotfiles`; shell startup does not access the network
 2. **Skills**: `claude_merge_config` symlinks each tool-local or shared `skills/**/SKILL.md` parent dir flat to `~/.claude/skills/<name>`
 3. **Agents**: each `agents/**/*.md` is symlinked into a mirrored tree under `~/.claude/agents`, and invoked automatically by Claude Code when a task matches their descriptions
 4. **Hooks**: every top-level file in `hooks/` is symlinked into `~/.claude/hooks`, and `statusline.sh` is wired into `settings.json` as the statusline command. Adding another script to `hooks/` is never sufficient on its own — nothing runs it until something in `settings.json` names it
@@ -324,8 +324,9 @@ Because it symlinks, editing a skill's contents takes effect immediately. Adding
 
 ## Setup
 
-1. Clone dotfiles to `~/dotfiles` and run `./deploy.sh`
-2. Open a new shell, then run `claude_merge_config` once
+1. Clone dotfiles to `~/dotfiles` and run `./deploy.sh --only claude`.
+2. Accept installation if Claude/jq is missing; review backups/conflicts, then launch Claude to sign in.
+   The installer performs the initial sync and initializes status-line settings.
 
 Run `claude_merge_config` again after adding or renaming a skill, agent, or hook. Editing an
 existing linked file takes effect immediately. The function does not install a `SessionStart`
@@ -335,7 +336,7 @@ Safe to re-run at any time — it only removes symlinks it owns, and leaves gsta
 
 ## Adding Content
 
-- **Instructions**: Edit `CLAUDE.md` with global preferences
+- **Instructions**: `~/.claude/CLAUDE.md` remains machine-local; the `CLAUDE.md` here is repository-scoped guidance
 - **Skills**: Add a directory to `skills/<skill-name>/SKILL.md` with frontmatter:
   ```yaml
   ---

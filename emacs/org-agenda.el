@@ -33,7 +33,8 @@
 (setq org-agenda-skip-scheduled-if-deadline-is-shown t)
 
 ;; agenda set which files to look for
-(setq org-agenda-files (list "~/Dropbox/org/work.org"))
+(when (and (not org-agenda-files) (file-exists-p "~/Dropbox/org/work.org"))
+  (setq org-agenda-files (list "~/Dropbox/org/work.org")))
 
 ;; open agenda in current window
 (setq org-agenda-window-setup (quote current-window))
@@ -94,4 +95,3 @@
        ((daily today remove-match)
         (500 600 700 800 900 1000 1100 1200 1300 1400 1500 1600 1700 1800 1900 2000 2100 2200 2300 2400)
         "......" "----------------")))
-

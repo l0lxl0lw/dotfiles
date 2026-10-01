@@ -3,6 +3,10 @@
 Tracked config for the [Codex CLI](https://github.com/openai/codex), symlinked into
 `~/.codex/` by `codex_merge_config` (in `~/dotfiles/zsh/functions.zsh`).
 
+Run `~/dotfiles/deploy.sh --only codex` for guided installation, initial settings,
+and conflict/backup prompts. `CODEX_HOME`, when set, replaces `~/.codex` throughout
+the integration. Launch Codex afterwards to sign in.
+
 ```
 dotfiles/ai/codex/
 ├── AGENTS.md            -> ~/.codex/AGENTS.md     # global instructions, every session
@@ -114,7 +118,8 @@ clobbers the block, the next `codex` run restores it. Before swapping the file i
 candidate is parsed by a real Codex process against a throwaway `CODEX_HOME` — if it
 wouldn't load (a duplicate `[tui]` table, a typo in the fragment), the write is refused and
 the working config is left alone. A copy of the previous file is kept at
-`~/.codex/config.toml.dotfiles.bak`.
+`$CODEX_HOME/config.toml.dotfiles-backup.<unique-id>` (default home: `~/.codex`).
+Interactive installer changes instead use its chosen backup policy and manifest.
 
 ## Adding a skill
 
@@ -194,8 +199,8 @@ and bundled runtime directories, which are real dirs and are never touched. Code
 symlinked skills normally. Shared skills are symlinked directly from their source
 directories, so editing their contents updates both tools immediately.
 
-Sync runs from a `codex()` shell wrapper rather than a hook, because Codex has no hook
-mechanism (`codex --help` exposes `plugin` and `mcp`, nothing session-scoped). The wrapper
+Catalog sync runs from a `codex()` shell wrapper before launch. Native lifecycle hooks
+are used separately by the optional Life memory integration. The wrapper
 syncs, stages repository skills, runs the real binary, and cleans up when it exits. This
 costs nothing on shells that never run Codex, keeps global config current at launch, and
 leaves the repository untouched.

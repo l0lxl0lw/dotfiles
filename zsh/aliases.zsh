@@ -50,5 +50,5 @@ alias ccp='claude --chrome --permission-mode plan'
 alias cct='claude --dangerously-skip-permissions --chrome'
 
 # USE PYTHON3
-alias python='/usr/bin/python3'
-alias pip='/usr/bin/pip3'
+alias python='python3'
+alias pip='python3 -m pip'

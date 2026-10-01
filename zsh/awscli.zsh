@@ -1,5 +1,3 @@
-export PATH=/usr/local/bin/:$PATH
-
 # Load and initialize completion system with caching (much faster)
 autoload -Uz compinit bashcompinit
 typeset -i updated_at=$(date +'%j' -r ~/.zcompdump 2>/dev/null || stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null || echo 0)
@@ -10,7 +8,9 @@ else
 fi
 bashcompinit
 
-complete -C $(which aws_completer) aws
+if (( $+commands[aws_completer] )); then
+    complete -C "$commands[aws_completer]" aws
+fi
 
 
 logs() {

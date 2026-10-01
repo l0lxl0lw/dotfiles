@@ -1,9 +1,14 @@
 # EMACS
 
 ## Initial Setup
-1. download emacs
-1. cleanup: `rm -rf ~/.emacs* ~/.spacemacs`
-1. install spacemacs: `git clone https://github.com/syl20bnr/spacemacs ~/.emacs.d`
+Run `~/dotfiles/deploy.sh --only emacs`. It offers Emacs, clones Spacemacs if
+absent, and copies `spacemacs.el` into a writable `~/.spacemacs`, with a backup
+choice before replacement. Existing non-Spacemacs installations are preserved and
+reported for manual reconciliation. First launch downloads Spacemacs packages.
+The starter loads main/Org/agenda settings; set your own `org-agenda-files` in
+`dotspacemacs/user-config`. No Dropbox directory is required.
+
+For manual Spacemacs customization:
 1. select vim style, heavy with full features
 1. go to dotfile: `<SPC> f e d`
 1. then enable layers: (ex. org, org-agenda)
@@ -12,7 +17,7 @@
 1. dotspacemacs-auto-resume-layouts : `t`
 1. dotspacemacs-line-numbers : `t`
 1. dotspacemacs-whitespace-cleanup : `t`
-1. update to development branch to get latest release: `cd ~/.emacs.d && git checkout develop && git pull` then reload `<SPC> f e R`
+1. update explicitly using `~/dotfiles/deploy.sh --update --only emacs`, then reload `<SPC> f e R`
 1. add `(load-library "~/dotfiles/emacs/FILE1.el") (load-library "~/dotfiles/emacs/FILE2.el")` to function: `dotspacemacs/user-config` in `.spacemacs` file, then `<SPC> q r` to restart
 
 

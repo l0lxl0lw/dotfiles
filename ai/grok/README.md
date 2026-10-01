@@ -3,6 +3,11 @@
 Tracked config for the [Grok CLI](https://github.com/xai-org), symlinked into
 `~/.grok/` by `grok_merge_config` (in `~/dotfiles/zsh/functions.zsh`).
 
+Run `~/dotfiles/deploy.sh --only grok` for initial configuration and backup prompts.
+Install your intended Grok CLI first: the installer currently has no verified Grok
+package registration and reports a missing executable instead of guessing one.
+`GROK_HOME` overrides the default configuration directory.
+
 ```
 dotfiles/ai/grok/
 ├── AGENTS.md             -> ~/.grok/AGENTS.md             # global instructions, every session

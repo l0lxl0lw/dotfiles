@@ -1,1 +1,2 @@
-source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+[[ -r "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+  source "$HOME/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh"

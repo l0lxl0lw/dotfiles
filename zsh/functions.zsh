@@ -93,7 +93,7 @@ _ca() {
   done
   _describe 'agent' agents
 }
-compdef _ca ca
+(( $+functions[compdef] )) && compdef _ca ca
 
 # Claude --agent shortcuts with tab completion
 ccaa() { claude --chrome --permission-mode auto --agent "${@##*/}"; }
@@ -125,7 +125,7 @@ _claude_agents() {
   (( ${#usr_vals} )) && compadd -l -V usr -X '== User Agents ==' -d usr_disp -a usr_vals
   (( ${#proj_vals} )) && compadd -l -V proj -X '== Project Agents ==' -d proj_disp -a proj_vals
 }
-compdef _claude_agents ccaa ccta
+(( $+functions[compdef] )) && compdef _claude_agents ccaa ccta
 
 # ---------------------------------------------------------------------------
 # Linking tracked config into Claude, Codex, Grok and OpenCode user directories
@@ -151,6 +151,10 @@ typeset -gi _AGENTCFG_LINKED=0 _AGENTCFG_REMOVED=0 _AGENTCFG_SKIPPED=0
 
 _agentcfg_reset() { _AGENTCFG_LINKED=0; _AGENTCFG_REMOVED=0; _AGENTCFG_SKIPPED=0 }
 
+_agentcfg_enabled() {
+  [[ "${DOTFILES_INSTALL:-}" == 1 || ! -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/$1" ]]
+}
+
 # True if $1 is a symlink whose target lies under a root we own. Reads the
 # literal link target rather than testing -e, so a DANGLING link still matches
 # and gets cleaned up -- ${1:A} resolves a broken link to itself and would miss
@@ -172,6 +176,19 @@ _agentcfg_is_managed() {
 # or directory, or a symlink another installer owns.
 _agentcfg_link() {
   local target="$1" dst="$2" what="$3"
+  if [[ "${DOTFILES_INSTALL:-}" == 1 ]]; then
+    [[ -L "$dst" && "$(readlink "$dst")" == "$target" ]] && return 0
+    local result
+    bash "$DOTFILES_INSTALL_ROOT/install/link.sh" link "$target" "$dst"
+    result=$?
+    if (( result == 0 )); then
+      (( _AGENTCFG_LINKED++ )); return 0
+    elif (( result == 2 )); then
+      (( _AGENTCFG_SKIPPED++ )); return 1
+    else
+      exit "$result"
+    fi
+  fi
   if [[ -L "$dst" ]]; then
     if _agentcfg_is_managed "$dst"; then
       [[ "$(readlink "$dst")" == "$target" ]] && return 0   # already correct
@@ -288,6 +305,7 @@ _agentcfg_report() {
 # Run by hand after adding or renaming a skill, agent, or hook. Existing linked
 # files update immediately because they are symlinks.
 claude_merge_config() {
+  _agentcfg_enabled claude || return 0
   emulate -L zsh          # glob qualifiers work regardless of caller's options
   setopt extended_glob
 
@@ -353,10 +371,25 @@ claude_merge_config() {
   # before the move, so a jq failure can never truncate settings.json.
   local settings="$claude_dir/settings.json"
   local want='sh ~/.claude/hooks/statusline.sh'
-  if [[ -e "$claude_dir/hooks/statusline.sh" && -f "$settings" ]] && (( $+commands[jq] )); then
+  if [[ -e "$claude_dir/hooks/statusline.sh" && -f "$settings" && ! -L "$settings" ]] && (( $+commands[jq] )); then
     local have tmp
-    have=$(jq -r '.statusLine.command // ""' "$settings" 2>/dev/null)
+    have=$(jq -r '.statusLine.command // ""' "$settings" 2>/dev/null) || {
+      echo "claude_merge_config: invalid settings.json; left untouched" >&2
+      return 1
+    }
     if [[ "$have" != "$want" ]]; then
+      if [[ "${DOTFILES_INSTALL:-}" == 1 ]]; then
+        bash "$DOTFILES_INSTALL_ROOT/install/link.sh" approve "$settings"
+        local approval=$?
+        if (( approval == 2 )); then
+          (( _AGENTCFG_SKIPPED++ )); _agentcfg_report claude_merge_config; return 0
+        elif (( approval != 0 )); then
+          exit "$approval"
+        fi
+      else
+        echo "claude_merge_config: statusLine differs; run ~/dotfiles/deploy.sh --only claude to review" >&2
+        (( _AGENTCFG_SKIPPED++ )); _agentcfg_report claude_merge_config; return 0
+      fi
       tmp=$(mktemp "${settings}.XXXXXX") || return 1
       if jq --arg cmd "$want" \
            '.statusLine = {"type":"command","command":$cmd}' "$settings" >"$tmp" \
@@ -375,14 +408,14 @@ claude_merge_config() {
 
 # Link ~/dotfiles/ai/codex into ~/.codex (skills, AGENTS.md).
 #
-# Codex has no hook mechanism, so this is driven by the codex() wrapper below --
-# it runs just before the binary launches, which costs nothing on shells that
+# Sync runs just before the binary launches, which costs nothing on shells that
 # never invoke codex.
 codex_merge_config() {
+  _agentcfg_enabled codex || return 0
   emulate -L zsh
   setopt extended_glob
 
-  local codex_dir="$HOME/.codex"
+  local codex_dir="${CODEX_HOME:-$HOME/.codex}"
   local repo="$HOME/dotfiles/ai/codex"
   [[ -d "$repo" ]] || { echo "codex_merge_config: $repo not found" >&2; return 1 }
   # Don't create ~/.codex; its absence means Codex isn't installed here.
@@ -415,11 +448,23 @@ codex_merge_config() {
   local cfg="$codex_dir/config.toml"
   local beg='# >>> dotfiles managed >>>'
   local fin='# <<< dotfiles managed <<<'
-  if [[ -f "$managed" && -f "$cfg" ]]; then
+  if [[ -f "$managed" && -f "$cfg" && ! -L "$cfg" ]]; then
     local current desired tmp probe
     current=$(awk -v b="$beg" -v e="$fin" 'index($0,b){f=1;next} index($0,e){f=0;next} f' "$cfg")
     desired=$(<"$managed")
     if [[ "$current" != "$desired" ]]; then
+      if [[ "${DOTFILES_INSTALL:-}" == 1 ]]; then
+        bash "$DOTFILES_INSTALL_ROOT/install/link.sh" approve "$cfg"
+        local approval=$?
+        if (( approval == 2 )); then
+          (( _AGENTCFG_SKIPPED++ )); _agentcfg_report codex_merge_config; return 0
+        elif (( approval != 0 )); then
+          exit "$approval"
+        fi
+      elif ! command grep -q '^# >>> dotfiles managed >>>$' "$cfg"; then
+        echo "codex_merge_config: run ~/dotfiles/deploy.sh --only codex to approve managed settings" >&2
+        (( _AGENTCFG_SKIPPED++ )); _agentcfg_report codex_merge_config; return 0
+      fi
       tmp=$(mktemp "${cfg}.XXXXXX") || return 1
       {
         # Strip any previous block, then drop trailing blank lines so repeated
@@ -439,7 +484,11 @@ codex_merge_config() {
       probe="${tmp}.home"
       mkdir -p "$probe" && cp "$tmp" "$probe/config.toml"
       if CODEX_HOME="$probe" command codex debug prompt-input >/dev/null 2>&1; then
-        cp -p "$cfg" "$cfg.dotfiles.bak"
+        if [[ "${DOTFILES_INSTALL:-}" != 1 ]]; then
+          local backup
+          backup=$(mktemp "${cfg}.dotfiles-backup.XXXXXX") || return 1
+          cp -p "$cfg" "$backup" || return 1
+        fi
         mv -f "$tmp" "$cfg"
         echo "codex_merge_config: updated managed block in config.toml"
       else
@@ -457,6 +506,7 @@ codex_merge_config() {
 # Sync tracked Codex config, expose this repository's Claude skills only while
 # the process is alive, then hand off to the real binary.
 codex() {
+  if ! _agentcfg_enabled codex; then command codex "$@"; return $?; fi
   codex_merge_config || return
 
   local stage="" exit_code=1
@@ -481,6 +531,7 @@ codex() {
 # shell -- an IDE or ACP client running `grok agent stdio`. The sync converges and
 # is silent when there is nothing to do, so running it twice costs nothing.
 grok_merge_config() {
+  _agentcfg_enabled grok || return 0
   emulate -L zsh
   setopt extended_glob
 
@@ -561,6 +612,7 @@ grok() {
 # Link shared skills and OpenCode native commands/agents into its config directory.
 # Existing machine-local JSON/JSONC files remain untouched.
 opencode_merge_config() {
+  _agentcfg_enabled opencode || return 0
   emulate -L zsh
   setopt extended_glob
 
@@ -622,6 +674,7 @@ opencode_merge_config() {
 
 # Sync before startup; `command` bypasses this wrapper and preserves arguments.
 opencode() {
+  if ! _agentcfg_enabled opencode; then command opencode "$@"; return $?; fi
   opencode_merge_config || return
   # A nested invocation retains its launch snapshot, even if live dotfiles changed.
   local workflow_root="${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/opencode}"
