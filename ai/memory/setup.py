@@ -276,8 +276,8 @@ Raw logging does not prove that a summary was written; pending summaries stay vi
             dest.symlink_to(SKILL, target_is_directory=True)
     def opencode(c):
         c.setdefault("$schema", "https://opencode.ai/config.json")
-        c.setdefault("mcp", {})["life-memory"] = {"type": "local", "command": [BM, "mcp", "--project", "life"],
-            "environment": {"BASIC_MEMORY_NO_PROMOS": "1", "BASIC_MEMORY_FORCE_LOCAL": "true"}, "enabled": True}
+        c.setdefault("mcp", {})["life-memory"] = {"type": "remote", "url": "http://127.0.0.1:8766/mcp",
+            "oauth": False, "enabled": True}
         plugin = str(ROOT / "ai/memory/life-memory.js")
         plugins = c.setdefault("plugin", [])
         if plugin not in plugins:

@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 export default async ({ client, directory }) => {
   const configPath = process.env.LIFE_MEMORY_CONFIG || join(homedir(), ".config/life-memory/config.json")
@@ -37,6 +37,19 @@ export default async ({ client, directory }) => {
     await run(["capture", "opencode"], { session_id: id, cwd: directory, messages })
   }
   return {
+    config: async (config) => {
+      if (config.mcp?.["life-memory"]?.url !== "http://127.0.0.1:8766/mcp" ||
+          config.mcp["life-memory"].enabled === false) return
+      await new Promise((resolve, reject) => {
+        const p = spawn(cfg.python, [join(dirname(cfg.runtime), "shared_mcp.py")], {
+          env: process.env, stdio: ["ignore", "ignore", "pipe"],
+        })
+        let err = ""
+        p.stderr.on("data", b => { err += b })
+        p.on("error", reject)
+        p.on("close", code => code === 0 ? resolve() : reject(new Error(err)))
+      })
+    },
     "experimental.chat.system.transform": async (input, output) => {
       // User message metadata events may precede text-part persistence. Capture
       // again before inference so the current source is available for checkpointing.

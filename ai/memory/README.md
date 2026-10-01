@@ -26,6 +26,33 @@ Its global JSON config also registers the plugin, vault reference, and MCP conne
 
 ## Behavior
 
+### Shared OpenCode MCP
+
+OpenCode connects to `http://127.0.0.1:8766/mcp`. The Life plugin's config hook runs
+`shared_mcp.py` before MCP initialization. It verifies the endpoint's MCP identity,
+or serializes startup using a file lock and asks launchd to start
+`local.life-memory.mcp`. Five OpenCode instances share one Basic Memory process.
+The service is constrained to project `life`, forces local routing, and binds only
+to loopback. Its LaunchAgent is registered lazily, with `RunAtLoad=false`.
+
+The service stays available when a client closes. After a stop/crash, the next
+OpenCode initialization starts it again; existing clients may need reconnecting.
+There is no periodic health monitor. Logs are `shared-mcp.log` and
+`shared-mcp-errors.log` in the configured state directory. An unrelated HTTP
+service on the port is rejected rather than used. Startup waits up to 60 seconds
+after requesting launchd startup; simultaneous callers wait on the startup lock.
+
+Restart existing OpenCode instances after switching configuration: their old
+stdio servers cannot be shared and exit with their owning clients. Claude/Codex
+registrations are separate. Pure/plugin-disabled OpenCode can connect while the
+shared service is up, but cannot perform the plugin's on-demand startup.
+
+```sh
+~/.local/share/life-memory-venv/bin/python ~/dotfiles/ai/memory/shared_mcp.py
+~/.local/share/life-memory-venv/bin/python ~/dotfiles/ai/memory/smoke_shared_mcp.py
+launchctl print gui/$(id -u)/local.life-memory.mcp
+```
+
 `memory.py hook claude|codex` reads JSON stdin from native lifecycle events. It preserves
 unique structured transcript records, including tool data, and projects user/assistant
 text to Markdown. A partial final JSONL record is deferred. Previously captured records
