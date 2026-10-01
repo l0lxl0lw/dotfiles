@@ -23,23 +23,19 @@ dotfiles/ai/claude/
 
 dotfiles/ai/shared/
 └── skills/
-    ├── business/          # Offer/leads/money and office-hours skills
-    ├── codebase/          # Codebase comprehension (trace-callpath)
-    ├── community/         # Skills from individual repos
+    ├── explain/           # Code-grounded explanations
     ├── git/               # Custom git workflow skills
-    ├── impeccable/        # Design skills from pbakaus/impeccable
-    ├── integrations/      # Custom integration skills
-    ├── mattpocock/        # Skills from mattpocock/skills, prefixed pocock-
-    ├── omc/               # Planning skills from oh-my-claudecode
-    ├── understand/        # Understanding a concept as this codebase implements it
-    └── utilities/         # Custom utility skills
+    ├── learn/             # Practice, learning plans, and understanding checks
+    ├── remember/          # Shared Life vault memory
+    ├── use/               # Tool-specific integrations
+    └── write/             # Writing review and humanization
 ```
 
-Category directories are organisational only — `claude_merge_config` flattens every
-`*/SKILL.md` to `~/.claude/skills/<name>`, so a skill's folder never appears in its slash
-command. A directory whose name starts with `_` holds shared prose rather than a skill:
-`understand/_lib/` is read by the skills beside it via `../_lib/<file>.md`, which resolves
-correctly through the symlink because `..` follows the link target, not the link.
+`claude_merge_config` flattens every `*/SKILL.md` to `~/.claude/skills/<name>`.
+Names explicitly repeat their folder prefix: `write/write-better` becomes
+`/write-better`. Directory and frontmatter names must match. `_lib` directories hold
+shared prose rather than skills. Code explanations and code-grounded learning skills
+read `explain/_lib/` relative to their physical directory, including across categories.
 
 `claude_merge_config` imports both `ai/claude/skills` and `ai/shared/skills`, flattening each
 skill directory into `~/.claude/skills/<name>`. Put new portable skills in `ai/shared/skills`;
@@ -166,53 +162,24 @@ Change the order or items in both files together, or they drift.
 | `/git-cleanup` | Feature branch: after a verified merge, delete the branch and refresh the default branch | Yes |
 | `/git-explain-diff` | Explain the uncommitted working tree — staged, unstaged and untracked — grouped by behavioral change. Read-only | Yes |
 | `/git-explain-branch` | Explain what this branch changes vs the default branch, with a contract/migration/collision risk pass. Read-only | Yes |
-| `/orca-sync-fanout` | Dispatch `/git-sync` into every Orca workspace that is behind the default branch | No |
-| `/explain-college-level` | Explain a concept at college-student depth, grounded in how this repo implements it | No |
+| `/git-sync-orca-workspaces` | Dispatch `/git-sync` into every Orca workspace that is behind the default branch | No |
+| `/explain-code-concept` | Explain a concept at college-student depth, grounded in how this repo implements it | No |
 | `/explain-code-flow` | Same, plus the call path and call tree of how it runs — clickable `path:line` on every node | No |
-| `/quiz-me` | Ten concept questions with real-code distractors, scored at 80%, then teaches the misses | No |
-| `/poke-holes` | Explains, takes your explanation back, and attacks it until a round finds no holes | No |
-| `/trace-callpath` | Trace a runtime path to clickable `path:line` breakpoints, carried to the SQL and the outbound request. Read-only | Yes |
-| `/make-html` | Generate standalone HTML documents (Dracula theme, 20 example templates) | Yes |
-| `/readme` | Read README in current directory and execute instructions | Yes |
-| `/update-diagram` | Scan codebase and update existing diagram files | Yes |
-| `/notion` | Search, read, create, and manage Notion workspace content | Yes |
-| `/elevenlabs` | Generate speech, sound effects, music, clone voices, transcribe audio, manage AI agents | Yes |
-| `/remotion` | Best practices for Remotion video creation in React | Yes |
-| `/humanizer` | Remove signs of AI-generated writing from text | Yes |
-| `/load-memory` | Restore working memory from MEMORY.md at session start | Yes |
-| `/save-memory` | Save working memory from the current session into MEMORY.md | Yes |
-| `/plan` | Strategic planning with optional interview workflow | Yes |
-| `/ralph` | Self-referential loop until task completion with configurable reviewer | Yes |
-| `/ralplan` | Iterative planning with Planner, Architect, and Critic agents | Yes |
-| `/excalidraw-diagram-generator` | Generate Excalidraw diagrams from natural language descriptions | Yes |
-
-### Frontend Design — [Impeccable](https://github.com/pbakaus/impeccable)
-
-Design-focused skills for building polished, production-grade interfaces.
-
-| Skill | Description |
-|-------|-------------|
-| `/frontend-design` | Create distinctive frontend interfaces with high design quality (includes 7 reference docs) |
-| `/adapt` | Adapt designs across screen sizes, devices, and platforms |
-| `/animate` | Enhance features with purposeful animations and micro-interactions |
-| `/arrange` | Improve layout, spacing, and visual rhythm |
-| `/audit` | Comprehensive interface quality audit with severity ratings |
-| `/bolder` | Amplify safe designs to be more visually impactful |
-| `/clarify` | Improve UX copy, error messages, and microcopy |
-| `/colorize` | Add strategic color to monochromatic interfaces |
-| `/critique` | Evaluate design effectiveness with actionable UX feedback |
-| `/delight` | Add moments of joy and personality to interfaces |
-| `/distill` | Strip designs to their essence, removing unnecessary complexity |
-| `/extract` | Extract reusable components and design tokens into a design system |
-| `/harden` | Improve resilience: error handling, i18n, text overflow, edge cases |
-| `/normalize` | Normalize design to match your design system |
-| `/onboard` | Design onboarding flows, empty states, and first-time experiences |
-| `/optimize` | Improve interface performance: loading, rendering, animations, bundle size |
-| `/overdrive` | Push interfaces past conventional limits with ambitious implementations |
-| `/polish` | Final quality pass — alignment, spacing, consistency, and details |
-| `/quieter` | Tone down overly bold or visually aggressive designs |
-| `/teach-impeccable` | One-time setup to gather and persist design context for your project |
-| `/typeset` | Improve typography: font choices, hierarchy, sizing, and readability |
+| `/learn-quiz` | Ten concept questions with real-code distractors, scored at 80%, then teaches the misses | No |
+| `/learn-check-model` | Explains, takes your explanation back, and challenges it until a round finds no holes | No |
+| `/learn-crash-course` | Coach a practical crash course toward one useful task | Yes |
+| `/learn-plan` | Build a goal-driven learning schedule | Yes |
+| `/learn-foundations` | Explain the prerequisite idea that unlocks a topic | Yes |
+| `/learn-teach-back` | Challenge gaps in your own simple explanation | Yes |
+| `/learn-find-gaps` | Diagnose foundational gaps with five questions | Yes |
+| `/learn-scenarios` | Practice through realistic mistakes and retries | Yes |
+| `/use-notion` | Search, read, create, and manage Notion workspace content | Yes |
+| `/use-elevenlabs` | Generate speech, sound effects, music, clone voices, transcribe audio, manage AI agents | Yes |
+| `/use-remotion` | Best practices for Remotion video creation in React | Yes |
+| `/use-excalidraw` | Generate Excalidraw diagrams from natural language descriptions | Yes |
+| `/write-better` | Review a draft, explain improvements, and rewrite it | Yes |
+| `/write-humanize` | Remove signs of AI-generated writing from text | Yes |
+| `/remember-life` | Recall and checkpoint shared Life vault memory | Yes |
 
 ### gstack — [l0lxl0lw/gstack](https://github.com/l0lxl0lw/gstack)
 
@@ -352,12 +319,11 @@ Safe to re-run at any time — it only removes symlinks it owns, and leaves gsta
   ```
 
   `model` and `effort` are read by Claude Code 2.1.241's skill loader (`model: inherit`
-  means "leave the session model alone"). Two shared groups set them deliberately:
+  means "leave the session model alone"). Git skills set them deliberately:
 
   | Group | `model` | `effort` | Why |
   |---|---|---|---|
   | [`../shared/skills/git/`](../shared/skills/git) | `sonnet` | `medium` | Mechanical, heavily scripted workflows — the procedure is in the skill, not in the model |
-  | Most [`../shared/skills/utilities/`](../shared/skills/utilities) | `opus` | `high` | Open-ended judgement: diagrams, memory, and other utilities |
 
   Neither field reaches Codex — see [`../codex/README.md`](../codex/README.md#model-and-effort-do-not-cross-over).
 - **Agents**: Add `.md` files to `agents/` with frontmatter:
@@ -377,10 +343,8 @@ Some skills in this repo were sourced from open-source projects:
 
 | Source | Skills | Description |
 |--------|--------|-------------|
-| [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | `frontend-design`, `adapt`, `animate`, `arrange`, `audit`, `bolder`, `clarify`, `colorize`, `critique`, `delight`, `distill`, `extract`, `harden`, `normalize`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `teach-impeccable`, `typeset` | Design-focused skills for building polished frontend interfaces |
-| [github/awesome-copilot](https://github.com/github/awesome-copilot) | `excalidraw-diagram-generator` | Generate Excalidraw diagrams from natural language descriptions |
-| [blader/humanizer](https://github.com/blader/humanizer) | `humanizer` | Remove signs of AI-generated writing from text |
-| [oh-my-claudecode](https://github.com/anthropics/oh-my-claudecode) | `plan`, `ralph`, `ralplan` | Planning and iterative task completion agents |
+| [github/awesome-copilot](https://github.com/github/awesome-copilot) | `use-excalidraw` | Generate Excalidraw diagrams from natural language descriptions |
+| [blader/humanizer](https://github.com/blader/humanizer) | `write-humanize` | Remove signs of AI-generated writing from text |
 | [l0lxl0lw/gstack](https://github.com/l0lxl0lw/gstack) | `browse`, `ship`, `review`, `qa`, `investigate`, `office-hours`, `autoplan`, `plan-ceo-review`, `plan-eng-review`, `plan-design-review`, `plan-devex-review`, `design-consultation`, `design-html`, `design-review`, `design-shotgun`, `devex-review`, `canary`, `benchmark`, `land-and-deploy`, `document-release`, `retro`, `checkpoint`, `cso`, `codex`, `careful`, `guard`, `freeze`, `unfreeze`, `health`, `learn`, `open-gstack-browser`, `connect-chrome`, `pair-agent`, `qa-only`, `setup-browser-cookies`, `setup-deploy`, `gstack-upgrade` | Browser automation, QA, planning reviews, shipping, and safety guardrails |
 
 ## Useful References

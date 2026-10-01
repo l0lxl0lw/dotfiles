@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -25,9 +26,35 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "ai/shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertIn("workflow-execute", catalog)
-        self.assertIn("humanizer", catalog)
-        self.assertIn("remotion-best-practices", catalog)
+        self.assertEqual(len(catalog), 28)
+        self.assertIn("write-better", catalog)
+        removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
+        shared = ROOT.parent / "ai/shared/skills"
+        self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
+        self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
+                         {"write", "learn", "explain", "git", "use", "remember"})
+        for name, path in catalog.items():
+            self.assertEqual(name, path.parent.name)
+            self.assertTrue(name.startswith(path.relative_to(shared).parts[0] + "-"), name)
+        for stage in launch.STAGES:
+            self.assertNotIn("workflow-" + stage, catalog)
+            self.assertFalse((ROOT / "commands" / (stage + ".md")).exists())
+            self.assertFalse((ROOT / "agents" / ("workflow-" + stage + ".md")).exists())
+        self.assertIn("write-humanize", catalog)
+        self.assertIn("use-remotion", catalog)
+
+    def test_shared_skill_resources_resolve_from_live_and_pinned_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = launch.build_bundle(ROOT, Path(tmp))
+            for shared in (ROOT.parent / "ai/shared/skills", bundle / "opencode/skills"):
+                catalog = launch.skill_files(shared)
+                for path in catalog.values():
+                    text = path.read_text()
+                    resources = re.findall(r"`((?:\.\./)+[^`]+\.md)`", text)
+                    resources += re.findall(r"\]\(((?:\./)?(?:rules|references|templates|scripts)/[^)#]+)\)", text)
+                    for relative in resources:
+                        self.assertTrue((path.parent / relative).is_file(), (path, relative))
+                self.assertTrue((shared / "git/git-sync-orca-workspaces/scripts/survey.sh").stat().st_mode & 0o111)
 
     def test_project_precedence_and_nested_launch_does_not_leak(self):
         with tempfile.TemporaryDirectory() as tmp:

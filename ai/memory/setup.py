@@ -16,7 +16,7 @@ STATE = HOME / ".local/state/life-memory"
 PYTHON = str(HOME / ".local/share/life-memory-venv/bin/python")
 BM = str(HOME / ".local/share/life-memory-venv/bin/basic-memory")
 RUNTIME = str(ROOT / "ai/memory/memory.py")
-SKILL = ROOT / "ai/shared/skills/integrations/life-memory"
+SKILL = ROOT / "ai/shared/skills/remember/remember-life"
 
 
 def seed(rel, text):
@@ -76,7 +76,7 @@ def main():
             if not target.is_file() or not isinstance(json.loads(target.read_text()), dict):
                 parser.error(f"expected a JSON object at {target}")
     for client in clients & {"claude", "codex"}:
-        dest = (codex_dir if client == "codex" else HOME / ".claude") / "skills/life-memory"
+        dest = (codex_dir if client == "codex" else HOME / ".claude") / "skills/remember-life"
         if (dest.exists() or dest.is_symlink()) and not (dest.is_symlink() and dest.resolve() == SKILL):
             parser.error(f"existing skill requires reconciliation: {dest}")
     if not Path(PYTHON).exists():
@@ -173,7 +173,7 @@ Claude and Codex use lifecycle hooks. OpenCode uses a local event plugin.
 Original client records are retained in `.memory/raw`; readable projections live in Sources/Conversations.
 External attachments are referenced, not automatically copied. No inaccessible internal model state is captured.
 Capture only covers sessions that run the installed integration. Existing historical chats are not bulk-imported.
-Summaries are authored by the active assistant through the life-memory skill, using ordinary subscription/model usage.
+Summaries are authored by the active assistant through the remember-life skill, using ordinary subscription/model usage.
 There is no independent paid worker. Interrupted synthesis stays in the pending queue until a later session processes it.
 See [[System/Memory status]] for actual capture and pending status.
 
@@ -250,7 +250,7 @@ Raw logging does not prove that a summary was written; pending summaries stay vi
         "Source": "## Why I saved this\n\n## Summary\n\n## Original URL and author\n\n## Transcript or source\n\n## Related knowledge\n",
     }.items():
         seed(f"System/Templates/{name}.md", "# {{title}}\n\n" + body)
-    seed("AGENTS.md", "Read System/Memory rules.md and System/Linking rules.md. Use the life-memory skill. Preserve source records and human notes.\n")
+    seed("AGENTS.md", "Read System/Memory rules.md and System/Linking rules.md. Use the remember-life skill. Preserve source records and human notes.\n")
     seed("CLAUDE.md", "@AGENTS.md\n")
     hook_command = shlex.join([PYTHON, RUNTIME, "hook"])
     def add_hooks(c, client):
@@ -266,7 +266,7 @@ Raw logging does not prove that a summary was written; pending summaries stay vi
     if "codex" in clients:
         config(codex_dir / "hooks.json", lambda c: add_hooks(c, "codex"))
     for client in clients & {"claude", "codex"}:
-        dest = (codex_dir if client == "codex" else HOME / ".claude") / "skills/life-memory"
+        dest = (codex_dir if client == "codex" else HOME / ".claude") / "skills/remember-life"
         dest.parent.mkdir(parents=True, exist_ok=True)
         if dest.is_symlink() and dest.resolve() == SKILL:
             pass

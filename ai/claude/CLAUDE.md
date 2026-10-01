@@ -20,15 +20,12 @@ dotfiles/ai/claude/
 
 dotfiles/ai/shared/
 └── skills/
-    ├── business/          # Offer/leads/money and office-hours skills
-    ├── codebase/          # Codebase comprehension (trace-callpath)
-    ├── community/         # Skills from individual repos
+    ├── explain/           # Code-grounded explanations
     ├── git/               # Custom git workflow skills
-    ├── impeccable/        # Design skills from pbakaus/impeccable
-    ├── integrations/      # Custom integration skills
-    ├── mattpocock/        # Skills from mattpocock/skills, prefixed pocock-
-    ├── omc/               # Planning skills from oh-my-claudecode
-    └── utilities/         # Custom utility skills
+    ├── learn/             # Practice, learning plans, and understanding checks
+    ├── remember/          # Shared Life vault memory
+    ├── use/               # Tool-specific integrations
+    └── write/             # Writing review and humanization
 ```
 
 **Integration flow**: The `claude_merge_config()` zsh function (in `~/dotfiles/zsh/functions.zsh`) reads this directory and links it into `~/.claude/`:
@@ -51,7 +48,9 @@ Caveats worth knowing:
 
 ### Skills
 
-Create shared skills in `../shared/skills/<category>/<skill-name>/SKILL.md`.
+Create shared skills in `../shared/skills/<verb>/<verb>-<task>/SKILL.md`.
+The skill directory and frontmatter `name:` must match; `git` is the intentional
+exception to verb-only folder names. `_lib` directories are helpers, not skills.
 Use `skills/<category>/<skill-name>/SKILL.md` only for Claude-specific overrides.
 
 Every `SKILL.md` starts with YAML frontmatter:
@@ -85,7 +84,7 @@ After adding either, run `claude_merge_config` to create the symlink.
 
 - Skill names use kebab-case directories; agent names use kebab-case `.md` files
 - The `prompts/` directory is a reference archive — organized by provider (Anthropic, Google, OpenAI, xAI, Perplexity, Misc). Read-only, not loaded by Claude Code
-- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario, plus two read-only explainers and `orca-sync-fanout`. Skills are named for **what they do**; the branch they require is enforced in their first phase. Every skill here is model-invocable except `git-push-to-main` and `orca-sync-fanout`, which carry `disable-model-invocation: true` — the model can reach for any step of the lifecycle, but pushing straight to the default branch and fanning out across workspaces stay user-initiated. `_lib/` holds shared shell (`worktree.sh`) and is not a skill.
+- `ai/shared/skills/git/` has eight workflow-specific skills covering the whole branch lifecycle, each scoped to one scenario, plus two read-only explainers and `git-sync-orca-workspaces`. Skills are named for **what they do**; the branch they require is enforced in their first phase. Every skill here is model-invocable except `git-push-to-main` and `git-sync-orca-workspaces`, which carry `disable-model-invocation: true` — the model can reach for any step of the lifecycle, but pushing straight to the default branch and fanning out across workspaces stay user-initiated. `_lib/` holds shared shell (`worktree.sh`) and is not a skill.
 
   | Skill | Runs on | Does |
   |---|---|---|

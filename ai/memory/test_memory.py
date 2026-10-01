@@ -69,7 +69,9 @@ class MemoryTest(unittest.TestCase):
         p = self.cfg["state"] / "native.jsonl"
         m.atomic(p, json.dumps({"uuid": "u1", "type": "user", "message": {"role": "user", "content": "A new preference"}}) + "\n")
         event = {"session_id": "s", "transcript_path": str(p), "hook_event_name": "Stop"}
-        self.assertEqual(m.hook(self.cfg, "claude", event)["decision"], "block")
+        result = m.hook(self.cfg, "claude", event)
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("remember-life skill", result["reason"])
         self.assertEqual(m.hook(self.cfg, "claude", event), {})
 
     def test_pause_and_graph_health(self):

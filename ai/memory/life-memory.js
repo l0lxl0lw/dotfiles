@@ -58,7 +58,7 @@ export default async ({ client, directory }) => {
     },
     "experimental.session.compacting": async (input, output) => {
       await capture(input.sessionID)
-      output.context.push("Preserve the Life memory checkpoint obligation, vault path, and source links. Follow the life-memory skill before ending substantive work.")
+      output.context.push("Preserve the Life memory checkpoint obligation, vault path, and source links. Follow the remember-life skill before ending substantive work.")
     },
     event: async ({ event }) => {
       const info = event.properties?.info

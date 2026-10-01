@@ -40,7 +40,8 @@ try:
     if result is None:
         raise RuntimeError("OpenCode catalog API did not become ready")
     public = {item["name"]: item for item in result if not item["name"].startswith("wf-")}
-    for name in ("life-memory", "humanizer", "workflow-execute", "forced-feynman", "remotion-best-practices"):
+    for name in ("remember-life", "write-humanize", "write-better", "learn-teach-back", "use-remotion",
+                 "explain-code-flow", "learn-quiz", "git-sync-orca-workspaces"):
         assert name in public, name
         assert "/ai/shared/skills/" in str(Path(public[name]["location"]).resolve()), public[name]["location"]
     request = urllib.request.Request(f"http://127.0.0.1:{port}/command")
@@ -51,7 +52,18 @@ try:
         if info["location"] == "<built-in>":
             continue
         assert any(command.get("description") == "Skill fallback: " + name for command in commands.values()), name
-    assert commands["execute"]["agent"] == "workflow-execute"
+    retired = {"ticket", "research", "plan", "execute", "review", "commit"}
+    # OpenCode itself supplies /review. Check removal of our stage binding,
+    # without treating a native or independently configured command as ours.
+    for name in retired & commands.keys():
+        assert not commands[name].get("agent", "").startswith("workflow"), commands[name]
+        assert "workflow-" + name not in commands[name].get("template", ""), commands[name]
+    assert not any(name.startswith("workflow-") for name in public)
+    request = urllib.request.Request(f"http://127.0.0.1:{port}/agent")
+    request.add_header("Authorization", "Basic " + token)
+    with urllib.request.urlopen(request, timeout=60) as response:
+        agents = json.load(response)
+    assert not any(item["name"] == "workflow" or item["name"].startswith("workflow-") for item in agents)
     print(f"Installed OpenCode API: {len(public)} public/builtin/private skills, {len(result) - len(public)} pinned skills; shared locations and executable command registration verified")
 finally:
     process.terminate()

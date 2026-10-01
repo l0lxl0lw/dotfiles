@@ -7,6 +7,7 @@ test_tmp=${test_tmp:a}
 trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_PROFILE OPENCODE_WORKFLOW_REVISION
+unset OPENCODE_CONFIG_CONTENT OPENCODE_PRIVATE_SKILL_COMMANDS OPENCODE_SKILL_CATALOG
 mkdir -p "$HOME/dotfiles/opencode"
 for name in commands agents runtime tui; do
   ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
@@ -44,7 +45,8 @@ for f in "${skills[@]}"; do
   assert_link_to "$HOME/.config/opencode/skills/${f:h:t}" "${f:h}"
 done
 [[ ! -e "$HOME/.config/opencode/skills/_lib" ]] || fail "helper directory became a skill"
-assert_link_to "$HOME/.config/opencode/skills/readme" "$repo_root/ai/shared/skills/utilities/readme"
+assert_link_to "$HOME/.config/opencode/skills/write-better" "$repo_root/ai/shared/skills/write/write-better"
+assert_link_to "$HOME/.config/opencode/skills/learn-quiz" "$repo_root/ai/shared/skills/learn/learn-quiz"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
 
 # A path containing spaces must be honored without touching the default tree.
@@ -89,12 +91,19 @@ ln -s "$HOME/dotfiles/opencode/commands/implement-plan.md" "$dst/commands/implem
 ln -s "$HOME/dotfiles/opencode/skills/git/retired/SKILL.md" "$dst/commands/git-retired.md"
 ln -s "$HOME/dotfiles/opencode/skills/git/git-commit/SKILL.md" "$dst/commands/git-commit.md"
 ln -s "$HOME/dotfiles/opencode/commands/quiz-me.md" "$dst/commands/quiz-me.md"
+ln -s "$HOME/dotfiles/ai/shared/skills/workflow/workflow-execute" "$dst/skills/workflow-execute"
+ln -s "$HOME/dotfiles/opencode/commands/execute.md" "$dst/commands/execute.md"
+ln -s "$HOME/dotfiles/opencode/agents/workflow-execute.md" "$dst/agents/workflow-execute.md"
+ln -s "$HOME/dotfiles/ai/shared/skills/writing/clear-message" "$dst/skills/clear-message"
+ln -s "$HOME/dotfiles/ai/shared/skills/integrations/life-memory" "$dst/skills/life-memory"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
 rm "$dst/tui.json"
 print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.json"
 opencode_merge_config || fail "retired handoff cleanup"
 [[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" && ! -L "$dst/commands/git-retired.md" ]] || fail "retired managed links survived"
 [[ ! -L "$dst/commands/git-commit.md" && ! -L "$dst/commands/quiz-me.md" ]] || fail "redundant skill command links survived"
+[[ ! -L "$dst/skills/workflow-execute" && ! -L "$dst/commands/execute.md" && ! -L "$dst/agents/workflow-execute.md" ]] || fail "retired workflow links survived"
+[[ ! -L "$dst/skills/clear-message" && ! -L "$dst/skills/life-memory" ]] || fail "renamed skill links survived"
 [[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "foreign plugin removed"
 [[ -f "$dst/tui.json" && ! -L "$dst/tui.json" ]] || fail "machine-local TUI config removed"
 
@@ -108,6 +117,6 @@ rm "$dst/skills/git-commit"
 opencode 'argument with spaces'
 result=$?
 [[ $result == 23 ]] || fail "wrapper status/arguments/pre-launch sync: $result"
-WORKFLOW_EXPECT_VARIANT=medium opencode_workflow --profile baseline -- 'argument with spaces'
+opencode_workflow --profile baseline -- 'argument with spaces'
 [[ $? == 23 ]] || fail "explicit baseline profile forwarding"
 print -- "PASS: ${#skills} OpenCode skills, XDG/default paths, external-skill isolation, safe pruning, config preservation, idempotence and wrapper"

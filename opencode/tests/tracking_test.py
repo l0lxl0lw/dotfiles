@@ -554,18 +554,5 @@ class OrcaCommandContractTest(unittest.TestCase):
         self.assertEqual((result["outcome"], result["reason"]),
                          ("failed", "invalid_replacement"))
 
-    def test_ticket_contract_separates_new_issue_attachment(self):
-        root = Path(__file__).resolve().parents[1]
-        command = (root / "commands/ticket.md").read_text()
-        self.assertIn("workflow-ticket", command)
-        contract = " ".join((root.parent / "ai/shared/skills/workflow/workflow-ticket/SKILL.md").read_text().split())
-        self.assertIn("link-orca ISSUE", contract)
-        self.assertIn("Keep existing link (Recommended)", contract)
-        self.assertIn("Return issue creation/update, assignee/configured-project fields, and Orca attachment as separate outcomes", contract)
-        self.assertIn("or invoke `link-orca`", contract)
-        self.assertLess(contract.index("gh issue create"), contract.index("link-orca ISSUE"))
-        self.assertIn("neither downstream failure undoes the created issue or excuses skipping the other outcome", contract)
-
-
 if __name__ == "__main__":
     unittest.main()

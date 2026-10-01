@@ -19,7 +19,7 @@ outside dotfiles.
 - Daily ZIP backups (14 retained): configured `backup` folder; may be a Dropbox folder
 - LaunchAgent: `~/Library/LaunchAgents/local.life-memory.maintenance.plist`
 
-The portable skill is `../shared/skills/integrations/life-memory/SKILL.md`. Claude/Codex
+The portable skill is `../shared/skills/remember/remember-life/SKILL.md`. Claude/Codex
 use their normal skill symlinks. OpenCode registers that particular directory through
 native `skills.paths`, since the workflow launcher disables external skill discovery.
 Its global JSON config also registers the plugin, vault reference, and MCP connection.

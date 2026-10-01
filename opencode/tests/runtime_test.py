@@ -1,7 +1,6 @@
 """Snapshot/profile behavior without paid models or changing real HOME."""
 import importlib.util
 import json
-import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -33,24 +32,22 @@ class RuntimeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "changed"):
                 launch.validate_bundle(bundle)
 
-    def test_profiles_route_both_layers_and_preserve_user_configuration(self):
+    def test_retired_workflow_profiles_preserve_user_configuration(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp))
             env = {"HOME": "/real/home", "GH_TOKEN": "private-fixture-token", "OPENCODE_CONFIG_CONTENT": json.dumps({"model": "local/keep", "agent": {"custom": {"description": "keep"}}})}
-            for profile, model, effort in (("balanced", "openai/gpt-5.6-sol", "xhigh"),
-                                          ("baseline", "openai/gpt-5.6-sol", "medium"),
-                                          ("astra-high", "openai/gpt-6-astra", "high")):
+            for profile in ("balanced", "baseline", "astra-high"):
                 actual = launch.environment(bundle, profile, env)
                 cfg = json.loads(actual["OPENCODE_CONFIG_CONTENT"])
                 self.assertEqual(actual["HOME"], env["HOME"])
                 self.assertEqual(actual["GH_TOKEN"], env["GH_TOKEN"])
                 self.assertEqual(cfg["agent"]["custom"]["description"], "keep")
                 self.assertEqual(cfg["model"], "local/keep")
-                for item in (cfg["agent"]["workflow-execute"], cfg["command"]["execute"]):
-                    self.assertEqual(item["model"], model)
-                    self.assertEqual(item["variant"], effort)
-                self.assertTrue(cfg["command"]["execute"]["subtask"])
-                self.assertEqual(cfg["command"]["review"]["variant"], "medium")
+                self.assertEqual(launch.profile(bundle / "opencode", profile)[1], {})
+                self.assertFalse(any(name.startswith("workflow") for name in cfg["agent"]))
+                self.assertFalse(set(launch.STAGES) & cfg["command"].keys())
+                self.assertTrue({"sync", "track", "orca-coordinate", "orca-handoff"} <= cfg["command"].keys())
+                self.assertEqual(launch.environment(bundle, profile, actual), actual)
             self.assertNotIn("private-fixture-token", (bundle / "manifest.json").read_text())
             with self.assertRaises(RuntimeError):
                 launch.profile(bundle / "opencode", "missing")
@@ -71,17 +68,23 @@ class RuntimeTest(unittest.TestCase):
             self.assertEqual((bridge / "agents/vendor.md").resolve(), (custom / "agents/vendor.md").resolve())
             self.assertEqual(launch.environment(bundle, environ=env)["OPENCODE_CONFIG_DIR"], str(bridge))
             self.assertEqual(env["HOME"], "/real/home")
-            (custom / "agents/workflow-execute.md").write_text("conflicting custom worker")
+            (custom / "agents/codebase-analyzer.md").write_text("conflicting custom worker")
             with self.assertRaisesRegex(RuntimeError, "conflicts"):
                 launch.environment(bundle, environ={"OPENCODE_CONFIG_DIR": str(custom)})
 
-    def test_direct_launch_fallbacks_match_default_profile(self):
-        _, roles = launch.profile(ROOT)
-        for role, settings in roles.items():
-            paths = [ROOT / "agents" / (role + ".md")]
-            if role.startswith("workflow-"):
-                paths.append(ROOT / "commands" / (role.removeprefix("workflow-") + ".md"))
-            for path in paths:
-                text = path.read_text().split("---", 2)[1]
-                for key, value in settings.items():
-                    self.assertEqual(re.search(r"^" + key + r":\s*(.+)$", text, re.M)[1], value)
+    def test_retained_commands_resolve_their_agents(self):
+        commands = list((ROOT / "commands").glob("*.md"))
+        self.assertTrue(commands)
+        for path in commands:
+            agent = launch.definition(path).get("agent", "build")
+            self.assertTrue(agent in {"build", "plan"} or (ROOT / "agents" / (agent + ".md")).is_file(), path)
+
+    def test_partial_workflow_profile_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "profiles.json").write_text(json.dumps({
+                "version": 1, "default": "test", "profiles": {"test": {}},
+                "roles": {"workflow-execute": {"model": "local/test", "variant": "medium"}},
+            }))
+            with self.assertRaisesRegex(RuntimeError, "no workflow roles or"):
+                launch.profile(root)

@@ -1,9 +1,10 @@
 # Development workflow — common contract
 
-Use the `workflow` dispatcher and native fresh stage children. The user-facing cycle
-remains `/ticket → /research → /plan → /execute → /review → /commit`, with scoped
-execution/re-review for required corrections. A new task starts a new dispatcher.
-Return at most 150 words plus exact artifact URLs and the next command to the parent.
+The former `workflow` dispatcher, six stage commands, and associated skills have
+been retired. These contracts describe the retained tracking and evidence helpers
+when invoked explicitly, including by `/track` and `/sync`; they do not require a
+dispatcher or an installed stage skill. Return compact outcomes and exact artifact
+URLs when using these helpers.
 
 ## Current task, not accumulated conversation
 

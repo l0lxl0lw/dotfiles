@@ -1,5 +1,25 @@
 # OpenCode Config
 
+## Active catalog
+
+The shared catalog contains 28 skills in `write`, `learn`, `explain`, `git`, `use`,
+and `remember`. Each skill name starts with its folder name, for example
+`write/write-better` exposes `/write-better`. See the [full catalog](../ai/shared/README.md#naming-and-catalog).
+The seven wholly unused skill families
+were removed after a usage review, together with the six custom stage commands
+(`/ticket`, `/research`, `/plan`, `/execute`, `/review`, `/commit`) and their seven
+dependent workflow agents. `/git-commit` and the other Git skills remain available.
+OpenCode's own built-in `/review` may still appear; it is not the retired workflow command.
+
+The launcher still pins resources, discovers project/private skills, preserves
+custom configuration, and exposes command fallbacks. `profiles.json` has no owned
+workflow roles; `balanced`, `baseline`, and `astra-high` remain accepted compatibility
+names and no longer override models. `/track`, `/sync`, `/orca-coordinate`,
+`/orca-handoff`, the tracking helpers, and research specialists remain available.
+
+Run `opencode_merge_config` and restart OpenCode to prune retired managed links.
+Existing sessions retain their original snapshots until restarted.
+
 ## Fresh-machine setup
 
 Run `~/dotfiles/deploy.sh --only opencode`. The wizard offers missing OpenCode,
@@ -12,7 +32,7 @@ See the [root README](../README.md) for updates, restoration and optional memory
 
 ## Standalone learning skills
 
-Six independent teaching procedures live under `ai/shared/skills/learning/`, each
+Six independent teaching procedures live under `ai/shared/skills/learn/`, each
 with a matching slash command. They contain their own grounding, interaction, and
 completion rules and do not depend on the existing understanding skills or `_lib`.
 They support general topics, supplied material, and codebase-specific learning;
@@ -20,16 +40,19 @@ codebase claims require inspecting the actual source.
 
 | Command | Learning activity |
 |---|---|
-| `/learning-curve-destroyer` | Practical crash course toward a concrete task; four-hour default budget |
-| `/real-error-simulator` | Scenario first, guided retries, then a worked solution and transfer case |
-| `/impossible-language` | One foundational idea, plain-language analogy, and three understanding checks |
-| `/personal-learning-path` | Goal/deadline-based daily tasks; defaults to seven days of 45 minutes |
-| `/hidden-gap-detector` | Five diagnostic questions exposing foundational gaps in claimed mastery |
-| `/forced-feynman` | Learner-first teach-back; probe jargon, skipped reasoning, and false simplifications |
+| `/learn-crash-course` | Practical crash course toward a concrete task; four-hour default budget |
+| `/learn-scenarios` | Scenario first, guided retries, then a worked solution and transfer case |
+| `/learn-foundations` | One foundational idea, plain-language analogy, and three understanding checks |
+| `/learn-plan` | Goal/deadline-based daily tasks; defaults to seven days of 45 minutes |
+| `/learn-find-gaps` | Five diagnostic questions exposing foundational gaps in claimed mastery |
+| `/learn-teach-back` | Learner-first teach-back; probe jargon, skipped reasoning, and false simplifications |
+
+The same folder also holds `/learn-quiz` and `/learn-check-model`, which share the
+code-grounding and teaching references in `explain/_lib/` with the explanation skills.
 
 Pass a topic or material after the command, plus a goal, budget, or repository path
 when relevant. Each skill asks for missing essentials and waits for your attempts.
-For example: `/personal-learning-path SQL joins; goal: debug reporting queries;
+For example: `/learn-plan SQL joins; goal: debug reporting queries;
 7 days, 45 minutes/day`. Progress stays in chat unless you explicitly request a
 saved record. Run `opencode_merge_config`, then restart through the launcher to
 load the new catalog into a fresh resource snapshot.
@@ -68,7 +91,15 @@ command arguments and published artifacts. Private scripts should resolve creden
 from ignored files or credential stores without printing their values. This separation
 does not make private skill instructions invisible to the model that executes them.
 
-## V2: compact task packets and recorded verification
+## Historical workflow reference (retired stage commands)
+
+The material from this heading through **Skills** documents the previous stage
+workflow. Its stage skills, commands, agents, and model-routing profiles are retired;
+the commands shown in that historical workflow are not an active installed interface.
+Tracking/sync/Orca helpers remain usable explicitly, including their verification and
+write-ownership rules. See **Active catalog** above for the current command surface.
+
+### V2: compact task packets and recorded verification
 
 The native six-command cycle now uses explicit requirement IDs, source-linked facts,
 approved check definitions, real runner receipts, and finding-based repairs. Fresh
@@ -397,8 +428,8 @@ the path to concrete side effects and supplies suggested breakpoints. Both use t
 skill's shared tracing reference and renderer. It replaces the separate OpenCode
 `trace-callpath` skill.
 
-Put public skills in `ai/shared/skills/<category>/<name>/SKILL.md`.
-Categories are allowed; the sync flattens skill directories by basename. Use matching
+Put public skills in `ai/shared/skills/<verb>/<verb>-<task>/SKILL.md`.
+`git` is the deliberate tool-name exception. The sync flattens skill directories by basename. Use matching
 `name` and `description` frontmatter, for example:
 
 ```yaml
@@ -416,14 +447,13 @@ within a discovery source are rejected by the launcher.
 
 Git and understanding skills use automatic slash registration, with no separate
 command files or Git-command symlinks. The sync prunes the retired managed links.
-Workflow skills retain `/ticket`, `/research`, `/plan`, `/execute`, `/review`, and
-`/commit` commands, which select their stage agents and models. The other files in
-`commands/` provide tracking, sync, and Orca-specific behavior.
+The files in `commands/` provide tracking, sync, and Orca-specific behavior.
+The six former workflow stage commands and their dependent agents were retired.
 
 The shared `tui/skill-commands.js` plugin exposes every discovered skill as a slash
-command and a Skills entry in the command palette, including project-local skills
-and `/workflow-*` skills. Internal `wf-<hash>-*` snapshot aliases are hidden from
-both menus while remaining available to workflows. OpenCode's resolved command catalog remains the source
+command and a Skills entry in the command palette, including project-local skills.
+Internal `wf-<hash>-*` snapshot aliases are hidden from both menus while remaining
+available by explicit reference. OpenCode's resolved command catalog remains the source
 of truth: existing custom/MCP commands and TUI slash names or aliases take priority.
 Selecting a skill inserts `/<name> ` so arguments can be entered before submission;
 OpenCode executes its native skill command with the original skill content and base
@@ -432,8 +462,7 @@ directory. New skills only need a `SKILL.md`, not a separate command wrapper.
 The launcher also generates `/skill-<name>` fallback commands referencing the exact
 selected skill file, with another `skill-` prefix if needed to avoid a collision.
 These keep every filesystem skill callable when a custom command owns its ordinary
-name. Existing short workflow commands retain their agent/model routing. Shared
-skill contents and sibling resources are included in immutable workflow snapshots;
+name. Shared skill contents and sibling resources are included in immutable snapshots;
 there is no maintained `opencode/skills` source tree.
 
 The sync installs the managed `tui.json` when no machine-local TUI config occupies
@@ -455,9 +484,8 @@ the symlink sync's XDG destination. Quit/restart OpenCode after configuration ch
 
 ## Local Settings
 
-The sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`. Workflow
-role profiles live in `profiles.json`; matching command/agent frontmatter supplies
-direct-launch defaults. Provider credentials,
+The sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`.
+`profiles.json` currently declares no owned workflow role overrides. Provider credentials,
 global overrides and the optional `subagent_depth` setting remain machine-local.
 
 There is deliberately no placeholder global `AGENTS.md`: OpenCode uses
@@ -466,7 +494,7 @@ Installing an empty one would silently suppress those existing instructions.
 
 Shared skills use host-native tools and canonical resource paths. OpenCode-specific
 agent/model routing and terminal behavior live in this directory. Skills requiring
-OMC, MCPs, tracking helpers, or private adapters still require those integrations.
+MCPs or private adapters still require those integrations.
 
 ## Verification
 
@@ -479,20 +507,7 @@ installed skill and command catalogs through a temporary local server (no model 
 
 Run `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'` for tracking,
 handoff selection, idempotent publication, and real-Git snapshot tests. GitHub writes
-are mocked. The optional live-model smoke is separate from unit-test discovery:
-
-```sh
-python3 -B opencode/tests/workflow_smoke.py
-python3 -B opencode/tests/runtime_smoke.py
-```
-
-It uses installed configuration and a temporary README fixture to check all six
-command bindings, fresh child contexts, native questions, nested lookup, and model
-routing. It does not create issues or edit application code. It requires configured
-models and `subagent_depth: 2`. See
-[the verification record](tracking/BALANCED_WORKFLOW_VERIFICATION.md) for the tested
-version and limits; it is not an end-to-end speed benchmark of the new workflow.
-The runtime smoke additionally checks the actual profile/skill resolution, a successful
-temporary `apply_patch`, a denied application patch in a disposable worktree, and a
-real Sol-xhigh child response. Both smoke programs make small live model calls and
-are opt-in; automated unit tests mock GitHub writes. No speed claim is inferred from them.
+are mocked. The catalog smoke verifies retained skills and absence of retired stage
+commands without model calls. The two live-model probes for the removed workflow
+agents were retired with them. Earlier results remain in
+[the historical verification record](tracking/BALANCED_WORKFLOW_VERIFICATION.md).

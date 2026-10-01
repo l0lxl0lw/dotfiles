@@ -56,7 +56,7 @@ class PrivateConfigTest(unittest.TestCase):
             removed = launch.environment(bundle, environ=actual)
             self.assertNotIn("project-local", json.loads(removed["OPENCODE_CONFIG_CONTENT"])["command"])
             config.write_text(json.dumps({"version": 1, "skills_paths": ["skills"]}))
-            (skills / "SKILL.md").write_text("---\nname: full-stack-slice\ndescription: collision\n---\n")
+            (skills / "SKILL.md").write_text("---\nname: write-better\ndescription: collision\n---\n")
             with self.assertRaisesRegex(RuntimeError, "conflicts"):
                 launch.environment(bundle, environ=env)
 

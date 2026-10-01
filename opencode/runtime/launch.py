@@ -47,8 +47,8 @@ def profile(root, name=None):
         raise RuntimeError("Unknown workflow profile: " + str(name))
     roles = {k: dict(v) for k, v in data["roles"].items()}
     expected = {"workflow", *("workflow-" + stage for stage in STAGES)}
-    if set(roles) != expected:
-        raise RuntimeError("Profiles must define exactly the dispatcher and six workflow stages")
+    if roles and set(roles) != expected:
+        raise RuntimeError("Profiles must define no workflow roles or the dispatcher and six workflow stages")
     for role, override in data["profiles"][name].items():
         if role not in roles:
             raise RuntimeError("Unknown profile role: " + role)
@@ -322,6 +322,8 @@ def environment(bundle, name=None, environ=None, directory=None):
     for path in (root / "commands").glob("*.md"):
         commands[path.stem] = {**definition(path), "template": body(path)}
     for stage in STAGES:
+        if "workflow-" + stage not in roles:
+            continue
         text = body(root / "commands" / (stage + ".md"))
         commands[stage] = {"description": "Workflow " + stage, "agent": "workflow-" + stage,
                             "template": text, "subtask": True, **roles["workflow-" + stage]}
@@ -469,7 +471,7 @@ def doctor(bundle, name=None, github=False):
         f.flush()
     result = {"resources": "pass", "temporary_filesystem_write": "pass", "profile": selected,
               "revision": manifest["revision"], "roles": roles,
-              "native_permission_and_model_inference": "not tested; use tests/runtime_smoke.py"}
+              "native_permission_and_model_inference": "not tested"}
     if github:
         p = subprocess.run(["gh", "api", "user", "--jq", ".login"], text=True, capture_output=True)
         if p.returncode:
