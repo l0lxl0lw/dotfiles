@@ -32,7 +32,7 @@ Directories named `_lib` hold shared resources and are not skills.
 
 | Folder | Skills |
 |---|---|
-| `write` | `write-better`, `write-humanize` |
+| `write` | `write-better`, `write-humanize`, `write-html` |
 | `learn` | `learn-crash-course`, `learn-plan`, `learn-foundations`, `learn-teach-back`, `learn-find-gaps`, `learn-scenarios`, `learn-quiz`, `learn-check-model` |
 | `explain` | `explain-code-concept`, `explain-code-flow` |
 | `git` | `git-commit`, `git-branch-and-pr`, `git-pr`, `git-push-branch`, `git-push-to-main`, `git-merge-pr`, `git-cleanup`, `git-sync`, `git-explain-diff`, `git-explain-branch`, `git-sync-orca-workspaces` |
@@ -58,10 +58,12 @@ Integration skills need the named MCP/application. Discovery exposes their
 instructions, not missing dependencies.
 Private adapters stay in private configuration and are never copied into public bundles.
 
-The shared catalog contains 28 skills. The business, codebase, impeccable,
+The shared catalog contains 29 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
 retired. The retained skills are organized by intent in the six folders above.
+The former `make-html` skill was restored as `write/write-html`, including its
+20 HTML examples and floating table-of-contents helper.
 
 ## OpenCode commands and project skills
 

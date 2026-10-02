@@ -1,0 +1,80 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  OPTIONAL ADD-ON: floating fixed table-of-contents sidebar                ║
+  ║  Drop into any page that has long scrolling content + multiple <h2>/<h3>. ║
+  ║  Builds itself from the headings and highlights the section in view.      ║
+  ║                                                                            ║
+  ║  Not part of the hard rules — add it only when a jump-menu genuinely       ║
+  ║  helps (long explainers, codebase walkthroughs). Skip it for slide decks,  ║
+  ║  short pages, dashboards, or pages that already have a sidebar.            ║
+  ║                                                                            ║
+  ║  TO USE:                                                                   ║
+  ║   1. Paste the <style> rules into your page's <style>. Retheme the         ║
+  ║      colors to match the page you're adding it to (the vars below are      ║
+  ║      neutral fallbacks — replace with your example's palette).             ║
+  ║   2. Paste the <nav> right after <body>.                                   ║
+  ║   3. Paste the <script> right before </body>.                              ║
+  ║   4. Point the script's selector + content-shift at your content wrapper.  ║
+  ║   5. It auto-hides below 1160px so it never overlaps a centered column.    ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+
+<!-- 1 ── STYLE ──────────────────────────────────────────────────────────── -->
+<style>
+  html { scroll-behavior: smooth; }
+  /* give headings room so TOC jumps don't tuck them under the top edge */
+  h2, h3 { scroll-margin-top: 1.5rem; }
+  nav.toc {
+    position: fixed; top: 0; left: 0; width: 240px; height: 100vh;
+    overflow-y: auto; padding: 2rem 1rem 2rem 1.5rem;
+    border-right: 1px solid var(--toc-line, #d9d9de);
+    background: var(--toc-bg, #fbfbfa);
+    font: .9rem/1.35 system-ui, -apple-system, sans-serif; display: none;
+  }
+  nav.toc .toc-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+                       color: var(--toc-muted, #5c5c66); font-weight: 700; margin-bottom: .75rem; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; color: var(--toc-muted, #5c5c66); text-decoration: none;
+              padding: .3rem .6rem; border-left: 2px solid transparent; border-radius: 0 5px 5px 0; }
+  nav.toc a:hover { color: var(--toc-fg, #1c1c1e); background: var(--toc-soft, #e6efff); }
+  nav.toc a.h3 { padding-left: 1.5rem; font-size: .85rem; }
+  nav.toc a.active { color: var(--toc-accent, #2f6df6); border-left-color: var(--toc-accent, #2f6df6);
+                     background: var(--toc-soft, #e6efff); font-weight: 600; }
+  @media (min-width: 1160px) { nav.toc { display: block; } }
+</style>
+
+<!-- 2 ── NAV (place right after <body>) ───────────────────────────────────── -->
+<nav class="toc" aria-label="Table of contents">
+  <div class="toc-title">Contents</div>
+  <ul id="toc-list"></ul>
+</nav>
+
+<!-- 3 ── SCRIPT (place right before </body>) ──────────────────────────────── -->
+<script>
+  /* Build the TOC from the document's h2/h3, then highlight the section in view.
+     Change ".content" below to whatever wraps your headings. Dependency-free, offline. */
+  (function () {
+    var heads = document.querySelectorAll(".content h2, .content h3");
+    var list = document.getElementById("toc-list");
+    if (!heads.length || !list) return;
+    var links = [], byId = {};
+    heads.forEach(function (h, i) {
+      if (!h.id) h.id = "sec-" + i + "-" + h.textContent.trim().toLowerCase()
+        .replace(/[^\w]+/g, "-").replace(/^-+|-+$/g, "");
+      var a = document.createElement("a");
+      a.href = "#" + h.id; a.textContent = h.textContent;
+      a.className = h.tagName === "H3" ? "h3" : "h2";
+      var li = document.createElement("li"); li.appendChild(a); list.appendChild(li);
+      links.push(a); byId[h.id] = a;
+    });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (a) { a.classList.remove("active"); });
+          if (byId[e.target.id]) byId[e.target.id].classList.add("active");
+        }
+      });
+    }, { rootMargin: "0px 0px -75% 0px", threshold: 0 });
+    heads.forEach(function (h) { obs.observe(h); });
+  })();
+</script>

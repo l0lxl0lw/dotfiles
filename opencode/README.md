@@ -2,7 +2,7 @@
 
 ## Active catalog
 
-The shared catalog contains 28 skills in `write`, `learn`, `explain`, `git`, `use`,
+The shared catalog contains 29 skills in `write`, `learn`, `explain`, `git`, `use`,
 and `remember`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../ai/shared/README.md#naming-and-catalog).
 The seven wholly unused skill families
