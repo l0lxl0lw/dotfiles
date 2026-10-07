@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the installed full catalog over HTTP, without model calls or GitHub writes.
+"""Check this checkout's full catalog over HTTP, without model calls or GitHub writes.
 
 The CLI debug printer can truncate large JSON output when piped. The local API
 provides a complete response and exercises the actual server configuration.
@@ -10,11 +10,25 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 env = {k: v for k, v in os.environ.items() if not k.startswith("OPENCODE_")}
+# Expose this checkout's public names through ordinary installed skill links,
+# without syncing or editing the real HOME. Configured skills.paths are reserved
+# for non-conflicting additional catalogs by the launcher's private integration.
+scratch = tempfile.TemporaryDirectory(prefix="catalog smoke ")
+config = Path(scratch.name) / "config"
+skills = config / "opencode/skills"
+skills.mkdir(parents=True)
+for skill in (ROOT.parent / "shared/skills").rglob("SKILL.md"):
+    if any((parent / "SKILL.md").exists() for parent in skill.parents if parent != skill.parent):
+        continue
+    (skills / skill.parent.name).symlink_to(skill.parent, target_is_directory=True)
+env["XDG_CONFIG_HOME"] = str(config)
+env["OPENCODE_WORKFLOW_STATE"] = str(Path(scratch.name) / "state")
 env["OPENCODE_SERVER_PASSWORD"] = "local-catalog-verification"
 with socket.socket() as sock:
     sock.bind(("127.0.0.1", 0))
@@ -64,6 +78,13 @@ try:
     with urllib.request.urlopen(request, timeout=60) as response:
         agents = json.load(response)
     assert not any(item["name"] == "workflow" or item["name"].startswith("workflow-") for item in agents)
+    for stage in ("feature", "ticket", "research", "plan", "execute", "review"):
+        name = "develop-" + stage
+        assert name in public, name
+        assert commands[name].get("source") == "skill", commands[name]
+        assert not commands[name].get("subtask"), commands[name]
+        if stage != "feature":
+            assert any(item["name"] == name and item["mode"] == "subagent" for item in agents), name
     print(f"Installed OpenCode API: {len(public)} public/builtin/private skills, {len(result) - len(public)} pinned skills; shared locations and executable command registration verified")
 finally:
     process.terminate()
@@ -72,3 +93,4 @@ finally:
     except subprocess.TimeoutExpired:
         process.kill()
         process.communicate()
+    scratch.cleanup()

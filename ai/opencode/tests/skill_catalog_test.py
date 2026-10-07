@@ -26,13 +26,13 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 30)
+        self.assertEqual(len(catalog), 36)
         self.assertIn("write-better", catalog)
         removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
         shared = ROOT.parent / "shared/skills"
         self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
         self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
-                         {"write", "learn", "explain", "git", "use", "remember", "respond"})
+                         {"develop", "write", "learn", "explain", "git", "use", "remember", "respond"})
         for name, path in catalog.items():
             self.assertEqual(name, path.parent.name)
             self.assertTrue(name.startswith(path.relative_to(shared).parts[0] + "-"), name)

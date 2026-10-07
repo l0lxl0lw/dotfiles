@@ -2,7 +2,7 @@
 
 ## Active catalog and ownership
 
-The shared catalog contains 30 skills in `write`, `learn`, `explain`, `git`, `use`,
+The shared catalog contains 36 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
 `remember`, and `respond`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 
@@ -14,14 +14,15 @@ This directory owns OpenCode-specific integration:
 
 | Path | Purpose |
 |---|---|
-| `agents/` | Six research specialists |
+| `agents/` | Six research specialists and five thin development stage workers |
 | `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
 | `tui/`, `tui.json` | Skill slash commands and command-palette integration |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
 
-The old six-stage workflow commands, dependent agents, model profiles and migration
-utilities are retired. Their history is available in Git. OpenCode's built-in `/review`
+The old six-stage workflow commands, workflow-* agents, model profiles and migration
+utilities are retired. Development methods are shared skills, with native slash
+commands and fresh-worker dispatch through `/develop-feature`. OpenCode's built-in `/review`
 may still appear; it is not the former workflow command. Use `/git-commit` and the
 other shared Git skills for Git operations.
 
@@ -113,6 +114,23 @@ unless a saved record is requested; codebase claims require inspecting actual so
 introduces the concept before verified entry points and a call tree; debug mode follows
 concrete side effects and suggests breakpoints. `/learn-quiz` and `/learn-check-model`
 share grounding and teaching references with the explanation skills in `explain/_lib/`.
+
+### Feature development
+
+See [the development cycle](../shared/skills/develop/README.md). The six
+`develop-*` skills register native commands without command files. Direct stage
+commands run in the current session; `/develop-feature plan ISSUE_URL RESEARCH_URL`
+dispatches one fresh `develop-plan` worker and stops. New stage/repair/review requests
+create new workers. An implementation context cannot independently review itself.
+Workers load their pinned shared method and inherit native model defaults; no
+profiles or model overrides are injected. Project overrides affect raw skill entry
+points, not the pinned worker method.
+
+Advancement is user-driven. A prepared plan is not implementation authorization;
+execution requires the exact identified plan. Repairs require explicit requests and
+fresh re-review. After two unsuccessful repairs, diagnose with the user before another
+round. Passing review does not invoke Git or mark Done. Existing `git-*` skills own
+separately authorized Git operations.
 
 ## Private configuration
 
@@ -211,13 +229,17 @@ private adapters still require those integrations.
 ```sh
 zsh zsh/tests/opencode_config_test.zsh
 node --test ai/opencode/tests/*.test.mjs
-python3 -B -m unittest discover -s ai/opencode/tests -p '*_test.py'
-OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s ai/opencode/tests -p 'skill_catalog_test.py'
+OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s ai/opencode/tests -p '*_test.py'
 python3 -B ai/opencode/tests/catalog_smoke.py
+# Opt-in live-model fresh-worker smoke (uses configured model/provider access):
+python3 -B ai/opencode/tests/develop_smoke.py
 ```
 
 The shell checks use an isolated HOME. Python tests cover real-Git snapshots, tracking,
 handoff and evidence behavior; GitHub/Orca writes are mocked. The opt-in installed-binary
-test exercises project discovery in an isolated HOME. The final catalog smoke uses a
-temporary local server to check the installed skill/command catalog after syncing.
-Neither installed-binary check makes model calls.
+test exercises project discovery in an isolated HOME. The catalog smoke exposes this
+checkout's shared skills to a temporary server without syncing the real HOME. Neither
+of those checks makes model calls. The opt-in development smoke uses configured models
+to prove Task-worker isolation, pinned skill loading, native worker questions and
+missing-input stops. It uses read-only fixtures, not real issue publication or a full
+implementation/review cycle. Real TUI appearance still needs a manual inspection.

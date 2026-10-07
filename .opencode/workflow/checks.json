@@ -8,6 +8,7 @@
       "format": "unittest",
       "required": true,
       "allow_skips": false,
+      "env": {"OPENCODE_CATALOG_SMOKE": "1"},
       "env_keys": ["PYTHONPATH", "TMPDIR"]
     },
     {
