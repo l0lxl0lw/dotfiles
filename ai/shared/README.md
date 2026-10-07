@@ -8,6 +8,7 @@ agents, command routing, launcher, and terminal plugins live in `ai/opencode/`.
 ai/
 └── shared/
     └── skills/
+        ├── develop/
         ├── explain/
         ├── git/
         ├── learn/
@@ -33,6 +34,7 @@ Directories named `_lib` hold shared resources and are not skills.
 
 | Folder | Skills |
 |---|---|
+| `develop` | `develop-feature`, `develop-ticket`, `develop-research`, `develop-plan`, `develop-execute`, `develop-review` |
 | `write` | `write-better`, `write-humanize`, `write-html` |
 | `learn` | `learn-crash-course`, `learn-plan`, `learn-foundations`, `learn-teach-back`, `learn-find-gaps`, `learn-scenarios`, `learn-quiz`, `learn-check-model` |
 | `explain` | `explain-code-concept`, `explain-code-flow` |
@@ -49,7 +51,7 @@ are installed. The private OpenCFO adapter and project-local skills keep their o
 
 Use the host's available tools: `AskUserQuestion` means its question dialog (or a
 chat question if unavailable). Model/effort frontmatter can remain as Claude hints;
-OpenCode's workflow routing lives in its profiles/agents/commands. Resolve scripts
+OpenCode's worker routing lives in its agents and native model configuration. Resolve scripts
 and sibling libraries from the physical skill directory so symlinks and pinned
 snapshots work. Git skills share `_lib/portability.md` for these conventions.
 Code explanations and the two code-grounded learning exercises share
@@ -60,10 +62,13 @@ Integration skills need the named MCP/application. Discovery exposes their
 instructions, not missing dependencies.
 Private adapters stay in private configuration and are never copied into public bundles.
 
-The shared catalog contains 30 skills. The business, codebase, impeccable,
+The shared catalog contains 36 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
-retired. The retained skills are organized by intent in the seven folders above.
+retired. The development methods are now selectively revived in
+[develop](skills/develop/README.md), using native skill commands and five thin
+fresh-worker agents. Profiles and the old commit stage remain retired. The catalog
+is organized by intent in the eight folders above.
 The former `make-html` skill was restored as `write/write-html`, including its
 20 HTML examples and floating table-of-contents helper.
 `respond/respond-adhd` imports the upstream `i-have-adhd` response-formatting mode,

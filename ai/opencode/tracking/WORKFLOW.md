@@ -3,7 +3,10 @@
 These contracts describe tracking and evidence helpers invoked explicitly,
 including by `/track` and `/sync`. Return compact outcomes and exact artifact URLs
 when using these helpers. Stage names in helper arguments identify record types;
-they are not installed slash commands.
+they are not the legacy slash commands. Development stage methods and user-driven
+advancement live in the shared `develop` group; load its `_lib/workflow.md` from the
+physical skill directory. `/develop-feature` dispatches fresh workers; direct stage
+skills use the current context. This document owns the helper/evidence protocol.
 
 ## Current task, not accumulated conversation
 
@@ -62,8 +65,10 @@ source conservative. Do not rerun every suite merely to produce another comment.
 Findings have stable IDs. Repairs return fixed/disputed/unresolved evidence per ID.
 Re-review checks prior blockers, repair changes and affected invariants; new material
 regressions still block. Optional suggestions do not become a moving completion target.
-If repeated repairs fail to converge, diagnose the missing contract/fixture/evidence
-once, then continue targeted work; do not silently lower quality or change models.
+The shared development method stops after two unsuccessful repair rounds for a
+focused contract/fixture/evidence diagnosis with the user before another authorized
+repair. Helpers preserve review history; they do not automatically schedule repairs.
+Do not silently lower quality or change models.
 
 ## Operations and completion
 

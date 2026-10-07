@@ -46,13 +46,15 @@ test("hides workflow snapshot aliases while retaining ordinary workflow skills",
   const fixture = host([
     { name: "wf-345045be3b-git-commit", source: "skill" },
     { name: "wf-ec476e75e8-poke-holes", source: "skill" },
+    { name: "wf-ec476e75e8-develop-plan", source: "skill" },
     { name: "git-commit", source: "skill" },
-    { name: "workflow-execute", source: "skill" },
+    { name: "develop-feature", source: "skill" },
+    { name: "develop-execute", source: "skill" },
     { name: "wf-helper", source: "skill" },
   ]);
   await plugin.tui(fixture.api);
   assert.deepEqual(fixture.layers[0].commands.map((command) => command.slashName), [
-    "git-commit", "workflow-execute", "wf-helper",
+    "git-commit", "develop-feature", "develop-execute", "wf-helper",
   ]);
 });
 
