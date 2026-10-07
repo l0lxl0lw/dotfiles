@@ -4,9 +4,10 @@ Shared methods for a user-driven development cycle. Each stage stops after its
 handoff; a prepared plan is not implementation approval.
 
 ```text
-ticket → research → plan → explicit execution approval → execute → review
-                                                          ↑         │
-                                                          └─ repair ┘
+brainstorm → explicit ticket request → ticket → research → plan
+plan → explicit execution approval → execute → review
+                                     ↑         │
+                                     └─ repair ┘
 review pass → separately requested git-commit / git-pr / other git-* skill
 ```
 
@@ -14,6 +15,7 @@ review pass → separately requested git-commit / git-pr / other git-* skill
 
 | Skill / native slash command | Input | Result |
 |---|---|---|
+| `/develop-brainstorm` (OpenCode alias `/brainstorm`) | Idea or existing issue URL | Agreed design and ticket-ready handoff, in the current conversation |
 | `/develop-feature` | Requested stage, task or exact issue/artifact URLs | One fresh stage worker and its next-action handoff |
 | `/develop-ticket` | Explicit request to create/refine a ticket | Scoped issue and versioned contract |
 | `/develop-research` | Issue and optional contract URL | Source-bound research facts |
@@ -21,7 +23,8 @@ review pass → separately requested git-commit / git-pr / other git-* skill
 | `/develop-execute` | Issue, exact approved plan, optional review URL | Implementation/repair and actual verification receipt |
 | `/develop-review` | Issue, exact plan, verification and optional previous review | `pass`, `changes_requested`, or `blocked` |
 
-Skills register their own slash commands. There are no duplicate command files.
+Skills register their own slash commands. OpenCode also provides the thin
+`/brainstorm` alias; stage commands have no duplicate command files.
 Direct stage commands run in the **current session**. For fresh-context execution,
 use `/develop-feature plan ISSUE_URL RESEARCH_URL`, for example. Its OpenCode
 adapter is one of five thin `develop-*` subagents; methods live here, not in agents.
@@ -34,6 +37,37 @@ for the next stage when it is ambiguous. Research and planning may publish their
 stage artifacts when requested, but an explicit chat-only/no-publication request
 takes precedence. Without an issue, scope the request and ask whether to create
 one or use an exact existing issue. No URL is fabricated.
+
+## Brainstorming before a ticket
+
+```text
+/brainstorm Add saved filters to the transaction list
+/brainstorm https://github.com/OWNER/REPO/issues/123
+```
+
+`develop-brainstorm` guides one focused question per turn, reads relevant context,
+compares meaningful approaches, and reviews a proportional design. It is an
+optional conversational front door, not a mandatory gate for every edit or a sixth
+stage worker. A clear ticket request can still start directly at `develop-ticket`.
+
+Its handoff carries the outcome, scope/non-goals, decisions, stable requirement
+IDs, initial acceptance rows (including state effects), open questions, exact
+existing issue/artifact URLs and repository/worktree. Simple designs stay in chat;
+larger ones can use project documentation conventions or a user-chosen location.
+Design approval does not authorize implementation, issue creation, or publication.
+
+An explicit create/update request transitions to `/develop-ticket` in the current
+session, or `/develop-feature ticket` when a fresh worker is requested. Pass the
+agreed handoff so the ticket stage can build on answers rather than restart the
+interview. Ticket owns the versioned contract and tracker mutations. An existing
+issue is resumed, not duplicated, and updating it requires explicit authorization.
+On hosts without the needed skill/integration, provide an in-chat ticket/update
+draft and report the missing capability instead of implying publication succeeded.
+
+Issue repository and GitHub Project board are separate destinations. Existing
+private `tracking.owner`/`tracking.number` settings select the board only. No
+issue-repository config schema is introduced here; pass the confirmed repository
+to the ticket stage and preserve exact issue URLs.
 
 ## Approval and completion
 
@@ -91,3 +125,8 @@ Adapted from the removed workflow at dotfiles `960a611^`, compared with
 Preserves its acceptance matrix, explicit execution approval, independent review
 and source-bound verification. Retired model profiles and the commit stage are not
 restored. Orca supervision remains a separate, explicit workflow.
+
+Brainstorming is adapted from Superpowers commit
+`8ca22dba9a94f28898bbce59f2537ff4d87c747d`; its
+[source record](develop-brainstorm/sources.md) and
+[MIT license](develop-brainstorm/LICENSE.superpowers) travel with the skill.

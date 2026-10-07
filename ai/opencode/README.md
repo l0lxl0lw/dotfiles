@@ -2,7 +2,7 @@
 
 ## Active catalog and ownership
 
-The shared catalog contains 36 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
+The shared catalog contains 37 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
 `remember`, and `respond`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 
@@ -15,7 +15,7 @@ This directory owns OpenCode-specific integration:
 | Path | Purpose |
 |---|---|
 | `agents/` | Six research specialists and five thin development stage workers |
-| `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
+| `commands/` | `/brainstorm`, `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
 | `tui/`, `tui.json` | Skill slash commands and command-palette integration |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
@@ -117,8 +117,12 @@ share grounding and teaching references with the explanation skills in `explain/
 
 ### Feature development
 
-See [the development cycle](../shared/skills/develop/README.md). The six
-`develop-*` skills register native commands without command files. Direct stage
+See [the development cycle](../shared/skills/develop/README.md). The seven
+`develop-*` skills register native commands. `/brainstorm IDEA` (or an existing
+issue URL) is a thin alias for the conversational `develop-brainstorm` skill. It
+produces an agreed design and stable-requirement handoff before an explicitly
+requested ticket stage; design approval alone does not publish or implement.
+Direct stage
 commands run in the current session; `/develop-feature plan ISSUE_URL RESEARCH_URL`
 dispatches one fresh `develop-plan` worker and stops. New stage/repair/review requests
 create new workers. An implementation context cannot independently review itself.
