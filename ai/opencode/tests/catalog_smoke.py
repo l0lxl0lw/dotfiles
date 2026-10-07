@@ -7,6 +7,7 @@ provides a complete response and exercises the actual server configuration.
 import base64
 import json
 import os
+import re
 from pathlib import Path
 import socket
 import subprocess
@@ -78,13 +79,19 @@ try:
     with urllib.request.urlopen(request, timeout=60) as response:
         agents = json.load(response)
     assert not any(item["name"] == "workflow" or item["name"].startswith("workflow-") for item in agents)
-    for stage in ("feature", "ticket", "research", "plan", "execute", "review"):
+    for stage in ("brainstorm", "feature", "ticket", "research", "plan", "execute", "review"):
         name = "develop-" + stage
         assert name in public, name
         assert commands[name].get("source") == "skill", commands[name]
         assert not commands[name].get("subtask"), commands[name]
-        if stage != "feature":
+        if stage not in ("brainstorm", "feature"):
             assert any(item["name"] == name and item["mode"] == "subagent" for item in agents), name
+    brainstorm = commands["brainstorm"]
+    assert brainstorm.get("source") == "command", brainstorm
+    target, = re.findall(r"`([^`]+)`", brainstorm["template"])
+    assert target.startswith("wf-") and target.endswith("-develop-brainstorm"), target
+    assert any(item["name"] == target for item in result), target
+    assert "$ARGUMENTS" in brainstorm["template"], brainstorm
     print(f"Installed OpenCode API: {len(public)} public/builtin/private skills, {len(result) - len(public)} pinned skills; shared locations and executable command registration verified")
 finally:
     process.terminate()
