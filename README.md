@@ -46,8 +46,8 @@ executables are reused. Declining a dependency skips the component. Ordinary
 setup does not upgrade installed applications.
 
 Setup does not transfer credentials. Launch selected assistants to sign in;
-use `gh auth login` for GitHub workflows. OpenCode's workflow profiles name specific
-models: check `opencode/profiles.json` against your provider access. Quit and
+use `gh auth login` for GitHub workflows. Configure OpenCode models through its
+native settings and the managed agent/command definitions. Quit and
 restart OpenCode after changing its catalog. Codex memory hooks require native
 review/trust through `/hooks` in a fresh session.
 

@@ -213,7 +213,7 @@ def build(issue, comments, stage, includes=(), history=False, cwd=None):
     contract = contract_meta["record"]
     changes = pending(issue, comments, contract)
     result = {"version": 2, "stage": stage, "issue": {k: issue.get(k) for k in ("url", "title", "state")},
-              "workflow": {"revision": os.environ.get("OPENCODE_WORKFLOW_REVISION"), "profile": os.environ.get("OPENCODE_WORKFLOW_PROFILE")},
+              "workflow": {"revision": os.environ.get("OPENCODE_WORKFLOW_REVISION")},
               "source": source, "contract": contract, "contract_url": contract_comment["html_url"],
               "discussion_changes": changes, "checkpoint_candidate": candidate,
               "blocked": bool(any(changes.values()) or contract.get("unresolved")),

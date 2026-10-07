@@ -66,7 +66,8 @@ Plan `unresolved` decisions prevent execution. Planning does not edit the applic
 
 ## Execution → recorded verification
 
-From the actual implementation worktree after `/execute ISSUE PLAN_URL` authorization:
+From the actual implementation worktree after explicit authorization to implement
+the identified plan:
 
 ```
 python3 ~/dotfiles/opencode/tracking/verify.py init ISSUE --plan PLAN_URL

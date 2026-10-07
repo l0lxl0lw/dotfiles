@@ -101,12 +101,12 @@ after an explicit sync, verification evidence is required to leave Verifying.
 ## Execution and Git boundaries
 
 In an explicitly Orca-supervised worker, carry the injected Task/Dispatch and
-coordinator IDs into stage children. Route blocking questions through Orca's
+coordinator IDs into delegated children. Route blocking questions through Orca's
 `orchestration ask` contract to the coordinator; ordinary interactive sessions
 still use native dialogs. Only the owning worker reports Dispatch completion,
 after collecting its children's outcomes. See `../../orca/COORDINATION.md`.
 
-- `/execute ISSUE` is authorization to implement the identified plan. If unclear,
+- Implement only after an explicit request authorizes the identified plan. If unclear,
   ask which plan. Posting a plan alone never starts implementation.
 - Establish a feature branch/worktree using the user's existing repository rules.
   Register it before implementation. Never implement in another worker's worktree.
@@ -115,7 +115,7 @@ after collecting its children's outcomes. See `../../orca/COORDINATION.md`.
 - Automatic checks only fetch origin and compare commits. Only `/sync` or an
   explicit natural-language sync request authorizes rebase/merge.
 - Use existing git skills for commits, PR creation, merge and cleanup when asked.
-  Execute does not authorize a commit, push or PR by itself.
+  Implementation does not authorize a commit, push or PR by itself.
 - After a requested PR publication, record its URL and move to In review only if
   it is ready for review. Draft PRs alone do not advance the stage.
 - After requested merges, refresh other tracked branches in the repository. Mark
@@ -144,41 +144,10 @@ For small work, aim for a 400–700 word Research comment and a 500–900 word p
 scenario → response → state effect → test. These are clarity targets, not truncation
 rules for important evidence. Resolve material questions through native dialogs.
 
-## Fresh context and handoff protocol
+## Legacy handoff compatibility
 
-Use the `workflow` primary agent as a lightweight dispatcher. Each of the six stage
-commands has `subtask: true`, so OpenCode creates a fresh child session for that
-invocation; the code investigation does not accumulate in the dispatcher. Start one
-new dispatcher session for a new task. Return only a short outcome, exact artifact
-URLs and next command to the parent. Do not resume an old stage child for a new phase.
-
-Configure `subagent_depth: 2` to allow a stage child to call a bounded specialist.
-Explicit role permissions prevent specialists and reviewers from recursive fan-out.
-Without that setting, stages can investigate directly; they must not repeatedly
-attempt unavailable nested delegation. No custom fresh-session plugin is required.
-
-The normal loop is:
-
-```
-/ticket <request>
-/research ISSUE
-/plan ISSUE RESEARCH_URL
-/execute ISSUE PLAN_URL
-/review ISSUE PLAN_URL
-# if changes requested:
-/execute ISSUE PLAN_URL REVIEW_URL
-/review ISSUE PLAN_URL REVIEW_URL
-# after pass:
-/commit ISSUE REVIEW_URL
-```
-
-`/research` is still a separate role/command. If current sufficient research already
-exists, use its exact URL instead of doing the stage again. The fix loop uses the
-same contract; it does not repeat ticket/research/plan unless the scope changes.
-Commit-after-review avoids an extra commit cycle for ordinary findings. Explicit
-early/WIP commits remain possible but must not be labeled review-ready.
-
-Use the compact handoff helper (stdlib, existing `gh` auth):
+Use v2 packets and records from `records.md` for new evidence. The helper retains
+these operations for existing v1 artifacts (stdlib, existing `gh` auth):
 
 ```
 python3 ~/dotfiles/opencode/tracking/handoff.py context ISSUE --stage plan --include RESEARCH_URL

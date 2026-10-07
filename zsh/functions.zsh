@@ -687,7 +687,7 @@ opencode() {
     command opencode "$@"
 }
 
-# Explicit profile/doctor entry point for shell use. These are launcher options,
+# Explicit preparation/doctor entry point for shell use. These are launcher options,
 # not flags claimed to exist on the upstream OpenCode executable.
 opencode_workflow() {
   opencode_merge_config || return

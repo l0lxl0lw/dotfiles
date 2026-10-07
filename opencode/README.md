@@ -1,61 +1,118 @@
 # OpenCode Config
 
-## Active catalog
+## Active catalog and ownership
 
-The shared catalog contains 29 skills in `write`, `learn`, `explain`, `git`, `use`,
-and `remember`. Each skill name starts with its folder name, for example
+The shared catalog contains 30 skills in `write`, `learn`, `explain`, `git`, `use`,
+`remember`, and `respond`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../ai/shared/README.md#naming-and-catalog).
-The seven wholly unused skill families
-were removed after a usage review, together with the six custom stage commands
-(`/ticket`, `/research`, `/plan`, `/execute`, `/review`, `/commit`) and their seven
-dependent workflow agents. `/git-commit` and the other Git skills remain available.
-OpenCode's own built-in `/review` may still appear; it is not the retired workflow command.
 
-The launcher still pins resources, discovers project/private skills, preserves
-custom configuration, and exposes command fallbacks. `profiles.json` has no owned
-workflow roles; `balanced`, `baseline`, and `astra-high` remain accepted compatibility
-names and no longer override models. `/track`, `/sync`, `/orca-coordinate`,
-`/orca-handoff`, the tracking helpers, and research specialists remain available.
+**Public skills live only in `ai/shared/skills/`.** There is no maintained
+`opencode/skills/` source directory. The launcher copies shared skills into immutable
+runtime snapshots outside this repository; those generated copies are not editing targets.
 
-Run `opencode_merge_config` and restart OpenCode to prune retired managed links.
-Existing sessions retain their original snapshots until restarted.
+This directory owns OpenCode-specific integration:
 
-## Fresh-machine setup
+| Path | Purpose |
+|---|---|
+| `agents/` | Six research specialists |
+| `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
+| `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
+| `tui/`, `tui.json` | Skill slash commands and command-palette integration |
+| `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
+
+The old six-stage workflow commands, dependent agents, model profiles and migration
+utilities are retired. Their history is available in Git. OpenCode's built-in `/review`
+may still appear; it is not the former workflow command. Use `/git-commit` and the
+other shared Git skills for Git operations.
+
+## Setup and loading
 
 Run `~/dotfiles/deploy.sh --only opencode`. The wizard offers missing OpenCode,
 Python and GitHub CLI installations, creates the initial configuration directory,
 and synchronizes tracked resources with backup/skip choices for collisions.
 It respects `XDG_CONFIG_HOME`. Sign in to your provider inside OpenCode and run
-`gh auth login` for GitHub workflows. Check the models in `profiles.json` against
-your account's access. Quit and restart OpenCode after catalog changes.
-See the [root README](../README.md) for updates, restoration and optional memory.
+`gh auth login` for GitHub workflows. Check model settings in the managed agents
+and commands against your provider access. See the [root README](../README.md)
+for updates, restoration and optional memory.
 
-## Standalone learning skills
+The shell `opencode` wrapper runs `opencode_merge_config`, then starts the launcher.
+It links shared skills and managed agents, commands and TUI files into
+`${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. The destination must already exist;
+sync does not create configuration for an assistant that has not been set up.
+Foreign files and symlinks are preserved. Only retired links owned by dotfiles are
+pruned. An unchanged, collision-free catalog produces no writes or output.
 
-Six independent teaching procedures live under `ai/shared/skills/learn/`, each
-with a matching slash command. They contain their own grounding, interaction, and
-completion rules and do not depend on the existing understanding skills or `_lib`.
-They support general topics, supplied material, and codebase-specific learning;
-codebase claims require inspecting the actual source.
+```sh
+opencode_merge_config
+opencode_workflow --prepare
+opencode_workflow --doctor
+opencode_workflow --doctor --github
+```
 
-| Command | Learning activity |
-|---|---|
-| `/learn-crash-course` | Practical crash course toward a concrete task; four-hour default budget |
-| `/learn-scenarios` | Scenario first, guided retries, then a worked solution and transfer case |
-| `/learn-foundations` | One foundational idea, plain-language analogy, and three understanding checks |
-| `/learn-plan` | Goal/deadline-based daily tasks; defaults to seven days of 45 minutes |
-| `/learn-find-gaps` | Five diagnostic questions exposing foundational gaps in claimed mastery |
-| `/learn-teach-back` | Learner-first teach-back; probe jargon, skipped reasoning, and false simplifications |
+`opencode_workflow` is the shell entry point for launcher diagnostics. There is no
+`--profile` option: model selection uses native OpenCode settings and agent/command
+frontmatter. `--prepare` prints snapshot identity without starting a model;
+`--doctor --github` also checks GitHub authentication without writes.
 
-The same folder also holds `/learn-quiz` and `/learn-check-model`, which share the
-code-grounding and teaching references in `explain/_lib/` with the explanation skills.
+Quit and restart OpenCode after changing configuration or the catalog. Existing
+sessions and nested launches retain their original resource snapshots. Snapshots
+live under `~/.local/state/opencode-workflow/` (or `OPENCODE_WORKFLOW_STATE`).
+The launcher retains real HOME and credentials and preserves custom config directories,
+including Orca hooks. It fails on conflicting managed/custom definitions.
 
-Pass a topic or material after the command, plus a goal, budget, or repository path
-when relevant. Each skill asks for missing essentials and waits for your attempts.
-For example: `/learn-plan SQL joins; goal: debug reporting queries;
-7 days, 45 minutes/day`. Progress stays in chat unless you explicitly request a
-saved record. Run `opencode_merge_config`, then restart through the launcher to
-load the new catalog into a fresh resource snapshot.
+Desktop/IDE launches and direct binaries bypass the shell wrapper. Configure them
+to invoke the launcher for the same snapshot and skill-discovery behavior:
+
+```sh
+python3 ~/dotfiles/opencode/runtime/launch.py -- serve --hostname 127.0.0.1 --port 4096
+```
+
+Use `--live -- ...` for live catalogs without a snapshot. `OPENCODE_CONFIG_DIR`
+does not change the symlink sync's XDG destination.
+
+## Shared and project skills
+
+Put public skills in `ai/shared/skills/<verb>/<verb>-<task>/SKILL.md`, with matching
+`name` and `description` frontmatter. `git` is the deliberate tool-name exception.
+Whole skill directories are symlinked by basename, preserving scripts, templates and
+references. Helper directories are not registered as skills. Duplicate names within
+a discovery source are rejected by the launcher.
+
+The wrapper disables home-directory compatibility scans of `~/.claude/skills` and
+`~/.agents/skills`. The launcher explicitly discovers project-local skills in
+`.claude`, `.agents`, and `.opencode` between the worktree root and launch directory.
+Nearer directories win; within a directory `.opencode` wins over `.agents`, then
+`.claude`. Project definitions override the shared catalog without global installs.
+`runtime/project-skills.js` enforces the selected definition at execution time because
+native duplicate discovery can finish out of order. Native permission checks and
+custom commands are preserved. Raw `debug skill` metadata can reflect another duplicate;
+OpenCode's `--pure` mode disables the plugin overlay.
+
+`tui/skill-commands.js` exposes discovered skills as slash commands and a Skills entry
+in the command palette. Internal `wf-<hash>-*` snapshot aliases are hidden from both
+menus but remain available by explicit reference. Existing custom/MCP commands and
+TUI names or aliases take priority. Selecting a skill inserts `/<name> ` so arguments
+can be entered before submission. New skills need only a `SKILL.md`, not a command file.
+
+The launcher also generates `/skill-<name>` fallbacks referencing the exact selected
+skill file, adding another `skill-` prefix if needed to avoid a collision. Shared
+skill contents and sibling resources are included in the immutable snapshot.
+
+The sync installs `tui.json` when no machine-local config occupies that path and no
+`tui.jsonc` exists. For a custom TUI config, add `"./tui/skill-commands.js"` to its
+`plugin` array. Restart OpenCode to load changes.
+
+### Learning and explanation
+
+The `learn/` family supports crash courses, scenarios, foundations, learning plans,
+gap detection, teach-back, quizzes and mental-model checks. Pass the topic or material,
+goal and relevant repository path after the command. General learning stays in chat
+unless a saved record is requested; codebase claims require inspecting actual source.
+
+`/explain-code-flow` combines concept explanation and runtime tracing. Explain mode
+introduces the concept before verified entry points and a call tree; debug mode follows
+concrete side effects and suggests breakpoints. `/learn-quiz` and `/learn-check-model`
+share grounding and teaching references with the explanation skills in `explain/_lib/`.
 
 ## Private configuration
 
@@ -66,448 +123,101 @@ The launcher reads `~/dotfiles-private/opencode/config.json`, or the explicit
 {"version":1,"skills_paths":["skills"],"tracking":{"owner":"example-org","number":1}}
 ```
 
-Paths are relative to the private config file; private skills are exposed using native
-`skills.paths`. Each private skill also gets a `/<skill-name>` command at launch time.
-The command contains a skill-tool reference and `$ARGUMENTS`, not the private skill body.
-Duplicate private/public skill names and existing command-name collisions fail explicitly.
-Repeated nested launches preserve unchanged wrappers; removed private registrations lose
-their generated command wrappers. Custom command edits are preserved and conflicts reported.
-Missing optional
-private configuration leaves the generic workflow usable; project mutations require an
-explicit tracking target. Private files are not copied into public resource snapshots.
-Do not store credentials in this interface: resolve them within the private adapter.
-Restart OpenCode after private/public catalog changes. Direct IDE/API launches through
-`runtime/launch.py` get the same private configuration as shell launches.
+Paths are relative to the private config file. Private skills use native `skills.paths`;
+each also gets a `/<skill-name>` command containing a skill-tool reference and
+`$ARGUMENTS`, not the private skill body. Duplicate private/public names and existing
+command-name collisions fail explicitly. Nested launches preserve unchanged wrappers;
+removed registrations lose their generated wrappers, while custom edits are preserved
+and conflicts reported. Custom agent/plugin/command directories are not privately synced
+through this interface.
 
-To add a private command, create `<configured-skills-path>/<name>/SKILL.md` with matching
-`name:` frontmatter and a description, then restart through the launcher. No public
-command file or public symlink to the private skill is needed. This covers private
-**skill-backed commands**, not arbitrary private agent/plugin/command-directory syncing.
+Missing optional private config leaves the launcher usable; project mutations require
+an explicit tracking target. Private files are not copied into public snapshots.
+Keep credentials out of skill bodies, command arguments, public artifacts and this
+configuration interface; resolve them within private adapters. Invoking a private skill
+still loads its instructions into model context. Restart after registration changes.
 
-Privacy boundary: public Git and resource bundles contain generic registration code
-only. Private paths remain in local runtime configuration; invoking the command loads
-the skill into the model context. Keep passwords/tokens out of skill bodies, descriptions,
-command arguments and published artifacts. Private scripts should resolve credentials
-from ignored files or credential stores without printing their values. This separation
-does not make private skill instructions invisible to the model that executes them.
+## Tracking and evidence helpers
 
-## Historical workflow reference (retired stage commands)
-
-The material from this heading through **Skills** documents the previous stage
-workflow. Its stage skills, commands, agents, and model-routing profiles are retired;
-the commands shown in that historical workflow are not an active installed interface.
-Tracking/sync/Orca helpers remain usable explicitly, including their verification and
-write-ownership rules. See **Active catalog** above for the current command surface.
-
-### V2: compact task packets and recorded verification
-
-The native six-command cycle now uses explicit requirement IDs, source-linked facts,
-approved check definitions, real runner receipts, and finding-based repairs. Fresh
-children remain; the dispatcher still returns short links/outcomes rather than code
-history. See `tracking/WORKFLOW.md` for the short common contract and
-`tracking/references/records.md` for the formats and migration procedure.
-
-Normal shell `opencode` synchronizes managed links, then launches from a content-
-addressed snapshot of this OpenCode resource tree. It keeps real HOME and credentials.
-`profiles.json` controls both command and agent routing:
-
-| Profile | Implementation/fixes | Other workflow stages |
-|---|---|---|
-| `balanced` | Sol xhigh | Astra medium planning/review; Luna Fast dispatch/commit |
-| `baseline` | Sol medium | Same |
-| `astra-high` (default) | Astra high | Same |
-
-These are candidates informed by a single known-task screen, not universal performance
-guarantees. K/L passed with a clearer shared plan; there was no fresh medium control
-under that protocol. Record first-submission work and repairs, not just review rounds.
-Fewer total/cache tokens does not establish a lower dollar bill.
+`/track` inspects, registers, refreshes or repairs GitHub issue/branch tracking.
+`/sync ISSUE_URL` explicitly integrates a registered work branch with its target
+branch using the shared Git sync skill. See [the common contract](tracking/WORKFLOW.md)
+and [operations](tracking/references/operations.md) for identity, status, authorization
+and partial-failure rules.
 
 ```sh
-# Shell helpers (source the updated functions or start a new shell first)
-opencode
-opencode_workflow --profile baseline --
-opencode_workflow --profile balanced --  # explicit K configuration
-opencode_workflow --doctor --github
-
-# Direct IDE/API entry point: the same launch contract, without shell-function reliance
-python3 ~/dotfiles/opencode/runtime/launch.py --profile astra-high -- serve --hostname 127.0.0.1 --port 4096
-
-# Inspect non-secret snapshot identity without starting a model
-python3 ~/dotfiles/opencode/runtime/launch.py --prepare
-```
-
-`--doctor` checks resource integrity, executable availability and temporary filesystem
-writes; `--github` adds a read-only authenticated API probe. It does not pretend to
-prove native model inference or patch permissions: the separate live smoke does that.
-`--live` passes through the incoming live config without new snapshot/profile overrides.
-Existing IDE/Orca hooks and other non-workflow files in `OPENCODE_CONFIG_DIR` are
-preserved through a composed catalog of links. Conflicting custom definitions of owned
-workflow entries require explicit reconciliation or `--live`, rather than silent
-overwriting. Other machine-local JSON settings remain local.
-
-Every resource snapshot roots helper/document paths in its own copy. Live dotfiles
-updates therefore do not change helpers midway through that run. A new top-level
-launch picks up new resources; nested launches retain their existing snapshot.
-Restart OpenCode to activate catalog/config changes. No custom routing plugin is added.
-Snapshot-local skill names include a revision prefix to prevent global-catalog
-collisions. Public slash commands keep their familiar names. Workflow agents receive
-the pinned prompt/permissions explicitly and hide the old owned skill aliases; project
-skills with other names remain available. Unsupported complex YAML in owned workflow
-frontmatter fails explicitly rather than silently losing permissions.
-
-### Before and after
-
-The commands remain `/ticket → /research → /plan → /execute → /review → /commit`.
-Before, fresh workers interpreted prose verification and replayed unmarked discussion.
-After, each stage receives the current exact contract, relevant records, changed
-discussion and applicable evidence. Repairs load open finding IDs and a real local
-repair diff, not another full research pass. Initial review still inspects real code.
-
-New/edited/deleted comments are reconciled via content hashes, not an ID-only watermark.
-Required text is never truncated for a token target. Old bodies are fetchable with
-`--history`; legacy v1 artifacts remain readable but are not silently promoted to gated
-v2 approval. Exact machine branch observations have separate integrity-bound metadata;
-edited notes remain material discussion. Packet size is reported in bytes.
-
-The approved plan includes a repository-owned `.opencode/workflow/checks.json` manifest.
-`verify.py init` creates it only during authorized execution and preserves conflicting
-existing content. `verify.py run` captures actual commands, statuses, skips and private
-logs; `handoff.py record ... verification --run ID` publishes compact evidence. A
-passing review and `handoff.py gate` require current recorded proof and no unresolved
-material findings. This checks evidence completeness, not the semantic adequacy of tests.
-
-Whole-content identity survives staging/committing unchanged bytes. Partial staging,
-source changes, changed contracts/check definitions, or declared environment/toolchain
-changes invalidate applicability. Explicit `--reuse` requires unchanged external-state
-assumptions; missing local evidence requires real reruns. No automatic baseline-failure
-waiver or destructive legacy migration is introduced.
-
-## Balanced GitHub development workflow
-
-The command and specialist roles originated in
-[Agentic](https://github.com/Cluster444/agentic). They are now bounded, locally owned
-stage skills with thin commands and fresh-context agents, informed by an A/B
-benchmark of native Plan/Build versus the original retained-session workflow.
-See `tracking/UPSTREAM.md` for the pinned source and `tracking/LICENSE.agentic` for
-its license. Edit these files directly in dotfiles; the Agentic CLI is not required.
-
-The tracking destination is selected in private workflow configuration,
-including for issues outside that project's organization. New tickets are
-assigned to the authenticated GitHub user. Issues hold requirements; comments hold
-research, plans, review and progress. Commands: `/ticket`, `/research`, `/plan`,
-`/execute`, `/review`, `/commit`, `/sync`, `/track`. Read `tracking/WORKFLOW.md` for
-the contract. No custom session-routing plugin or external orchestration service is needed.
-
-### Daily use
-
-Start a new session for a new task and choose the **workflow** primary agent. It is
-a lightweight Luna Fast dispatcher. Each slash command runs a **new child session**
-through native `subtask: true`; investigation context stays in the stage rather than
-accumulating in the parent. Only a short result and exact GitHub links return.
-
-```text
-/ticket Add a self-service reset for one notification preference
-/research ISSUE_URL
-/plan ISSUE_URL RESEARCH_COMMENT_URL
-/execute ISSUE_URL PLAN_COMMENT_URL
-/review ISSUE_URL PLAN_COMMENT_URL
-
-# If review requests changes, repeat only implementation and review:
-/execute ISSUE_URL PLAN_COMMENT_URL REVIEW_COMMENT_URL
-/review ISSUE_URL PLAN_COMMENT_URL REVIEW_COMMENT_URL
-
-# After review passes:
-/commit ISSUE_URL REVIEW_COMMENT_URL
-```
-
-Use the exact next command supplied by each stage. The issue and artifacts provide
-the context, so a fresh worker does not need the previous conversation. An explicit
-`/execute` identifies and approves its plan; planning alone never starts editing.
-Questions use OpenCode's native dialogs, including from child sessions. You can
-navigate into the stage child to inspect its work and return to the dispatcher.
-
-| Responsibility | Agent/model | Procedure |
-|---|---|---|
-| Dispatch/handoffs | workflow / Luna Fast | Short outcomes and next commands only |
-| Product scoping | workflow-ticket / Astra | Focused questions; acceptance examples; new issue/project/Orca |
-| Research | workflow-research / Astra | One bounded investigation; optional precise specialists |
-| Planning | workflow-plan / Astra | Reuse research; API/state/error/test matrix; concrete steps |
-| Implementation/fixes | workflow-execute / Astra high | Approved vertical slice, runner evidence, Verification artifact |
-| Independent review | workflow-review / Astra | Actual diff and contract; pass/changes_requested/blocked |
-| Local commit | workflow-commit / Luna Fast | Existing git-commit skill and compact evidence |
-
-Location/pattern specialists use Luna Fast; consequential code/history analysis
-uses Astra. Specialists cannot spawn more specialists. Stage commands and agents
-choose roles/models; `ai/shared/skills/workflow/` owns the methods; `tracking/WORKFLOW.md` owns
-the common tracking contract. Git mechanics remain in the existing Git skills.
-
-### Faster without skipping correctness
-
-For a small feature, target approximately **15–25 minutes**, then measure it. This
-is a design target, not a demonstrated timing guarantee. There are no hard token
-cutoffs and no permission to omit required checks to hit a timer.
-
-- One focused question batch, followed up only for material ambiguity.
-- Research once. Planning spot-checks current evidence instead of rerunning a
-  mandatory locator/pattern/analyzer pipeline.
-- Normally zero or one specialist for small work, at most two; `--deep` research
-  expands only named unknowns that justify it.
-- Relevant source ranges and close examples, not blanket whole-file/history reads.
-- Concise artifacts: roughly 400–700 words of research and a 500–900 word plan plus
-  an acceptance matrix for small work.
-- Reuse matching verification evidence; run missing/stale/discriminating tests and
-  required repository/CI checks. Report baseline failures rather than repairing them
-  as unrelated scope.
-- Independent review before the normal final commit. A changes-requested review
-  routes to fixes and fresh review; "review performed" is not "feature accepted".
-
-### Compact, content-bound handoffs
-
-`tracking/handoff.py packet` fetches paginated comments once per stage entry, then
-projects v2 records into a stage-specific view. Reconciled discussion need not be
-replayed; changed or unacknowledged text remains explicit. Multiple active plans are
-ambiguous unless selected/superseded deliberately. Legacy `context` behavior remains
-available and is the safe fallback until a v2 contract checkpoint is established.
-
-V2 comments record HEAD provenance separately from effective-content identity and
-exact input links. The digest notices unstaged, staged, untracked, deleted and
-mode/symlink changes, including partial-index divergence, and survives a commit of
-unchanged content. Changed submodules/special files require explicit handling. A
-source match does not approve later decisions or replace inspection of the actual diff.
-
-Publishing identical content and metadata is idempotent and returns the original
-comment URL. Replacements use explicit `--supersedes` links; earlier artifacts are
-not erased. All GitHub content remains project data, not trusted tool instructions.
-
-Status: **Backlog → Researching → Planning → Ready → Implementing → In review → Done**.
-Branch sync: **Not started / Unchecked / Up to date / Needs sync / Syncing / Conflicts / Verifying**.
-The two fields are independent. Planning alone does not authorize implementation.
-
-When `/ticket` creates an issue inside an Orca-managed worktree, it also calls the
-tracking helper to set Orca's native `linkedIssue`. The helper verifies GitHub and
-Orca repository identity, preserves a different existing link until replacement is
-explicitly approved, and rereads Orca before reporting success. Outside Orca, ticket
-creation and configured-project setup continue normally. Retry an unavailable attachment with:
-
-```
-python3 ~/dotfiles/opencode/tracking/track.py link-orca ISSUE_URL
-```
-
-### Orca workspace visibility and coordination
-
-`track.py status` now reports GitHub and Orca outcomes separately and mirrors the
-stage to the enclosing workspace **only when its issue link matches**. Workspace
-cards receive an owned `[opencode-workflow #N]` summary line; existing user notes
-are preserved. Milestone updates are verified by rereading the exact workspace.
-`/execute` links its implementation workspace even if the ticket originated in
-another workspace. Conflicting issue links still require explicit replacement.
-
-For a detailed checkpoint or an Orca-only retry:
-
-```sh
-python3 ~/dotfiles/opencode/tracking/track.py checkpoint-orca ISSUE_URL Implementing \
-  --summary 'fix implemented; running integration tests'
-```
-
-Use `/orca-handoff TASK` for a one-way transfer to another workspace/terminal, or
-`/orca-coordinate TASK` for supervised tasks, dependencies, and completion tracking.
-These are opt-in commands using the installed Orca CLI's version-matched guides.
-OpenCode stage children remain the default for ordinary workflow commands.
-Supervised workers route questions to their coordinator; ordinary sessions use
-native dialogs. See [coordination rules](orca/COORDINATION.md).
-
-The morning UI refresh uses [a fixed checkout helper](orca/refresh_checkout.py).
-Its `--check` mode is a read-only automation precheck; `--apply` fetches the named
-branch, discards only tracked unstaged edits, and fast-forwards to the fetched HEAD.
-It preserves staged work, local-only commits, and untracked/ignored-file collisions
-by refusing incompatible states. It does not clean untracked files. See
-[the automation setup](orca/README.md) for the exact target and schedule.
-
-Deleting a workspace/branch does not close its GitHub issue or unregister the local
-monitor. Close issues explicitly when appropriate, and use `track.py unregister`
-to retire monitoring. Moving this dotfiles tree requires reinstalling the monitor:
-
-```sh
-python3 ~/dotfiles/opencode/tracking/install.py monitor
-launchctl list dev.dotfiles.opencode-track
-```
-
-### Installation and migration
-
-```
-python3 opencode/tracking/install.py inspect
-python3 opencode/tracking/track.py configure
-python3 opencode/tracking/install.py migrate
-opencode_merge_config
-python3 opencode/tracking/install.py monitor
-```
-
-Inspect reports differences from upstream before migrating. Migration preserves
-the original six global agents and six commands under
-`~/.local/state/opencode-track/backups/` and replaces them with managed links in
-the plural native directories. Foreign symlinks/collisions are not overwritten.
-Configuration of field options refuses a populated project if options differ.
-
-Quit and restart OpenCode after installation. Machine-local JSON settings remain
-local. Git workflows load from `ai/shared/skills/git/`; project tracking
-behavior remains in the OpenCode commands and tracking helper.
-
-For optional nested specialists from fresh stage children, set this in your existing
-machine-local `opencode.jsonc` (preserve its other settings):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "subagent_depth": 2
-}
-```
-
-Without it, stages use direct investigation instead of repeatedly attempting blocked
-nested delegation. `opencode_merge_config` installs the managed commands, agents and
-skills but deliberately does not modify machine-local JSON configuration.
-
-### Automatic detection, explicit sync
-
-Register from each implementation worktree:
-
-```
+python3 ~/dotfiles/opencode/tracking/track.py configure
 python3 ~/dotfiles/opencode/tracking/track.py register ISSUE_URL
 python3 ~/dotfiles/opencode/tracking/track.py refresh
 python3 ~/dotfiles/opencode/tracking/track.py list
 ```
 
-The macOS LaunchAgent `dev.dotfiles.opencode-track` checks every five minutes and
-on load while logged in. It fetches only the target origin branch, compares Git
-ancestry and updates Branch sync. It never switches branches, merges, rebases,
-stashes, commits or pushes. No registrations means no network work. It catches up
-on its next run after sleep/offline time. It observes registered local branches,
-not every remote branch in the organization, and uses each repo's default branch.
+Configuration uses the privately selected GitHub project and refuses incompatible
+field options on a populated project. Sync resolves conflicts with the user, then runs
+the repository's relevant checks. An ancestry check cannot clear pending verification.
+Ordinary “Up to date” observations describe ancestry, not test success.
 
-Runtime registry and logs live under `~/.local/state/opencode-track/`; branch
-registrations and local paths are not committed. Worktree directory renames are
-recovered; branch renames require `/track` repair. Unresolvable branches become
-Unchecked. Offline failures are recorded locally; GitHub may retain the last known
-state until access recovers. Closed issues are skipped, not automatically called Done.
+The optional macOS monitor checks registered branches every five minutes while logged
+in. It fetches the target origin branch and updates Branch sync; it never switches
+branches, merges, rebases, stashes, commits or pushes. No registrations means no network
+work. Sleep/offline time is recovered on the next run. Registry and logs live in
+`~/.local/state/opencode-track/`. Worktree renames are recovered; branch renames need
+explicit repair. Closed issues are skipped, not automatically marked Done.
 
-Request `/sync ISSUE_URL` to integrate the target branch. Conflicts are resolved
-with you. After integration, Verifying remains until the workflow records actual
-check results. An ancestry check cannot clear a pending verification. Normal
-Up to date observations outside sync describe ancestry, not test success.
-
-To stop monitoring:
-`launchctl bootout gui/$(id -u)/dev.dotfiles.opencode-track`.
-To retire a completed branch: `track.py unregister ISSUE_URL` via Python.
-Re-run `install.py monitor` to load the monitor again. Tracking works while this
-machine is running; it is not a server-side GitHub Action.
-
-Verification: `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'`
-and `zsh zsh/tests/opencode_config_test.zsh`. Git tests build isolated local
-repositories and exercise parallel changes, merge/rebase conflicts, worktree
-renames, verification gates, retries, offline recovery, and mocked Orca attachment
-protocols. GitHub writes and Orca metadata writes are mocked in automated tests;
-project fields are checked against the live API on setup.
-
-OpenCode is a peer of Claude, Codex and Grok. `opencode_merge_config` in
-`zsh/functions.zsh` links all active `ai/shared/skills/**/SKILL.md` directories into
-`${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/<name>` using the shared sync helpers.
-The shell wrapper disables home-directory compatibility scans of `~/.claude/skills`
-and `~/.agents/skills`. The launcher explicitly adds project-local skills from
-`.claude`, `.agents`, and `.opencode` between the worktree root and launch directory.
-Nearer directories win; within a directory `.opencode` wins over `.agents`, then
-`.claude`. Project definitions override the shared catalog without global installs.
-The launcher's `runtime/project-skills.js` plugin enforces the selected definition
-at execution time because native duplicate discovery can finish out of order.
-It preserves native skill permission checks and explicit custom commands. Raw
-`debug skill` metadata can reflect another duplicate; `--pure` disables the overlay.
-
-## Skills
-
-`/explain-code-flow` loads the skill that combines concept explanations and runtime tracing. Explain mode
-introduces the concept before the entry-point table and call tree; debug mode follows
-the path to concrete side effects and supplies suggested breakpoints. Both use the
-skill's shared tracing reference and renderer. It replaces the separate OpenCode
-`trace-callpath` skill.
-
-Put public skills in `ai/shared/skills/<verb>/<verb>-<task>/SKILL.md`.
-`git` is the deliberate tool-name exception. The sync flattens skill directories by basename. Use matching
-`name` and `description` frontmatter, for example:
-
-```yaml
----
-name: my-skill
-description: What this does and when to use it.
----
+```sh
+python3 ~/dotfiles/opencode/tracking/install.py monitor
+launchctl list dev.dotfiles.opencode-track
+# Stop monitoring:
+launchctl bootout gui/$(id -u)/dev.dotfiles.opencode-track
 ```
 
-Whole skill directories are symlinked, preserving scripts, templates and references.
-The helper only replaces/prunes symlinks owned by dotfiles; existing real files,
-directories and other installers' symlinks are left alone with a warning on collisions.
-An unchanged, collision-free catalog produces no writes or output. Duplicate names
-within a discovery source are rejected by the launcher.
+Reinstall the monitor after moving the dotfiles checkout. Use `track.py unregister
+ISSUE_URL` to retire a registration; deleting a workspace does not close its issue.
+`install.py` only installs the monitor. Managed configuration uses the normal sync.
 
-Git and understanding skills use automatic slash registration, with no separate
-command files or Git-command symlinks. The sync prunes the retired managed links.
-The files in `commands/` provide tracking, sync, and Orca-specific behavior.
-The six former workflow stage commands and their dependent agents were retired.
+For explicitly requested structured evidence, `handoff.py` loads compact issue packets,
+publishes records and evaluates readiness gates. `verify.py` runs approved check manifests
+and records real exits, source/environment fingerprints and log references. See
+[record formats](tracking/references/records.md) and `schemas/`. GitHub holds authoritative
+records; local evidence caches do not replace them. Missing or stale proof requires
+verification. A readiness gate does not authorize Git operations. These helpers do not
+install stage commands or automatically start a multi-agent workflow.
 
-The shared `tui/skill-commands.js` plugin exposes every discovered skill as a slash
-command and a Skills entry in the command palette, including project-local skills.
-Internal `wf-<hash>-*` snapshot aliases are hidden from both menus while remaining
-available by explicit reference. OpenCode's resolved command catalog remains the source
-of truth: existing custom/MCP commands and TUI slash names or aliases take priority.
-Selecting a skill inserts `/<name> ` so arguments can be entered before submission;
-OpenCode executes its native skill command with the original skill content and base
-directory. New skills only need a `SKILL.md`, not a separate command wrapper.
+## Orca integration
 
-The launcher also generates `/skill-<name>` fallback commands referencing the exact
-selected skill file, with another `skill-` prefix if needed to avoid a collision.
-These keep every filesystem skill callable when a custom command owns its ordinary
-name. Shared skill contents and sibling resources are included in immutable snapshots;
-there is no maintained `opencode/skills` source tree.
+`/orca-handoff` dispatches a bounded task and returns its receipt.
+`/orca-coordinate` supervises a Run and worker lifecycle when explicitly requested.
+Both use [coordination rules](orca/COORDINATION.md) and the installed Orca CLI guides.
 
-The sync installs the managed `tui.json` when no machine-local TUI config occupies
-that path and no `tui.jsonc` exists. If you already have a custom TUI config, add
-`"./tui/skill-commands.js"` to its `plugin` array. Restart OpenCode after adding skills
-or changing the plugin. This menu integration targets OpenCode's terminal UI.
+`orca/refresh_checkout.py` supports private checkout-refresh automation. `--check` is a
+read-only precheck; `--apply` authorizes discarding tracked unstaged edits and a
+fast-forward. It refuses staged work, local-only commits and incompatible repository
+states; untracked and ignored files are preserved. Configure machine-specific targets
+and schedules privately. See [Orca integration](orca/README.md).
 
-## Loading
+## Local settings
 
-Run `opencode_merge_config` after adding or renaming skills, or launch `opencode`
-through the shell wrapper, which syncs before invoking the real binary. The global
-OpenCode directory must already exist (normally created by OpenCode); the sync does
-not create it on machines where OpenCode has not been set up.
-
-Desktop/IDE launches and direct binaries bypass the shell wrapper. Configure them to
-invoke `runtime/launch.py -- ...` for the same pinned profile, or explicitly use live
-mode with the compatibility-scan flags above. `OPENCODE_CONFIG_DIR` does not change
-the symlink sync's XDG destination. Quit/restart OpenCode after configuration changes.
-
-## Local Settings
-
-The sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`.
-`profiles.json` currently declares no owned workflow role overrides. Provider credentials,
-global overrides and the optional `subagent_depth` setting remain machine-local.
-
-There is deliberately no placeholder global `AGENTS.md`: OpenCode uses
-`~/.claude/CLAUDE.md` as a fallback only when its own global `AGENTS.md` is absent.
-Installing an empty one would silently suppress those existing instructions.
+Sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`. Provider
+credentials, global model overrides and optional `subagent_depth` remain machine-local.
+There is deliberately no placeholder global `AGENTS.md`: OpenCode falls back to
+`~/.claude/CLAUDE.md` only when its own global `AGENTS.md` is absent.
 
 Shared skills use host-native tools and canonical resource paths. OpenCode-specific
-agent/model routing and terminal behavior live in this directory. Skills requiring
-MCPs or private adapters still require those integrations.
+agent/command model settings and terminal behavior live here. Skills requiring MCPs or
+private adapters still require those integrations.
 
 ## Verification
 
-Run `zsh zsh/tests/opencode_config_test.zsh` for isolated sync and wrapper checks.
-Run `node --test opencode/tests/*.test.mjs` for terminal-menu and project-overlay behavior.
-Run `OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s opencode/tests -p 'skill_catalog_test.py'`
-for installed-binary discovery/config checks in an isolated HOME (no model calls).
-Run `python3 -B opencode/tests/catalog_smoke.py` after syncing to check the complete
-installed skill and command catalogs through a temporary local server (no model calls).
+```sh
+zsh zsh/tests/opencode_config_test.zsh
+node --test opencode/tests/*.test.mjs
+python3 -B -m unittest discover -s opencode/tests -p '*_test.py'
+OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s opencode/tests -p 'skill_catalog_test.py'
+python3 -B opencode/tests/catalog_smoke.py
+```
 
-Run `python3 -B -m unittest discover -s opencode/tests -p '*_test.py'` for tracking,
-handoff selection, idempotent publication, and real-Git snapshot tests. GitHub writes
-are mocked. The catalog smoke verifies retained skills and absence of retired stage
-commands without model calls. The two live-model probes for the removed workflow
-agents were retired with them. Earlier results remain in
-[the historical verification record](tracking/BALANCED_WORKFLOW_VERIFICATION.md).
+The shell checks use an isolated HOME. Python tests cover real-Git snapshots, tracking,
+handoff and evidence behavior; GitHub/Orca writes are mocked. The opt-in installed-binary
+test exercises project discovery in an isolated HOME. The final catalog smoke uses a
+temporary local server to check the installed skill/command catalog after syncing.
+Neither installed-binary check makes model calls.

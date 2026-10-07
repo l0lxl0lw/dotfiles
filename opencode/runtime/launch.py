@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin OpenCode workflow resources and route a profile without relocating HOME.
+"""Pin OpenCode resources without relocating HOME.
 
 Use from the shell wrapper or directly from an IDE/API launcher. No credentials
 are copied, printed, or included in the resource manifest.
@@ -20,7 +20,6 @@ from private_config import load as load_private_config
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDERS = ("agents", "commands", "tracking", "orca", "runtime", "schemas")
-STAGES = ("ticket", "research", "plan", "execute", "review", "commit")
 
 
 def digest(data):
@@ -28,7 +27,7 @@ def digest(data):
 
 
 def source_paths(root):
-    files = {"profiles.json": root / "profiles.json"}
+    files = {}
     for folder in FOLDERS:
         for path in sorted((root / folder).rglob("*")):
             if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
@@ -38,26 +37,6 @@ def source_paths(root):
         if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
             files["skills/" + str(path.relative_to(shared))] = path
     return files
-
-
-def profile(root, name=None):
-    data = json.loads((root / "profiles.json").read_text())
-    name = name or data["default"]
-    if data.get("version") != 1 or name not in data["profiles"]:
-        raise RuntimeError("Unknown workflow profile: " + str(name))
-    roles = {k: dict(v) for k, v in data["roles"].items()}
-    expected = {"workflow", *("workflow-" + stage for stage in STAGES)}
-    if roles and set(roles) != expected:
-        raise RuntimeError("Profiles must define no workflow roles or the dispatcher and six workflow stages")
-    for role, override in data["profiles"][name].items():
-        if role not in roles:
-            raise RuntimeError("Unknown profile role: " + role)
-        roles[role].update(override)
-    for role, settings in roles.items():
-        if (set(settings) != {"model", "variant"} or not isinstance(settings["model"], str) or
-                "/" not in settings["model"] or not isinstance(settings["variant"], str) or not settings["variant"]):
-            raise RuntimeError("Invalid model/variant for " + role)
-    return name, roles
 
 
 def body(path):
@@ -258,7 +237,7 @@ def private_skill_command(name):
     }
 
 
-def environment(bundle, name=None, environ=None, directory=None):
+def environment(bundle, environ=None, directory=None):
     env = dict(os.environ if environ is None else environ)
     existing = env.get("OPENCODE_CONFIG_DIR")
     global_dir = Path(env.get("XDG_CONFIG_HOME", str(Path(env.get("HOME", str(Path.home()))) / ".config"))) / "opencode"
@@ -267,9 +246,8 @@ def environment(bundle, name=None, environ=None, directory=None):
     custom = existing if existing and Path(existing).resolve() != global_dir.resolve() else None
     config_dir = compose_config(bundle, custom)
     root = bundle / "opencode"
-    name, roles = profile(root, name)
-    # Preserve user JSON, credentials and settings. Only owned workflow roles and
-    # commands are overridden; no unknown native configuration keys are invented.
+    # Preserve user JSON, credentials and model settings. Managed commands are
+    # loaded from their native definitions.
     cfg = json.loads(env.get("OPENCODE_CONFIG_CONTENT", "{}"))
     if not isinstance(cfg, dict):
         raise RuntimeError("OPENCODE_CONFIG_CONTENT must be a JSON object")
@@ -296,20 +274,8 @@ def environment(bundle, name=None, environ=None, directory=None):
                 if directory in private["skills_paths"]:
                     private_commands.add(key)
         skills["paths"] = paths
-    agents = cfg.setdefault("agent", {})
-    if not isinstance(agents, dict) or not isinstance(cfg.get("command", {}), dict):
+    if not isinstance(cfg.get("agent", {}), dict) or not isinstance(cfg.get("command", {}), dict):
         raise RuntimeError("agent and command configuration must be objects")
-    for role, settings in roles.items():
-        if role in agents and not isinstance(agents[role], dict):
-            raise RuntimeError("Invalid workflow agent configuration: " + role)
-        owned = definition(root / "agents" / (role + ".md"))
-        owned["prompt"] = body(root / "agents" / (role + ".md"))
-        owned.update(settings)
-        aliases = json.loads((bundle / "manifest.json").read_text())["skill_aliases"]
-        permissions = owned.setdefault("permission", {})
-        if permissions.get("skill") != "deny":
-            permissions["skill"] = {**{name: "deny" for name in aliases}, **{name: "allow" for name in aliases.values()}}
-        agents.setdefault(role, {}).update(owned)
     commands = cfg.setdefault("command", {})
     # Nested launches retain injected config. Remove only unchanged wrappers we own;
     # preserve edits so a collision fails rather than silently replacing user config.
@@ -321,12 +287,6 @@ def environment(bundle, name=None, environ=None, directory=None):
             del commands[key]
     for path in (root / "commands").glob("*.md"):
         commands[path.stem] = {**definition(path), "template": body(path)}
-    for stage in STAGES:
-        if "workflow-" + stage not in roles:
-            continue
-        text = body(root / "commands" / (stage + ".md"))
-        commands[stage] = {"description": "Workflow " + stage, "agent": "workflow-" + stage,
-                            "template": text, "subtask": True, **roles["workflow-" + stage]}
     for key in sorted(private_commands):
         # Global/IDE command files are outside cfg, but still share the slash namespace.
         directories = [global_dir, Path(config_dir)]
@@ -336,7 +296,7 @@ def environment(bundle, name=None, environ=None, directory=None):
         commands[key] = private_skill_command(key)
     env.update(OPENCODE_CONFIG_CONTENT=json.dumps(cfg), OPENCODE_CONFIG_DIR=str(config_dir),
                OPENCODE_PRIVATE_SKILL_COMMANDS=json.dumps(sorted(private_commands)),
-               OPENCODE_WORKFLOW_ROOT=str(root), OPENCODE_WORKFLOW_PROFILE=name,
+               OPENCODE_WORKFLOW_ROOT=str(root),
                OPENCODE_WORKFLOW_REVISION=bundle.name, OPENCODE_DISABLE_EXTERNAL_SKILLS="1",
                OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1", PYTHONDONTWRITEBYTECODE="1")
     return skill_environment(env, directory)
@@ -460,17 +420,16 @@ def skill_environment(environ, directory=None):
     return env
 
 
-def doctor(bundle, name=None, github=False):
+def doctor(bundle, github=False):
     manifest = validate_bundle(bundle)
-    selected, roles = profile(bundle / "opencode", name)
     for exe in ("git", "opencode"):
         if not shutil.which(exe):
             raise RuntimeError("Required executable missing: " + exe)
     with tempfile.NamedTemporaryFile(prefix="workflow-doctor-") as f:
         f.write(b"temporary artifact probe\n")
         f.flush()
-    result = {"resources": "pass", "temporary_filesystem_write": "pass", "profile": selected,
-              "revision": manifest["revision"], "roles": roles,
+    result = {"resources": "pass", "temporary_filesystem_write": "pass",
+              "revision": manifest["revision"],
               "native_permission_and_model_inference": "not tested"}
     if github:
         p = subprocess.run(["gh", "api", "user", "--jq", ".login"], text=True, capture_output=True)
@@ -482,11 +441,10 @@ def doctor(bundle, name=None, github=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile")
     parser.add_argument("--doctor", action="store_true")
     parser.add_argument("--github", action="store_true", help="Also validate GitHub auth without writes")
     parser.add_argument("--prepare", action="store_true", help="Print non-secret launch metadata; do not launch")
-    parser.add_argument("--live", action="store_true", help="Use normal live catalogs without snapshot/profile overrides")
+    parser.add_argument("--live", action="store_true", help="Use normal live catalogs without snapshots")
     parser.add_argument("args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.live:
@@ -500,16 +458,15 @@ def main():
     pinned = os.environ.get("OPENCODE_WORKFLOW_ROOT")
     bundle = Path(pinned).parent if pinned else build_bundle()
     validate_bundle(bundle)
-    name = args.profile or os.environ.get("OPENCODE_WORKFLOW_PROFILE")
     if args.doctor:
-        print(json.dumps(doctor(bundle, name, args.github), indent=2))
+        print(json.dumps(doctor(bundle, args.github), indent=2))
         return
     argv = args.args[1:] if args.args[:1] == ["--"] else args.args
     directory = argv[0] if argv and Path(argv[0]).is_dir() else None
-    env = environment(bundle, name, directory=directory)
+    env = environment(bundle, directory=directory)
     if args.prepare:
         print(json.dumps({k: env[k] for k in ("OPENCODE_CONFIG_DIR", "OPENCODE_WORKFLOW_ROOT",
-                         "OPENCODE_WORKFLOW_PROFILE", "OPENCODE_WORKFLOW_REVISION")}, indent=2))
+                         "OPENCODE_WORKFLOW_REVISION")}, indent=2))
         return
     binary = shutil.which("opencode")
     if not binary:

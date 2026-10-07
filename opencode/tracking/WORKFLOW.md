@@ -1,10 +1,9 @@
 # Development workflow — common contract
 
-The former `workflow` dispatcher, six stage commands, and associated skills have
-been retired. These contracts describe the retained tracking and evidence helpers
-when invoked explicitly, including by `/track` and `/sync`; they do not require a
-dispatcher or an installed stage skill. Return compact outcomes and exact artifact
-URLs when using these helpers.
+These contracts describe tracking and evidence helpers invoked explicitly,
+including by `/track` and `/sync`. Return compact outcomes and exact artifact URLs
+when using these helpers. Stage names in helper arguments identify record types;
+they are not installed slash commands.
 
 ## Current task, not accumulated conversation
 
@@ -39,9 +38,9 @@ unrecognized notes remain material. Record technical unknowns as research questi
 
 ## Correctness and repair
 
-For cross-repository UI/API/DB features, load `full-stack-slice` and the project's
-private adapter skill. Bind browser acceptance to both source trees and the leased
-fixture/environment, not just the repository containing the check manifest.
+For cross-repository UI/API/DB features, use the project's applicable private
+full-stack skill when available. Bind browser acceptance to both source trees and
+the leased fixture/environment, not just the repository containing the check manifest.
 
 The plan maps each required criterion to declared checks or justified manual review.
 Preserve negative cases, actual route/identity behavior, state invariants, realistic
@@ -73,14 +72,13 @@ Keep one implementation branch per issue; report partial tracking failures separ
 Use the existing verified milestone helpers, preserving user notes and conflicting links.
 Orca supervision is opt-in; load `../orca/COORDINATION.md` only for supervised runs.
 
-`/execute` authorizes its identified plan, not a commit/push. A prepared plan is not
-automatic implementation approval. Before claiming review-ready/commit-ready, run
+Implementation requires explicit authorization; a prepared plan is not automatic
+approval to edit, commit or push. When using the evidence workflow, before claiming
+review-ready/commit-ready, run
 `handoff.py gate ISSUE --plan PLAN_URL --review REVIEW_URL`. The gate checks local
 runner evidence and current review, not Git authorization or the semantic sufficiency
 of tests. Use the existing Git skills when those operations are requested. A local
 commit is not a PR/merge/Done; existing merge and acceptance requirements still govern Done.
 
-Pinned launch resources and `profiles.json` choose models consistently. Keep the same
-implementation profile during a task's repairs unless the user explicitly changes it.
 Report measured timing/usage where available, including internal iteration and repair
 rounds. Unknown provider cost is unavailable, not zero.

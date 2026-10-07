@@ -60,14 +60,14 @@ same checkout. Save exact Run/Task/Dispatch IDs in the handoff summary.
 Every brief must include the following worker contract, alongside the runtime's
 injected preamble:
 
-- Read the normal workflow contract when using `/research`, `/plan`, `/execute`,
-  `/review`, or `/commit`. Pass exact issue and artifact URLs to stage children.
+- Read `../tracking/WORKFLOW.md` when using tracking or evidence helpers. Pass
+  exact issue and artifact URLs to delegated workers that need them.
 - Carry the injected Task/Dispatch/coordinator identifiers into delegated children.
   Supervised blocking questions go through `orchestration ask` to the coordinator,
   not a local unattended TUI dialog. The coordinator asks the human when needed.
 - Only the owning worker sends `worker_done` once for its active Dispatch, with
   both IDs, `succeeded|failed`, actual checks, modified files, artifact URLs, and
-  remaining work. Stage children report back to that worker and do not duplicate
+  remaining work. Delegated children report back to that worker and do not duplicate
   completion. Use the guide's heartbeat contract during long work.
 - Completion of implementation is not review approval or authorization to commit,
   push, merge, or close an issue. A worker must report failure as well as success.

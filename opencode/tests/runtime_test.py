@@ -1,4 +1,4 @@
-"""Snapshot/profile behavior without paid models or changing real HOME."""
+"""Snapshot behavior without paid models or changing real HOME."""
 import importlib.util
 import json
 from pathlib import Path
@@ -16,7 +16,6 @@ class RuntimeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="workflow snapshot space ") as tmp:
             source = Path(tmp) / "source"
             source.mkdir()
-            (source / "profiles.json").write_bytes((ROOT / "profiles.json").read_bytes())
             (source / "tracking").mkdir()
             target = source / "tracking/procedure.md"
             target.write_text("Run python3 ~/dotfiles/opencode/tracking/handoff.py packet\n")
@@ -32,25 +31,20 @@ class RuntimeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "changed"):
                 launch.validate_bundle(bundle)
 
-    def test_retired_workflow_profiles_preserve_user_configuration(self):
+    def test_snapshot_preserves_user_configuration_and_nested_launch(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp))
             env = {"HOME": "/real/home", "GH_TOKEN": "private-fixture-token", "OPENCODE_CONFIG_CONTENT": json.dumps({"model": "local/keep", "agent": {"custom": {"description": "keep"}}})}
-            for profile in ("balanced", "baseline", "astra-high"):
-                actual = launch.environment(bundle, profile, env)
-                cfg = json.loads(actual["OPENCODE_CONFIG_CONTENT"])
-                self.assertEqual(actual["HOME"], env["HOME"])
-                self.assertEqual(actual["GH_TOKEN"], env["GH_TOKEN"])
-                self.assertEqual(cfg["agent"]["custom"]["description"], "keep")
-                self.assertEqual(cfg["model"], "local/keep")
-                self.assertEqual(launch.profile(bundle / "opencode", profile)[1], {})
-                self.assertFalse(any(name.startswith("workflow") for name in cfg["agent"]))
-                self.assertFalse(set(launch.STAGES) & cfg["command"].keys())
-                self.assertTrue({"sync", "track", "orca-coordinate", "orca-handoff"} <= cfg["command"].keys())
-                self.assertEqual(launch.environment(bundle, profile, actual), actual)
+            actual = launch.environment(bundle, environ=env)
+            cfg = json.loads(actual["OPENCODE_CONFIG_CONTENT"])
+            self.assertEqual(actual["HOME"], env["HOME"])
+            self.assertEqual(actual["GH_TOKEN"], env["GH_TOKEN"])
+            self.assertEqual(cfg["agent"], {"custom": {"description": "keep"}})
+            self.assertEqual(cfg["model"], "local/keep")
+            self.assertFalse({"ticket", "research", "plan", "execute", "review", "commit"} & cfg["command"].keys())
+            self.assertTrue({"sync", "track", "orca-coordinate", "orca-handoff"} <= cfg["command"].keys())
+            self.assertEqual(launch.environment(bundle, environ=actual), actual)
             self.assertNotIn("private-fixture-token", (bundle / "manifest.json").read_text())
-            with self.assertRaises(RuntimeError):
-                launch.profile(bundle / "opencode", "missing")
             with self.assertRaisesRegex(RuntimeError, "does not exist"):
                 launch.environment(bundle, environ={"OPENCODE_CONFIG_DIR": "/unrelated/custom"})
 
@@ -78,13 +72,3 @@ class RuntimeTest(unittest.TestCase):
         for path in commands:
             agent = launch.definition(path).get("agent", "build")
             self.assertTrue(agent in {"build", "plan"} or (ROOT / "agents" / (agent + ".md")).is_file(), path)
-
-    def test_partial_workflow_profile_is_rejected(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "profiles.json").write_text(json.dumps({
-                "version": 1, "default": "test", "profiles": {"test": {}},
-                "roles": {"workflow-execute": {"model": "local/test", "variant": "medium"}},
-            }))
-            with self.assertRaisesRegex(RuntimeError, "no workflow roles or"):
-                launch.profile(root)

@@ -26,17 +26,17 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "ai/shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 28)
+        self.assertEqual(len(catalog), 30)
         self.assertIn("write-better", catalog)
         removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
         shared = ROOT.parent / "ai/shared/skills"
         self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
         self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
-                         {"write", "learn", "explain", "git", "use", "remember"})
+                         {"write", "learn", "explain", "git", "use", "remember", "respond"})
         for name, path in catalog.items():
             self.assertEqual(name, path.parent.name)
             self.assertTrue(name.startswith(path.relative_to(shared).parts[0] + "-"), name)
-        for stage in launch.STAGES:
+        for stage in ("ticket", "research", "plan", "execute", "review", "commit"):
             self.assertNotIn("workflow-" + stage, catalog)
             self.assertFalse((ROOT / "commands" / (stage + ".md")).exists())
             self.assertFalse((ROOT / "agents" / ("workflow-" + stage + ".md")).exists())
@@ -106,7 +106,6 @@ class SkillCatalogTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="shared resource space ") as tmp:
             source = Path(tmp) / "source/opencode"
             source.mkdir(parents=True)
-            (source / "profiles.json").write_bytes((ROOT / "profiles.json").read_bytes())
             shared = source.parent / "ai/shared/skills"
             md = skill(shared / "git", "sample", "bash ~/dotfiles/ai/shared/skills/git/sample/scripts/check.sh")
             helper = md.parent / "scripts/check.sh"

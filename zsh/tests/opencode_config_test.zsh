@@ -6,7 +6,7 @@ test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/opencode-config-test.XXXXXX") || exit 1
 test_tmp=${test_tmp:a}
 trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
-unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_PROFILE OPENCODE_WORKFLOW_REVISION
+unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_REVISION
 unset OPENCODE_CONFIG_CONTENT OPENCODE_PRIVATE_SKILL_COMMANDS OPENCODE_SKILL_CATALOG
 mkdir -p "$HOME/dotfiles/opencode"
 for name in commands agents runtime tui; do
@@ -15,7 +15,6 @@ done
 mkdir -p "$HOME/dotfiles/ai"
 ln -s "$repo_root/ai/shared" "$HOME/dotfiles/ai/shared"
 ln -s "$repo_root/opencode/tui.json" "$HOME/dotfiles/opencode/tui.json"
-ln -s "$repo_root/opencode/profiles.json" "$HOME/dotfiles/opencode/profiles.json"
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
 
@@ -117,6 +116,6 @@ rm "$dst/skills/git-commit"
 opencode 'argument with spaces'
 result=$?
 [[ $result == 23 ]] || fail "wrapper status/arguments/pre-launch sync: $result"
-opencode_workflow --profile baseline -- 'argument with spaces'
-[[ $? == 23 ]] || fail "explicit baseline profile forwarding"
+opencode_workflow -- 'argument with spaces'
+[[ $? == 23 ]] || fail "explicit launcher argument forwarding"
 print -- "PASS: ${#skills} OpenCode skills, XDG/default paths, external-skill isolation, safe pruning, config preservation, idempotence and wrapper"
