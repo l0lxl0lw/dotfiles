@@ -4,7 +4,7 @@ agent: build
 model: openai/gpt-6-astra
 ---
 
-Follow `~/dotfiles/opencode/orca/COORDINATION.md` in **supervised** mode.
+Follow `~/dotfiles/ai/opencode/orca/COORDINATION.md` in **supervised** mode.
 This invocation authorizes coordination of the requested work, subject to its
 existing implementation and Git boundaries.
 

@@ -4,10 +4,10 @@
 
 The shared catalog contains 30 skills in `write`, `learn`, `explain`, `git`, `use`,
 `remember`, and `respond`. Each skill name starts with its folder name, for example
-`write/write-better` exposes `/write-better`. See the [full catalog](../ai/shared/README.md#naming-and-catalog).
+`write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 
 **Public skills live only in `ai/shared/skills/`.** There is no maintained
-`opencode/skills/` source directory. The launcher copies shared skills into immutable
+`ai/opencode/skills/` source directory. The launcher copies shared skills into immutable
 runtime snapshots outside this repository; those generated copies are not editing targets.
 
 This directory owns OpenCode-specific integration:
@@ -64,7 +64,7 @@ Desktop/IDE launches and direct binaries bypass the shell wrapper. Configure the
 to invoke the launcher for the same snapshot and skill-discovery behavior:
 
 ```sh
-python3 ~/dotfiles/opencode/runtime/launch.py -- serve --hostname 127.0.0.1 --port 4096
+python3 ~/dotfiles/ai/opencode/runtime/launch.py -- serve --hostname 127.0.0.1 --port 4096
 ```
 
 Use `--live -- ...` for live catalogs without a snapshot. `OPENCODE_CONFIG_DIR`
@@ -146,10 +146,10 @@ and [operations](tracking/references/operations.md) for identity, status, author
 and partial-failure rules.
 
 ```sh
-python3 ~/dotfiles/opencode/tracking/track.py configure
-python3 ~/dotfiles/opencode/tracking/track.py register ISSUE_URL
-python3 ~/dotfiles/opencode/tracking/track.py refresh
-python3 ~/dotfiles/opencode/tracking/track.py list
+python3 ~/dotfiles/ai/opencode/tracking/track.py configure
+python3 ~/dotfiles/ai/opencode/tracking/track.py register ISSUE_URL
+python3 ~/dotfiles/ai/opencode/tracking/track.py refresh
+python3 ~/dotfiles/ai/opencode/tracking/track.py list
 ```
 
 Configuration uses the privately selected GitHub project and refuses incompatible
@@ -165,7 +165,7 @@ work. Sleep/offline time is recovered on the next run. Registry and logs live in
 explicit repair. Closed issues are skipped, not automatically marked Done.
 
 ```sh
-python3 ~/dotfiles/opencode/tracking/install.py monitor
+python3 ~/dotfiles/ai/opencode/tracking/install.py monitor
 launchctl list dev.dotfiles.opencode-track
 # Stop monitoring:
 launchctl bootout gui/$(id -u)/dev.dotfiles.opencode-track
@@ -210,10 +210,10 @@ private adapters still require those integrations.
 
 ```sh
 zsh zsh/tests/opencode_config_test.zsh
-node --test opencode/tests/*.test.mjs
-python3 -B -m unittest discover -s opencode/tests -p '*_test.py'
-OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s opencode/tests -p 'skill_catalog_test.py'
-python3 -B opencode/tests/catalog_smoke.py
+node --test ai/opencode/tests/*.test.mjs
+python3 -B -m unittest discover -s ai/opencode/tests -p '*_test.py'
+OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s ai/opencode/tests -p 'skill_catalog_test.py'
+python3 -B ai/opencode/tests/catalog_smoke.py
 ```
 
 The shell checks use an isolated HOME. Python tests cover real-Git snapshots, tracking,

@@ -18,7 +18,7 @@ class RuntimeTest(unittest.TestCase):
             source.mkdir()
             (source / "tracking").mkdir()
             target = source / "tracking/procedure.md"
-            target.write_text("Run python3 ~/dotfiles/opencode/tracking/handoff.py packet\n")
+            target.write_text("Run python3 ~/dotfiles/ai/opencode/tracking/handoff.py packet\n")
             bundle = launch.build_bundle(source, Path(tmp) / "state")
             content = (bundle / "opencode/tracking/procedure.md").read_text()
             self.assertIn('python3 "' + str(bundle), content)

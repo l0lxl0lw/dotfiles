@@ -8,13 +8,13 @@ trap 'command rm -rf -- "$test_tmp"' EXIT
 export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_REVISION
 unset OPENCODE_CONFIG_CONTENT OPENCODE_PRIVATE_SKILL_COMMANDS OPENCODE_SKILL_CATALOG
-mkdir -p "$HOME/dotfiles/opencode"
+mkdir -p "$HOME/dotfiles/ai/opencode"
 for name in commands agents runtime tui; do
-  ln -s "$repo_root/opencode/$name" "$HOME/dotfiles/opencode/$name"
+  ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
 done
 mkdir -p "$HOME/dotfiles/ai"
 ln -s "$repo_root/ai/shared" "$HOME/dotfiles/ai/shared"
-ln -s "$repo_root/opencode/tui.json" "$HOME/dotfiles/opencode/tui.json"
+ln -s "$repo_root/ai/opencode/tui.json" "$HOME/dotfiles/ai/opencode/tui.json"
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
 
@@ -27,12 +27,12 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
-assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/opencode/tui.json"
-assert_link_to "$HOME/.config/opencode/tui/skill-commands.js" "$repo_root/opencode/tui/skill-commands.js"
-for f in "$repo_root"/opencode/agents/*.md; do
+assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/ai/opencode/tui.json"
+assert_link_to "$HOME/.config/opencode/tui/skill-commands.js" "$repo_root/ai/opencode/tui/skill-commands.js"
+for f in "$repo_root"/ai/opencode/agents/*.md; do
   assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
 done
-for f in "$repo_root"/opencode/commands/*.md; do
+for f in "$repo_root"/ai/opencode/commands/*.md; do
   assert_link_to "$HOME/.config/opencode/commands/${f:t}" "$f"
 done
 for f in "$repo_root"/ai/shared/skills/git/*/SKILL.md; do
@@ -47,6 +47,17 @@ done
 assert_link_to "$HOME/.config/opencode/skills/write-better" "$repo_root/ai/shared/skills/write/write-better"
 assert_link_to "$HOME/.config/opencode/skills/learn-quiz" "$repo_root/ai/shared/skills/learn/learn-quiz"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
+
+# Existing installs still point at the former top-level directory. The sync must
+# repair dangling managed links after the move, without a compatibility symlink.
+for entry in tui.json tui/skill-commands.js agents/codebase-analyzer.md commands/track.md; do
+  rm "$HOME/.config/opencode/$entry"
+  ln -s "$HOME/dotfiles/opencode/$entry" "$HOME/.config/opencode/$entry"
+done
+opencode_merge_config || fail "relocated catalog sync"
+for entry in tui.json tui/skill-commands.js agents/codebase-analyzer.md commands/track.md; do
+  assert_link_to "$HOME/.config/opencode/$entry" "$repo_root/ai/opencode/$entry"
+done
 
 # A path containing spaces must be honored without touching the default tree.
 export XDG_CONFIG_HOME="$test_tmp/xdg config"
@@ -82,6 +93,7 @@ sleep 1
 [[ "$(stat -f %m "$dst/skills/git-commit")" == "$before" ]] || fail "unchanged link rewritten"
 cmp -s "$dst/opencode.jsonc" "$test_tmp/config-before" || fail "JSONC modified"
 
+# Retired links intentionally use the old top-level path to verify cleanup.
 # Retired handoff links are removed, while matching real files and foreign links
 # remain untouched.
 mkdir -p "$dst/commands" "$dst/plugins"

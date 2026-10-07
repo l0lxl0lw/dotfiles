@@ -70,10 +70,10 @@ From the actual implementation worktree after explicit authorization to implemen
 the identified plan:
 
 ```
-python3 ~/dotfiles/opencode/tracking/verify.py init ISSUE --plan PLAN_URL
+python3 ~/dotfiles/ai/opencode/tracking/verify.py init ISSUE --plan PLAN_URL
 # implement the approved change and reconcile the check manifest if needed
-python3 ~/dotfiles/opencode/tracking/verify.py run ISSUE --plan PLAN_URL
-python3 ~/dotfiles/opencode/tracking/handoff.py record ISSUE verification --run RUN_ID
+python3 ~/dotfiles/ai/opencode/tracking/verify.py run ISSUE --plan PLAN_URL
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py record ISSUE verification --run RUN_ID
 ```
 
 `init` creates the repository manifest only if absent; an incompatible existing file
@@ -112,8 +112,8 @@ and actual source locations. Optional improvements remain non-blocking. A materi
 new regression can block even if the original matrix missed it.
 
 ```
-python3 ~/dotfiles/opencode/tracking/handoff.py record ISSUE review --data REVIEW.json
-python3 ~/dotfiles/opencode/tracking/handoff.py gate ISSUE --plan PLAN_URL --review REVIEW_URL
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py record ISSUE review --data REVIEW.json
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py gate ISSUE --plan PLAN_URL --review REVIEW_URL
 ```
 
 Passing publication checks the current contract, required runner results and manual

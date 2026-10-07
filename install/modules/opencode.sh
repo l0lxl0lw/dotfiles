@@ -4,5 +4,5 @@ install_component() {
   ensure_tool gh gh
   sync_ai opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
   say 'Run gh auth login for GitHub workflows. Configure provider access in OpenCode.'
-  say 'Check models in opencode/agents and opencode/commands against your provider access.'
+  say 'Check models in ai/opencode/agents and ai/opencode/commands against your provider access.'
 }

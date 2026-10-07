@@ -3,7 +3,7 @@ description: Explicitly sync a tracked work branch with main and report its proj
 agent: build
 model: openai/gpt-5.6-sol
 ---
-Read `~/dotfiles/opencode/tracking/WORKFLOW.md` and follow its contract.
+Read `~/dotfiles/ai/opencode/tracking/WORKFLOW.md` and follow its contract.
 
 Issue: $ARGUMENTS
 

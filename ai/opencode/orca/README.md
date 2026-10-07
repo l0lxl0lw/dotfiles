@@ -17,7 +17,7 @@ Use the installed Orca automation guide to configure the private target. Preserv
 workspace/schedule/provider settings and verify the read-only precheck. Never run a
 discarding refresh as an installation test.
 
-Tests: `python3 -B -m unittest discover -s opencode/tests -p 'orca_refresh_test.py'`.
+Tests: `python3 -B -m unittest discover -s ai/opencode/tests -p 'orca_refresh_test.py'`.
 
 ## Cross-workspace work
 

@@ -2,7 +2,7 @@
 
 Canonical public skills consumed by Claude, Codex, Grok, and OpenCode. Skill
 instructions, scripts, references, and shared libraries live here. OpenCode's
-agents, command routing, launcher, and terminal plugins remain in `opencode/`.
+agents, command routing, launcher, and terminal plugins live in `ai/opencode/`.
 
 ```
 ai/

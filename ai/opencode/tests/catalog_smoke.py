@@ -21,7 +21,7 @@ with socket.socket() as sock:
     port = sock.getsockname()[1]
 process = subprocess.Popen(
     ["python3", "-B", str(ROOT / "runtime/launch.py"), "--", "serve", "--hostname", "127.0.0.1", "--port", str(port)],
-    cwd=ROOT.parent, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+    cwd=ROOT.parent.parent, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
 )
 try:
     result = None

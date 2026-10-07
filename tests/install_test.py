@@ -22,7 +22,6 @@ class InstallTest(unittest.TestCase):
         shutil.copy2(ROOT / "deploy.sh", self.repo / "deploy.sh")
         # Read-only fixture sources; integrations only link to them.
         (self.repo / "ai").symlink_to(ROOT / "ai", target_is_directory=True)
-        (self.repo / "opencode").symlink_to(ROOT / "opencode", target_is_directory=True)
         self.bin = self.home / "bin"
         self.bin.mkdir()
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("CODEX", "GROK", "XDG", "DOTFILES", "OPENCODE", "LIFE_MEMORY", "ZDOTDIR", "BACKUP"))}

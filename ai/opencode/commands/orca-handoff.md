@@ -4,7 +4,7 @@ agent: build
 model: openai/gpt-6-astra
 ---
 
-Follow `~/dotfiles/opencode/orca/COORDINATION.md` in **handoff** mode.
+Follow `~/dotfiles/ai/opencode/orca/COORDINATION.md` in **handoff** mode.
 This invocation authorizes only the handoff described by the user.
 
 Request: $ARGUMENTS

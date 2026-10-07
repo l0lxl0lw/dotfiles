@@ -617,7 +617,7 @@ opencode_merge_config() {
   setopt extended_glob
 
   local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-  local repo="$HOME/dotfiles/opencode"
+  local repo="$HOME/dotfiles/ai/opencode"
   [[ -d "$repo" ]] || { echo "opencode_merge_config: $repo not found" >&2; return 1 }
   # As with Codex/Grok, don't create config for a tool not installed here.
   [[ -d "$opencode_dir" ]] || return 0
@@ -677,7 +677,7 @@ opencode() {
   if ! _agentcfg_enabled opencode; then command opencode "$@"; return $?; fi
   opencode_merge_config || return
   # A nested invocation retains its launch snapshot, even if live dotfiles changed.
-  local workflow_root="${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/opencode}"
+  local workflow_root="${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/ai/opencode}"
   if [[ -f "$workflow_root/runtime/launch.py" ]]; then
     PYTHONDONTWRITEBYTECODE=1 python3 "$workflow_root/runtime/launch.py" -- "$@"
     return $?
@@ -691,5 +691,5 @@ opencode() {
 # not flags claimed to exist on the upstream OpenCode executable.
 opencode_workflow() {
   opencode_merge_config || return
-  PYTHONDONTWRITEBYTECODE=1 python3 "${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/opencode}/runtime/launch.py" "$@"
+  PYTHONDONTWRITEBYTECODE=1 python3 "${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/ai/opencode}/runtime/launch.py" "$@"
 }

@@ -3,7 +3,7 @@ description: Inspect, register, refresh or repair GitHub issue and branch projec
 agent: build
 model: openai/gpt-5.6-luna-fast
 ---
-Read `~/dotfiles/opencode/tracking/WORKFLOW.md` and follow its contract.
+Read `~/dotfiles/ai/opencode/tracking/WORKFLOW.md` and follow its contract.
 
 Request: $ARGUMENTS
 

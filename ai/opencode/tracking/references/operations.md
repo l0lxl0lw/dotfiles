@@ -28,7 +28,7 @@ legacy handoff behavior during migration.
 
 ## Helper
 
-Run `python3 ~/dotfiles/opencode/tracking/track.py <operation>`:
+Run `python3 ~/dotfiles/ai/opencode/tracking/track.py <operation>`:
 
 ```
 add ISSUE
@@ -150,12 +150,12 @@ Use v2 packets and records from `records.md` for new evidence. The helper retain
 these operations for existing v1 artifacts (stdlib, existing `gh` auth):
 
 ```
-python3 ~/dotfiles/opencode/tracking/handoff.py context ISSUE --stage plan --include RESEARCH_URL
-python3 ~/dotfiles/opencode/tracking/handoff.py snapshot
-python3 ~/dotfiles/opencode/tracking/handoff.py publish ISSUE research /absolute/research.md
-python3 ~/dotfiles/opencode/tracking/handoff.py publish ISSUE plan /absolute/plan.md --input RESEARCH_URL
-python3 ~/dotfiles/opencode/tracking/handoff.py publish ISSUE verification /absolute/verification.md --input PLAN_URL
-python3 ~/dotfiles/opencode/tracking/handoff.py publish ISSUE review /absolute/review.md --input PLAN_URL --input VERIFICATION_URL --verdict pass
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py context ISSUE --stage plan --include RESEARCH_URL
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py snapshot
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py publish ISSUE research /absolute/research.md
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py publish ISSUE plan /absolute/plan.md --input RESEARCH_URL
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py publish ISSUE verification /absolute/verification.md --input PLAN_URL
+python3 ~/dotfiles/ai/opencode/tracking/handoff.py publish ISSUE review /absolute/review.md --input PLAN_URL --input VERIFICATION_URL --verdict pass
 ```
 
 Repeat `--include`/`--input` for multiple exact references. Replacements explicitly

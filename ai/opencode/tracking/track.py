@@ -216,7 +216,7 @@ def link_orca(value, replace_existing=None):
             "outcome": "failed", "reason": "invalid_issue",
             "issue": {"input": value}, "observed": str(error)
         }, 1
-    base_recovery = "python3 ~/dotfiles/opencode/tracking/track.py link-orca " + issue["url"]
+    base_recovery = "python3 ~/dotfiles/ai/opencode/tracking/track.py link-orca " + issue["url"]
     recovery = base_recovery
     if replace_existing is not None:
         recovery += " --replace-existing " + str(replace_existing)
@@ -309,7 +309,7 @@ def link_orca(value, replace_existing=None):
 def checkpoint_orca(value, stage, summary=None):
     """Mirror a milestone only to the enclosing, already-linked workspace."""
     current = None
-    recovery = "python3 ~/dotfiles/opencode/tracking/track.py checkpoint-orca " + shlex.quote(value) + " " + shlex.quote(stage)
+    recovery = "python3 ~/dotfiles/ai/opencode/tracking/track.py checkpoint-orca " + shlex.quote(value) + " " + shlex.quote(stage)
     if summary is not None:
         recovery += " --summary " + shlex.quote(summary)
     try:
@@ -321,7 +321,7 @@ def checkpoint_orca(value, stage, summary=None):
             return {
                 "outcome": "not_linked" if current.get("linkedIssue") is None else "conflict",
                 "existingIssue": current.get("linkedIssue"),
-                "recoveryCommand": "python3 ~/dotfiles/opencode/tracking/track.py link-orca " + issue["url"],
+                "recoveryCommand": "python3 ~/dotfiles/ai/opencode/tracking/track.py link-orca " + issue["url"],
             }, 2
         status, default_summary = ORCA_STAGES[stage]
         old_comment = current.get("comment", "")

@@ -24,12 +24,12 @@ def skill(root, name, content="fixture"):
 
 class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
-        catalog = launch.skill_files(ROOT.parent / "ai/shared/skills")
+        catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
         self.assertEqual(len(catalog), 30)
         self.assertIn("write-better", catalog)
         removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
-        shared = ROOT.parent / "ai/shared/skills"
+        shared = ROOT.parent / "shared/skills"
         self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
         self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
                          {"write", "learn", "explain", "git", "use", "remember", "respond"})
@@ -46,7 +46,7 @@ class SkillCatalogTest(unittest.TestCase):
     def test_shared_skill_resources_resolve_from_live_and_pinned_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp))
-            for shared in (ROOT.parent / "ai/shared/skills", bundle / "opencode/skills"):
+            for shared in (ROOT.parent / "shared/skills", bundle / "opencode/skills"):
                 catalog = launch.skill_files(shared)
                 for path in catalog.values():
                     text = path.read_text()
@@ -104,9 +104,9 @@ class SkillCatalogTest(unittest.TestCase):
 
     def test_shared_helpers_are_pinned_and_shared_edits_change_revision(self):
         with tempfile.TemporaryDirectory(prefix="shared resource space ") as tmp:
-            source = Path(tmp) / "source/opencode"
+            source = Path(tmp) / "source/ai/opencode"
             source.mkdir(parents=True)
-            shared = source.parent / "ai/shared/skills"
+            shared = source.parent / "shared/skills"
             md = skill(shared / "git", "sample", "bash ~/dotfiles/ai/shared/skills/git/sample/scripts/check.sh")
             helper = md.parent / "scripts/check.sh"
             helper.parent.mkdir()

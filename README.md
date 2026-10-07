@@ -75,7 +75,7 @@ Claude catalog synchronization is explicit (`claude_merge_config`). Codex, Grok
 and OpenCode synchronize managed resources when launched through their shell
 wrappers. Grok also has a SessionStart sync hook. Normal synchronization preserves
 foreign files; use the installer to review collisions. OpenCode's wrapper launches
-the snapshot-based workflow described in [opencode/README.md](opencode/README.md).
+the snapshot-based workflow described in [ai/opencode/README.md](ai/opencode/README.md).
 
 Declining an AI component disables its automatic catalog sync using a small marker
 under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A successful
@@ -133,7 +133,7 @@ Review the summary, fix a failed component, and rerun with `--only`.
 | `vim/`, `tmux/`, `emacs/` | Editor/multiplexer settings |
 | `ai/claude/`, `ai/codex/`, `ai/grok/` | Tool-specific resources and documentation |
 | `ai/shared/` | Canonical cross-tool skills, flattened by the sync helpers |
-| `opencode/` | OpenCode agents, commands, TUI and workflow runtime |
+| `ai/opencode/` | OpenCode agents, commands, TUI and workflow runtime |
 | `ai/memory/` | Optional local Life vault integration; [setup and operations](ai/memory/README.md) |
 
 To add an application, add `install/modules/<name>.sh` implementing

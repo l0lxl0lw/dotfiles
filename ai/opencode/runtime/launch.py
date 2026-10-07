@@ -32,7 +32,7 @@ def source_paths(root):
         for path in sorted((root / folder).rglob("*")):
             if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
                 files[str(path.relative_to(root))] = path
-    shared = root.parent / "ai/shared/skills"
+    shared = root.parent / "shared/skills"
     for path in sorted(shared.rglob("*")):
         if path.is_file() and not path.is_symlink() and "__pycache__" not in path.parts:
             files["skills/" + str(path.relative_to(shared))] = path
@@ -117,9 +117,9 @@ def build_bundle(root=ROOT, state=None):
             destination.parent.mkdir(parents=True, exist_ok=True)
             if name.endswith(".md"):
                 pinned = str(target / "opencode")
-                text = raw.decode().replace("~/dotfiles/opencode", pinned).replace(str(root), pinned)
+                text = raw.decode().replace("~/dotfiles/ai/opencode", pinned).replace(str(root), pinned)
                 text = text.replace("~/dotfiles/ai/shared/skills", pinned + "/skills")
-                text = text.replace(str(root.parent / "ai/shared/skills"), pinned + "/skills")
+                text = text.replace(str(root.parent / "shared/skills"), pinned + "/skills")
                 if name.endswith("/SKILL.md"):
                     text = re.sub(r"^name:\s*([^\n]+)$", lambda m: "name: " + aliases[m[1].strip().strip("\"'")], text, count=1, flags=re.M)
                 for old, alias in aliases.items():
