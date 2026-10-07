@@ -21,7 +21,10 @@ Tests: `python3 -B -m unittest discover -s ai/opencode/tests -p 'orca_refresh_te
 
 ## Cross-workspace work
 
-- `/orca-handoff`: deliver a task and stop after the accepted receipt.
+- `/orca-handoff`: load the [shared skill](../../shared/skills/orca/orca-handoff/SKILL.md),
+  deliver a task with its journaled helper, and stop after the accepted receipt.
 - `/orca-coordinate`: supervise a Run and its worker lifecycle.
 
-Both load [COORDINATION.md](COORDINATION.md) and live CLI guides.
+Both follow [COORDINATION.md](COORDINATION.md) and live CLI guides. See the helper's
+[usage and recovery guide](../../shared/skills/orca/orca-handoff/README.md) for
+invocations, receipt interpretation, and fake-CLI verification.
