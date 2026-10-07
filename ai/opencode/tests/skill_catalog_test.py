@@ -26,13 +26,13 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 36)
+        self.assertEqual(len(catalog), 37)
         self.assertIn("write-better", catalog)
         removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
         shared = ROOT.parent / "shared/skills"
         self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
         self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
-                         {"develop", "write", "learn", "explain", "git", "use", "remember", "respond"})
+                         {"develop", "write", "learn", "explain", "git", "use", "remember", "respond", "orca"})
         for name, path in catalog.items():
             self.assertEqual(name, path.parent.name)
             self.assertTrue(name.startswith(path.relative_to(shared).parts[0] + "-"), name)
@@ -54,7 +54,14 @@ class SkillCatalogTest(unittest.TestCase):
                     resources += re.findall(r"\]\(((?:\./)?(?:rules|references|templates|scripts)/[^)#]+)\)", text)
                     for relative in resources:
                         self.assertTrue((path.parent / relative).is_file(), (path, relative))
+                handoff = next(path.parent for path in catalog.values() if path.parent.name == "orca-handoff")
+                self.assertTrue((handoff / "scripts/handoff.py").is_file())
+                self.assertTrue((handoff / "README.md").is_file())
                 self.assertTrue((shared / "git/git-sync-orca-workspaces/scripts/survey.sh").stat().st_mode & 0o111)
+            manifest = json.loads((bundle / "manifest.json").read_text())
+            pinned_name = manifest["skill_aliases"]["orca-handoff"]
+            command = (bundle / "opencode/commands/orca-handoff.md").read_text()
+            self.assertIn("`" + pinned_name + "`", command)
 
     def test_project_precedence_and_nested_launch_does_not_leak(self):
         with tempfile.TemporaryDirectory() as tmp:

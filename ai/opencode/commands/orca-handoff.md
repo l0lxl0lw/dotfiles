@@ -4,7 +4,8 @@ agent: build
 model: openai/gpt-6-astra
 ---
 
-Follow `~/dotfiles/ai/opencode/orca/COORDINATION.md` in **handoff** mode.
+Load the `orca-handoff` skill and follow its deterministic helper workflow.
+Resolve helper resources from the loaded skill's physical directory.
 This invocation authorizes only the handoff described by the user.
 
 Request: $ARGUMENTS

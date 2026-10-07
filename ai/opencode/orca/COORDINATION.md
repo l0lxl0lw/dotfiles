@@ -40,6 +40,12 @@ parent/base requested by the user. Copy full returned workspace IDs.
 
 ## Handoff mode
 
+Load the shared `orca-handoff` skill. Use its `scripts/handoff.py` for deterministic
+create/readiness/send/receipt handling, retaining one operation key for recovery.
+The helper and usage guide live under `ai/shared/skills/orca/orca-handoff/`.
+Create without `--prompt`, then send once through the receipt-producing command.
+Do not improvise retries or replace the helper with a create-with-prompt shortcut.
+
 Create an agent-first workspace, or target the user's identified existing
 terminal, using the live `orca-cli` guide. Do not create a second agent terminal
 when the create receipt already supplies one. Wait for readiness before sending

@@ -2,6 +2,14 @@
   "version": 1,
   "checks": [
     {
+      "id": "ORCA_HANDOFF",
+      "argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "ai/shared/skills/orca/orca-handoff/tests", "-p", "*_test.py"],
+      "kind": "test",
+      "format": "unittest",
+      "required": true,
+      "allow_skips": false
+    },
+    {
       "id": "PYTHON",
       "argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "ai/opencode/tests", "-p", "*_test.py"],
       "kind": "test",
