@@ -7,6 +7,7 @@ import re
 
 import workflow_state as state
 import operational
+from render import record_markdown
 
 STAGES = ("contract", "research", "plan", "verification", "review", "decisions")
 MARKER = re.compile(r"<!-- opencode-workflow:v2 (\{[^\n]*\}) -->")
@@ -356,7 +357,7 @@ def validate_record(kind, record, issue, comments, cwd=None):
 
 
 def envelope(kind, record, source, inputs=(), supersedes=()):
-    prefix = "## " + kind.title() + "\n\n```json\n" + json.dumps(record, indent=2, ensure_ascii=False) + "\n```"
+    prefix = record_markdown(kind, record)
     meta = {"version": 2, "stage": kind, "source": source, "inputs": list(inputs),
             "supersedes": list(supersedes), "record": record, "record_sha256": state.digest(record),
             "body_sha256": state.digest(prefix.encode())}

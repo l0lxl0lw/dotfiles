@@ -90,6 +90,57 @@ class PacketTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "partial"):
             handoff.v2_gate(self.issue, self.comments, url, cwd=self.root)
 
+    def test_markdown_and_legacy_json_have_identical_packets_and_gate(self):
+        contract, url, plan, run_id = self.verified()
+        self.publish("review", self.review(contract, url, run_id))
+        legacy = copy.deepcopy(self.comments)
+        for comment in legacy:
+            meta = packet.parse(comment)
+            prefix = "## " + meta["stage"].title() + "\n\n```json\n" + json.dumps(meta["record"], indent=2, ensure_ascii=False) + "\n```"
+            meta["body_sha256"] = state.digest(prefix.encode())
+            comment["body"] = prefix + "\n\n<!-- opencode-workflow:v2 " + json.dumps(meta, sort_keys=True) + " -->"
+        for stage in ("ticket", "research", "plan", "execute", "review", "commit"):
+            with self.subTest(stage=stage):
+                self.assertEqual(packet.build(self.issue, self.comments, stage, cwd=self.root),
+                                 packet.build(self.issue, legacy, stage, cwd=self.root))
+        self.assertEqual(handoff.v2_gate(self.issue, self.comments, url, cwd=self.root),
+                         handoff.v2_gate(self.issue, legacy, url, cwd=self.root))
+        self.assertTrue(handoff.v2_gate(self.issue, self.comments, url, cwd=self.root)["ready"])
+
+    def test_readable_plan_preserves_commands_details_and_integrity(self):
+        import shlex
+        contract = self.contract()
+        url, plan = self.plan(contract)
+        plan = copy.deepcopy(plan)
+        argv = ["tool", "", "two words", "quote\"", "a`b"]
+        plan["check_manifest"]["checks"][0]["argv"] = argv
+        plan["acceptance_matrix"] = [{"requirement": "R1", "manual": "Observe original command"}]
+        plan["compatibility"] = ["Preserve custom commands"]
+        plan["future_field"] = {"detail": "Keep new fields visible"}
+        body, meta = packet.envelope("plan", plan, state.snapshot(self.root))
+        visible = body.split("<!-- opencode-workflow:v2 ", 1)[0]
+        self.assertNotIn("```json", visible)
+        self.assertNotIn("contract_revision", visible)
+        for expected in ("### Steps", "1. Implement and test", "### Verification checks",
+                         shlex.join(argv), "Observe original command", "Preserve custom commands",
+                         "Keep new fields visible", "**R1:**"):
+            self.assertIn(expected, visible)
+        self.assertEqual(packet.parse({"body": body})["record"], plan)
+        self.assertIsNone(packet.parse({"body": body.replace("### Steps", "### Edited steps")}))
+        self.assertIsNone(packet.parse({"body": body + "\nHuman correction"}))
+
+    def test_publication_retry_reuses_legacy_rendering(self):
+        contract = self.contract()
+        comment = self.comments[0]
+        meta = packet.parse(comment)
+        prefix = "## Contract\n\n```json\n" + json.dumps(contract, indent=2) + "\n```"
+        meta["body_sha256"] = state.digest(prefix.encode())
+        comment["body"] = prefix + "\n\n<!-- opencode-workflow:v2 " + json.dumps(meta) + " -->"
+        with patch.object(handoff.track, "run") as gh:
+            result = handoff.record_v2(self.issue, self.comments, "contract", contract, cwd=self.root)
+        self.assertEqual(result["outcome"], "already_published")
+        gh.assert_not_called()
+
     def test_old_comment_edits_and_deletions_cannot_hide_behind_checkpoint(self):
         self.comments.append({"id": 1, "html_url": self.issue["url"] + "#issuecomment-1", "body": "Human decision"})
         contract = self.contract()

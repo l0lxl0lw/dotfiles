@@ -217,6 +217,10 @@ records; local evidence caches do not replace them. Missing or stale proof requi
 verification. A readiness gate does not authorize Git operations. These helpers do not
 install stage commands or automatically start a multi-agent workflow.
 
+Published records display readable Markdown, with complete structured data retained
+in hidden HTML metadata for handoffs and verification. Existing JSON-rendered comments
+remain valid; new publications use the readable format.
+
 ## Orca integration
 
 `/orca-handoff` dispatches a bounded task and returns its receipt.
