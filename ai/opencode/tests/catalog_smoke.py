@@ -84,7 +84,7 @@ try:
         assert name in public, name
         assert commands[name].get("source") == "skill", commands[name]
         assert not commands[name].get("subtask"), commands[name]
-    for stage in ("execute", "review"):
+    for stage in ("plan", "scope-review", "execute", "review"):
         name = "develop-" + stage
         assert any(item["name"] == name and item["mode"] == "subagent" for item in agents), name
         assert name not in public and name not in commands, name

@@ -1,7 +1,11 @@
 # Implementation plan — internal preparation method
 
-Read [workflow.md](workflow.md). Build the plan within `develop-prepare` using
-verified research and user choices. No additional stage invocation is required.
+Read [workflow.md](workflow.md) and [prepare-workers.md](prepare-workers.md).
+The fresh develop-plan worker drafts the plan from the agreed design, verified
+research and user choices. No public stage invocation or existing issue is needed.
+In draft-worker mode, return the plan and questions to the owner; do not publish,
+edit files, run shell commands or ask the user directly. Use supplied ROOT/packet
+context; the owner runs helpers and needed baseline checks.
 
 1. Spot-check real entry points, logic/storage and test patterns. Reuse research
    while checking changed source references. Do not add a mandatory audit chain.
@@ -18,10 +22,11 @@ verified research and user choices. No additional stage invocation is required.
 4. Cover every required criterion with checks or a justified review_reason and
    concrete manual evidence expectations. Compilation is not behavioral proof.
    Required failures cannot be waived by labeling them baseline. Unresolved
-   product decisions block execution. Self-check completeness once and present
-   the consolidated preparation result for approval.
+   product decisions block execution. Self-check completeness once and return the
+   draft/check manifest, assumptions and blockers. The owner checks user intent
+   and obtains conditional scoping review before presenting the approval popup.
 
-After approval and contract/research publication, publish schemas/plan.example.json
+After approval and contract/research publication, the main-session owner publishes schemas/plan.example.json
 with acceptance_matrix, coverage, check_manifest, steps, exact research facts,
 source references and current contract revision. Use `handoff.py record ISSUE
 plan --data FILE --input RESEARCH_URL`, superseding the exact prior plan. Set

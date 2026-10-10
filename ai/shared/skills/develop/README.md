@@ -21,6 +21,21 @@ in one session. It supports features and bug fixes: bug preparation investigates
 actual/expected behavior, reproduction, root-cause evidence or explicit uncertainty,
 and regression checks. Ask only questions that require user input.
 
+**Brainstorming stays in the main session.** Research subagents investigate the
+codebase, constraints, failure cases and test coverage. The owner uses that evidence
+for Superpowers-style discussion: one focused question at a time, meaningful
+alternatives and section-by-section design review. Research and discussion can
+iterate as facts change the options.
+
+A fresh internal `develop-plan` worker turns the agreed design and research into
+implementation steps and acceptance checks. The owner checks that it preserves
+user decisions. Larger/riskier changes additionally get a fresh `develop-scope-review`
+worker: cross-subsystem/public-contract changes, auth, sensitive data, financial
+behavior, migrations, concurrency/retries, destructive operations or significant
+uncertainty. Small understood changes get the owner's completeness check instead.
+Required scoping findings are resolved before the approval popup. This review
+assesses preparation; independent code review is still mandatory for every delivery.
+
 The reviewed preparation result contains stable requirement IDs and acceptance
 rows: scenario/input → response → state change/no-change → proving checks. Required
 checks, meaningful negatives, environment prerequisites and manual evidence are
@@ -31,8 +46,15 @@ are preserved. Issue repository and Project board are separate destinations; no
 configuration field is invented to infer one from the other. Partial publication
 is reconciled without duplicating issues or losing human edits.
 
-**"Approved—publish and deliver through PR"** grants both publication and the
-delivery run for that exact plan. Otherwise Prepare stops with the published plan.
+When preparation is ready, a single-choice popup offers:
+
+- **Publish and deliver through PR** — approve publication and start the Orca
+  delivery run for the exact preparation shown, without another routine confirmation.
+- **Publish only** — publish the ticket and plan, then stop before implementation.
+- **Keep refining** — continue preparation without publishing or starting delivery.
+
+You can also explicitly reply **"Approved—publish and deliver through PR"**;
+that does not require a second popup. Dismissing the popup grants no approval.
 Targeted research/design/plan revisions also use Prepare; no additional public
 stage commands or handwritten `/brainstorm` alias are installed.
 
@@ -69,7 +91,9 @@ checks and repair count. It does not merge the PR, close the issue or mark Done.
 ## Internal layout and recovery
 
 - `develop-prepare/SKILL.md` and `develop-deliver/SKILL.md`: public commands.
-- `_lib/brainstorm.md`, `ticket.md`, `research.md`, `plan.md`: preparation methods.
+- `_lib/brainstorm.md`, `ticket.md`, `research.md`: main-session preparation methods.
+- `_lib/prepare-workers.md`: research delegation, fresh planning and conditional scoping review.
+- `_lib/plan.md`, `scope-review.md`: read-only methods for the two preparation workers.
 - `_lib/execute.md`, `review.md`: methods for the two internal workers.
 - `_lib/workflow.md`, `resolve-root.py`: shared contract and physical integration
   resolution; pinned snapshots retain their exact resource revision.

@@ -53,7 +53,7 @@ for stage in brainstorm feature ticket research plan execute review; do
   ln -s "$HOME/dotfiles/ai/shared/skills/develop/develop-$stage" "$HOME/.config/opencode/skills/develop-$stage"
 done
 ln -s "$HOME/dotfiles/ai/opencode/commands/brainstorm.md" "$HOME/.config/opencode/commands/brainstorm.md"
-for stage in ticket research plan; do
+for stage in ticket research; do
   ln -s "$HOME/dotfiles/ai/opencode/agents/develop-$stage.md" "$HOME/.config/opencode/agents/develop-$stage.md"
 done
 opencode_merge_config || fail "development consolidation sync"
@@ -61,10 +61,10 @@ for stage in brainstorm feature ticket research plan execute review; do
   [[ ! -L "$HOME/.config/opencode/skills/develop-$stage" ]] || fail "retired public stage survived: $stage"
 done
 [[ ! -L "$HOME/.config/opencode/commands/brainstorm.md" ]] || fail "retired brainstorm alias survived"
-for stage in ticket research plan; do
+for stage in ticket research; do
   [[ ! -L "$HOME/.config/opencode/agents/develop-$stage.md" ]] || fail "retired stage worker survived: $stage"
 done
-for stage in execute review; do
+for stage in plan scope-review execute review; do
   assert_link_to "$HOME/.config/opencode/agents/develop-$stage.md" "$repo_root/ai/opencode/agents/develop-$stage.md"
 done
 for phase in prepare deliver; do

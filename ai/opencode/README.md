@@ -14,7 +14,7 @@ This directory owns OpenCode-specific integration:
 
 | Path | Purpose |
 |---|---|
-| `agents/` | Six research specialists and two internal execution/review workers |
+| `agents/` | Six research specialists and four internal planning/scoping/execution/review workers |
 | `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
 | `tui/`, `tui.json` | Skill slash commands and command-palette integration |
@@ -136,11 +136,13 @@ recovery. Local Orca/shared filesystem is currently required.
 
 See [the development cycle](../shared/skills/develop/README.md). Only Prepare and
 Deliver register public development commands. Supporting methods are internal
-Markdown references under `develop/_lib`. The two `develop-execute` and
-`develop-review` agents load those exact pinned methods and inherit native model
-defaults. Each worker returns one result to the delivery owner; an implementation
-context cannot independently review itself. The old standalone stage commands,
-their ticket/research/plan agents and the `/brainstorm` alias are retired.
+Markdown references under `develop/_lib`. Brainstorming stays in main, supported
+by focused research specialists and a fresh `develop-plan` worker. Only larger or
+riskier preparations get an independent `develop-scope-review`. Execution and code
+review remain separate workers, with code review mandatory for every delivery.
+All four development agents load exact pinned methods and inherit native model
+defaults. The old standalone stage commands, ticket/research stage agents and
+the `/brainstorm` alias remain retired.
 
 Initial approval defines the delivery scope and Git authority; the owner advances
 the cycle within that authorization and the shared three-repair budget. Outside

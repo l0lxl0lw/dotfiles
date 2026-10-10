@@ -18,8 +18,11 @@ legacy examples as current stage methods. These skills own the cycle.
 
 ### Consolidated preparation and authorized delivery
 
-`develop-prepare` consolidates feature/bug clarification, research, acceptance and
-planning in the main session. Its approved result authorizes ordered publication
+`develop-prepare` keeps brainstorming and user decisions in the main session,
+delegates focused research and draft planning to fresh subagents, and obtains
+fresh scoping review only for larger/riskier changes. See prepare-workers.md.
+Its invocation authorizes that read-only delegation; publication and execution
+still need approval. Its approved result authorizes ordered publication
 of contract/research/plan; it need not stop between those internal methods.
 
 `develop-deliver` owns the explicitly authorized bounded cycle.
@@ -30,7 +33,7 @@ current-head required CI, with merge-based origin/main integration. The shared
 budget is three repairs, including attributable CI/integration repairs; routine
 sync is not a repair. Workers still return one stage and stop. Only the coordinator
 advances the journal; no automatic PR merge or Done. Prepare and Deliver are the
-only public development skills. Execution/review workers read sibling internal
+only public development skills. Planning, scoping-review and execution/review workers read sibling internal
 method files; they do not load removed standalone stage skills.
 
 - Advance only within the explicitly authorized Prepare or Deliver phase. Exact issue/plan/review
@@ -38,9 +41,11 @@ method files; they do not load removed standalone stage skills.
 - Preparation can draft before an issue exists. Its final approval authorizes
   publication to the confirmed destination. Do not edit a similar issue without
   authority. Delivery requires the exact published issue/plan and approval.
-- Load `handoff.py packet ISSUE --stage STAGE`, pinning artifacts with repeated
-  `--include URL`. Reconcile changed discussion and source flags before proceeding.
-  Do not refresh checkpoints without reading the covered decisions.
+- For an existing issue, load `handoff.py packet ISSUE --stage STAGE`, pinning
+  artifacts with repeated `--include URL`. The Prepare owner supplies relevant
+  packet context to read-only workers; an unpublished draft requires no packet.
+  Reconcile changed discussion and source flags. Do not refresh checkpoints without
+  reading the covered decisions. Draft workers do not run publication helpers.
 - Keep handoffs compact: requested stage, exact artifacts, contract/plan identity,
   outcome, required blockers, repair round if applicable, and next action. Never
   truncate required behavior or decisions to meet a context budget.

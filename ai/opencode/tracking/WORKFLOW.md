@@ -5,8 +5,9 @@ including by `/track` and `/sync`. Return compact outcomes and exact artifact UR
 when using these helpers. Stage names in helper arguments identify record types;
 they are not the legacy slash commands. Development stage methods and user-driven
 advancement live in the shared `develop` group; load its `_lib/workflow.md` from the
-physical skill directory. Prepare owns preparation in the current context; Deliver
-dispatches internal execution/review workers. This document owns the helper/evidence protocol.
+physical skill directory. Prepare owns brainstorming in the current context and
+dispatches focused research, fresh planning and conditional scoping review.
+Deliver dispatches separate execution/review workers. This document owns the helper/evidence protocol.
 
 ## Current task, not accumulated conversation
 

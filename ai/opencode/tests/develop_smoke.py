@@ -2,7 +2,7 @@
 """Opt-in live-model wiring and authorization smoke; no GitHub or application writes.
 
 Uses configured model/provider access, an isolated fixture and test-only permission
-overrides. Proves real Task children, pinned skill loading, questions and no-input
+overrides. Proves research/planning/review Task children, pinned method loading, questions and no-input
 stops. This is not an end-to-end issue/implementation acceptance test.
 """
 import base64
@@ -21,7 +21,7 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGES = ("execute", "review")
+STAGES = ("plan", "scope-review", "execute", "review")
 
 
 def main():
@@ -48,11 +48,15 @@ def main():
         agents = config.setdefault("agent", {})
         agents["develop-smoke-parent"] = {
             "mode": "primary", "description": "Read-only development integration probe",
-            "permission": {**permissions, "task": {"*": "deny", **{"develop-" + s: "allow" for s in STAGES}}},
+            "permission": {**permissions, "task": {"*": "deny", "codebase-locator": "allow",
+                                                   **{"develop-" + s: "allow" for s in STAGES}}},
             "prompt": "Perform only the requested read-only integration probe. Never send parent history to a child.",
         }
         for stage in STAGES:
             agents.setdefault("develop-" + stage, {})["permission"] = {**permissions, "task": "deny"}
+            if stage in ("plan", "scope-review"):
+                agents["develop-" + stage]["permission"]["question"] = "deny"
+        agents.setdefault("codebase-locator", {})["permission"] = {**permissions, "question": "deny", "task": "deny"}
         env["OPENCODE_CONFIG_CONTENT"] = json.dumps(config)
         env["OPENCODE_ENABLE_QUESTION_TOOL"] = "1"
         env["OPENCODE_SERVER_PASSWORD"] = uuid.uuid4().hex
@@ -120,16 +124,17 @@ def main():
                     "parts": [{"type": "text", "text": "Parent-only marker, never pass to workers: " + secret}]})
                 children = []
                 previous_marker = uuid.uuid4().hex
-                for number in (1, 2):
+                for number, stage in enumerate(("plan", "scope-review", "review", "review"), 1):
                     before = {child["id"] for child in api("GET", f"/session/{parent}/children")}
-                    method = bundle / "opencode/skills/develop/_lib/review.md"
-                    probe = ("Read-only harness probe, not an application review. Read your assigned internal method at " + str(method) + ", "
-                             "then ask one native question 'Continue probe?' with options Stop and Continue. "
-                             "After the reply return only 'probe complete'. Do not call other tools, read GitHub, "
+                    method = bundle / "opencode/skills/develop/_lib" / (stage + ".md")
+                    interaction = ("then ask one native question 'Continue probe?' with options Stop and Continue. "
+                                   "After the reply " if stage == "review" else "then ")
+                    probe = ("Read-only harness probe, not an application planning/review request. Read your assigned internal method at " + str(method) + ", "
+                             + interaction + "return only 'probe complete'. Do not call other tools, read GitHub, "
                              "publish anything or change files.")
                     if number == 1:
                         probe += " Child-only marker: " + previous_marker
-                    answered = run_message(parent, "Invoke Task exactly once with subagent_type develop-review, "
+                    answered = run_message(parent, "Invoke Task exactly once with subagent_type develop-" + stage + ", "
                         "a NEW session (no task_id), and ONLY this prompt: " + probe +
                         "\nAfter the worker returns, report its result and stop. Do not invoke another stage.")
                     new = [child for child in api("GET", f"/session/{parent}/children") if child["id"] not in before]
@@ -138,19 +143,38 @@ def main():
                     messages = api("GET", f"/session/{child}/message")
                     serialized = json.dumps(messages)
                     assert secret not in serialized, "Parent marker leaked into child"
-                    if number == 2:
+                    if number > 1:
                         assert previous_marker not in serialized, "Prior worker marker leaked"
-                    if child not in answered:
+                    if stage == "review" and child not in answered:
                         details = {"experimental": api("GET", "/config").get("experimental"),
                                    "session_permissions": api("GET", f"/session/{child}").get("permission"),
-                                   "question_permissions": [rule for rule in catalog["develop-review"].get("permission", [])
+                                   "question_permissions": [rule for rule in catalog["develop-" + stage].get("permission", [])
                                                             if rule["permission"] in ("*", "question")]}
                         raise AssertionError("Worker did not ask a native question: " + json.dumps(details))
+                    if stage != "review":
+                        assert child not in answered, "Preparation worker opened a competing user dialogue"
                     reads = [part for message in messages for part in message.get("parts", [])
                              if part.get("type") == "tool" and part.get("tool") == "read"]
                     assert any(str(method) in json.dumps(part.get("state", {}).get("input", {}))
                                and part["state"]["status"] == "completed" for part in reads), "Pinned internal method not read"
                     children.append(child)
+                before = {child["id"] for child in api("GET", f"/session/{parent}/children")}
+                await_questions = run_message(parent, "Invoke Task exactly once with subagent_type codebase-locator, "
+                    "a NEW session, and ONLY this prompt: Read-only source lookup. In " + str(fixture) +
+                    ", locate the file containing the exact text Read-only development smoke fixture. "
+                    "Return its relative path and line number. Do not edit, run shell commands or delegate. "
+                    "After the worker returns, relay its result and stop.")
+                new = [child for child in api("GET", f"/session/{parent}/children") if child["id"] not in before]
+                assert len(new) == 1, "Expected one fresh research specialist"
+                researcher = new[0]["id"]
+                research_messages = api("GET", f"/session/{researcher}/message")
+                research_parts = [part for message in research_messages if message["info"]["role"] == "assistant"
+                                  for part in message.get("parts", [])]
+                assert any(part.get("type") == "text" and "README.md" in part.get("text", "") for part in research_parts), \
+                    "Research specialist did not return the fixture source location"
+                assert secret not in json.dumps(research_messages), "Parent context leaked into research worker"
+                assert researcher not in await_questions, "Research specialist opened a user dialogue"
+                assert not api("GET", f"/session/{researcher}/children"), "Research specialist delegated again"
                 # Exercise the actual dispatcher method with absent authorization/artifacts.
                 for request in ("I want to develop a feature; I have supplied no issue or plan. Ask what is needed and stop.",
                                 "Run execute, but I have supplied no exact plan and no implementation authorization. Stop for clarification."):
@@ -171,6 +195,7 @@ def main():
                     assert not api("GET", f"/session/{session}/children"), "Dispatched without required inputs"
                 assert sentinel.read_text() == "Read-only development smoke fixture.\n"
                 print(json.dumps({"outcome": "pass", "fresh_workers": children,
+                                  "research_worker": researcher,
                                   "pinned_method_and_native_questions": "pass",
                                   "parent_and_sibling_isolation": "pass", "missing_input_stops": "pass",
                                   "scope": "Read-only wiring probes; not full implementation acceptance"}))

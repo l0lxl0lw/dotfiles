@@ -68,7 +68,7 @@ The shared catalog contains 33 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
 retired. The development methods are now selectively revived in
-[develop](skills/develop/README.md), using two public commands and two internal
+[develop](skills/develop/README.md), using two public commands and four internal
 fresh-worker agents. Profiles and the old commit stage remain retired. The catalog
 is organized by intent in the nine folders above.
 `develop-prepare` consolidates feature/bug clarification, research, ticket and plan

@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT.parent / "shared/skills"
-STAGES = ("execute", "review")
+STAGES = ("plan", "scope-review", "execute", "review")
 
 
 def load(name, path):
@@ -41,8 +41,15 @@ class DevelopTest(unittest.TestCase):
                 self.assertTrue(method.is_file())
                 self.assertNotIn(name, manifest["skill_aliases"])
                 self.assertFalse((ROOT / "commands" / (name + ".md")).exists())
-            for stage in ("ticket", "research", "plan"):
+            for stage in ("ticket", "research"):
                 self.assertFalse((bundle / "opencode/agents" / ("develop-" + stage + ".md")).exists())
+            for stage in ("plan", "scope-review"):
+                permissions = launch.definition(bundle / "opencode/agents" / ("develop-" + stage + ".md"))["permission"]
+                for tool in ("edit", "bash", "question", "task"):
+                    self.assertEqual(permissions[tool], "deny")
+            for name in ("codebase-locator", "codebase-analyzer", "codebase-pattern-finder",
+                         "web-search-researcher", "thoughts-locator", "thoughts-analyzer"):
+                self.assertEqual(launch.definition(bundle / "opencode/agents" / (name + ".md"))["permission"]["task"], "deny")
             self.assertEqual({name for name in manifest["skill_aliases"] if name.startswith("develop-")},
                              {"develop-prepare", "develop-deliver"})
             self.assertEqual(resolver.resolve_root(
@@ -123,6 +130,8 @@ class DevelopTest(unittest.TestCase):
                 self.assertTrue(skill.is_file())
             self.assertTrue((bundle / "opencode/tracking/delivery.py").is_file())
             self.assertTrue((bundle / "opencode/tracking/references/delivery.md").is_file())
+            for method in ("prepare-workers", "plan", "scope-review"):
+                self.assertTrue((bundle / "opencode/skills/develop/_lib" / (method + ".md")).is_file())
             prepare = (bundle / "opencode/skills/develop/develop-prepare/SKILL.md").read_text()
             self.assertIn("bug", prepare)
             self.assertIn(manifest["skill_aliases"]["develop-deliver"], prepare)

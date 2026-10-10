@@ -1,14 +1,17 @@
 # Source-backed research — internal preparation method
 
-Read [workflow.md](workflow.md). Research in the current main session during
-`develop-prepare`; an unpublished draft needs no issue or tracking setup.
+Read [workflow.md](workflow.md) and [prepare-workers.md](prepare-workers.md).
+The main-session owner delegates focused investigations to research specialists
+alongside brainstorming; an unpublished draft needs no issue or tracking setup.
 
 1. Identify the concrete technical unknowns blocking a plan. Trace real entry
    points, callers, core logic, storage and close test analogues. Expand only to
    settle consequential invariants; no mandatory repository-wide agent pipeline.
-2. Investigate directly. A specialist may answer one named consequential question
-   if explicitly authorized by the active workflow; do not silently fan out or
-   claim delegation when the host lacks it.
+2. Prepare authorizes the owner to dispatch the research specialists listed in
+   prepare-workers.md for concrete questions. Parallelize independent assignments;
+   wait for dependencies. Require decisive paths/lines and explicit uncertainty.
+   Spot-check the returned evidence and reconcile contradictions. Specialists do
+   not delegate further; do not claim delegation when the host lacks it.
 3. Verify source claims, ownership, defaults/NULL behavior, error paths, affected
    contracts and test prerequisites. For bugs reproduce the failure when possible,
    trace its cause and distinguish root-cause proof from a hypothesis. If evidence
