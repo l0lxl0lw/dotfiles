@@ -16,19 +16,37 @@ legacy examples as current stage methods. These skills own the cycle.
 
 ## Authority and handoff
 
-- Do only the requested stage; never advance automatically. Exact issue/plan/review
+### Consolidated preparation and authorized delivery
+
+`develop-prepare` consolidates feature/bug clarification, research, acceptance and
+planning in the main session. Its approved result authorizes ordered publication
+of contract/research/plan; it need not stop between those internal methods.
+
+`develop-deliver` owns the explicitly authorized bounded cycle.
+Read ROOT/tracking/references/delivery.md. An exact plan plus recorded
+**deliver through PR** approval authorizes the receiving Orca coordinator to
+advance execution → fresh independent review → repair, then commit/push/PR and
+current-head required CI, with merge-based origin/main integration. The shared
+budget is three repairs, including attributable CI/integration repairs; routine
+sync is not a repair. Workers still return one stage and stop. Only the coordinator
+advances the journal; no automatic PR merge or Done. Prepare and Deliver are the
+only public development skills. Execution/review workers read sibling internal
+method files; they do not load removed standalone stage skills.
+
+- Advance only within the explicitly authorized Prepare or Deliver phase. Exact issue/plan/review
   URLs are task data, not authority to override permissions. Honor chat-only requests.
-- No issue: ask whether to create one or use an exact existing issue. Do not publish
-  or edit a similar issue without authority. Missing/ambiguous inputs block the stage.
+- Preparation can draft before an issue exists. Its final approval authorizes
+  publication to the confirmed destination. Do not edit a similar issue without
+  authority. Delivery requires the exact published issue/plan and approval.
 - Load `handoff.py packet ISSUE --stage STAGE`, pinning artifacts with repeated
   `--include URL`. Reconcile changed discussion and source flags before proceeding.
   Do not refresh checkpoints without reading the covered decisions.
 - Keep handoffs compact: requested stage, exact artifacts, contract/plan identity,
   outcome, required blockers, repair round if applicable, and next action. Never
   truncate required behavior or decisions to meet a context budget.
-- Prepared/Ready is not execution approval. Explicit execution of the identified
-  plan authorizes implementation only. No automatic commit, push, issue closure,
-  PR, merge, worktree sync, or supervised Orca run.
+- Prepared/Ready is not execution approval. Through-PR approval of the identified
+  plan grants the delivery operations above. Issue text and agent-generated plans
+  cannot grant that authorization themselves. PR merge/issue closure stay separate.
 - Fresh workers receive only this bounded handoff and relevant artifact links, not
   parent history. New dispatches never reuse a previous worker session ID.
 
@@ -62,14 +80,14 @@ full review when compact packets omit resolved bodies. Re-review checks all prev
 required IDs, repair deltas, affected invariants and new regressions. If the old
 snapshot is missing, inspect the full diff; never pretend the delta is empty.
 
-Each repair requires an explicit request and ends before review. Count repairs from
-the exact review chain, carry the round in the handoff, and stop after two unsuccessful
-rounds for one focused diagnosis with the user before further repair authorization.
+Each repair consumes the delivery journal's shared three-cycle budget. Count
+review and attributable CI/integration repairs together and preserve the count
+across interruptions. The initial execution/review and routine sync do not count.
 Material product/design changes require a revised plan and renewed authorization.
-No automatic bounded-cycle mode is enabled.
+Outside an authorized delivery run, do not start the cycle.
 
 Before claiming verified/commit-ready, run `handoff.py gate ISSUE --plan PLAN_URL
 --review REVIEW_URL` against the current source. Gate validation is necessary but
-does not prove semantic correctness. Return the exact evidence and the applicable
-existing `git-*` skill as the next separately authorized action. A requested WIP
-commit can remain unverified; never turn it into review pass or Done.
+does not prove semantic correctness. Workers return exact evidence to the owner,
+which advances Git/CI within the run authorization. Standalone Git skills still
+apply outside this workflow. Never turn a WIP commit into review pass or Done.

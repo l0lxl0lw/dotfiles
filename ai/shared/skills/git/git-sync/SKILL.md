@@ -8,6 +8,17 @@ effort: medium
 
 # Sync
 
+## Authorized delivery mode
+
+For a recorded `develop-deliver` run, its **deliver through PR** approval includes
+syncing origin/main. Use the pinned tracking/references/delivery.md and delivery.py
+sync command instead of the standalone rebase-first/dialog sequence below.
+Merge into the bound feature branch only; no force-push or default-checkout edits.
+Resolve straightforward conflicts preserving both intended behaviors automatically;
+stop for product/scope ambiguity. Reverify and independently review integrated
+changes before push. Routine integration consumes no repair cycle; attributable
+defect fixes consume the same three-cycle review/CI budget.
+
 Read `../_lib/portability.md` relative to this skill's physical directory first.
 
 Bring the latest default branch into the current feature branch. **Prefer a rebase; fall back to a merge when a rebase would be worse than one.** If either conflicts, walk the user through **every conflict, one at a time**, and apply the choice they make for each.

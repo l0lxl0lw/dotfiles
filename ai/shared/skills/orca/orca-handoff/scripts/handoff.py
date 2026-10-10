@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 
 
 class Blocked(Exception):
@@ -200,12 +201,58 @@ class Handoff:
         self.state['receipt'] = send
         self.state['warnings'] = result.get('warnings', [])
         if value.get('ok') is True and send.get('accepted') is True:
-            self.state['phase'] = 'accepted'
+            self.state['phase'] = 'started' if 'turn_started' in prompt.get('stages', []) else 'accepted'
             if not self.state.get('request_id'):
                 self.state['warnings'].append('No durable request ID returned; accepted input cannot be safely replayed.')
             if 'turn_started' not in prompt.get('stages', []):
                 self.state['warnings'].append('Input accepted; turn start is unproven. Silence is not failure; do not resend.')
         self.save()
+
+    def input_ready(self):
+        """A satisfied Orca wait alone can describe a PTY still starting up."""
+        terminal = self.state['terminal']
+        screen = self.state['terminal_read'].get('terminal', {})
+        if terminal.get('paneRuntimeId') == -1:
+            return False
+        tail = screen.get('tail', [])
+        text = '\n'.join(tail) if isinstance(tail, list) else ''
+        if self.state['agent'] == 'opencode':
+            # Version-bounded screen fallback: unknown layouts fail closed.
+            return (screen.get('source') == 'screen'
+                    and 'Ask anything' in text and 'ctrl+p commands' in text
+                    and 'tab agents' in text)
+        return bool(text.strip())
+
+    def reconcile_accepted(self):
+        self.inspect_terminal()
+        require(self.state.get('request_id'),
+                'Input accepted but startup unconfirmed; no durable request ID. Inspect terminal; do not resend.')
+        original = self.state['send_args']
+        require(self.state['handle'] == original[original.index('--terminal') + 1],
+                'Handle changed after acceptance; cannot reconcile the original receipt.')
+        # This observes the original durable request, never authorizes new input.
+        self.call(original + ['--retry-request', self.state['request_id']], mutation='send')
+        self.consume_send()
+        require(self.state['phase'] == 'started',
+                'Input accepted, but task startup remains unconfirmed. Keyed retry does not guarantee redelivery. '
+                'Inspect the terminal; unsupported providers cannot prove startup through this receipt.')
+
+    def recover_undelivered(self):
+        require(self.state['agent'] == 'opencode', 'Explicit empty-prompt recovery currently supports OpenCode only.')
+        require(self.state['phase'] == 'accepted',
+                'Explicit recovery requires accepted-but-unconfirmed input.')
+        require('turn_started' not in (self.state.get('receipt', {}).get('prompt') or {}).get('stages', []),
+                'A started request cannot be recovered as undelivered.')
+        self.preflight()
+        self.inspect_terminal()
+        require(self.input_ready(), 'Recovery requires the original agent at a recognized empty prompt.')
+        self.state.setdefault('recovery_history', []).append({
+            key: self.state.get(key) for key in ('request_id', 'receipt', 'send_args', 'warnings')})
+        for key in ('request_id', 'receipt', 'send_args', 'warnings'):
+            self.state.pop(key, None)
+        self.state.update(phase='created', waits=0)
+        self.save()  # Persist explicit authorization before a new delivery attempt.
+        self.run()
 
     def run(self):
         # Consume persisted raw responses first, even if killed before saving the parsed result.
@@ -213,9 +260,16 @@ class Handoff:
             self.consume_create()
         if self.state['phase'] == 'send_pending':
             self.consume_send()
-        if self.state['phase'] == 'accepted':
+        if self.state['phase'] == 'started':
             return
         self.preflight()
+        if self.state['phase'] == 'accepted':
+            if 'turn_started' in (self.state.get('receipt', {}).get('prompt') or {}).get('stages', []):
+                self.state['phase'] = 'started'
+                self.save()
+                return
+            self.reconcile_accepted()
+            return
         if self.state['phase'] == 'new':
             if self.state.get('handle'):
                 self.state['phase'] = 'created'
@@ -238,7 +292,7 @@ class Handoff:
                     'Handle changed after send. Replacement listed, but exact-command replay is unsafe; inspect runtime receipt manually.')
             self.call(original + ['--retry-request', self.state['request_id']], mutation='send')
             self.consume_send()
-            require(self.state['phase'] == 'accepted', 'Keyed replay remains unresolved; resume later with the same key. Never send anew.')
+            require(self.state['phase'] == 'started', 'Keyed replay remains unresolved; resume later with the same key. Never send anew.')
             return
         self.inspect_terminal()
         ready = False
@@ -246,20 +300,31 @@ class Handoff:
             attempt = self.state.get('waits', 0)
             self.state['waits'] = attempt + 1
             self.save()  # Crash also consumes the bounded attempt.
+            deadline = time.monotonic() + (60, 120)[attempt]
             wait = self.call(['terminal', 'wait', '--terminal', self.state['handle'], '--for', 'tui-idle',
                               '--timeout-ms', str((60000, 120000)[attempt]), '--json'], timeout=(75, 135)[attempt])
             self.state['wait'] = wait
             self.save()
             if wait.get('wait', {}).get('satisfied') is True:
-                ready = True
-                break
+                while True:
+                    self.inspect_terminal()
+                    if self.input_ready():
+                        ready = True
+                        break
+                    if time.monotonic() >= deadline:
+                        break
+                    time.sleep(1)
+                if ready:
+                    break
         require(ready, 'Readiness not proven within two bounded waits; no prompt sent. Inspect terminal manually. Do not restart with a new key.')
         args = ['terminal', 'send', '--terminal', self.state['handle'], '--text', self.state['brief'],
                 '--enter', '--wait-submit', '10', '--json']
         self.state['send_args'] = args
         self.call(args, mutation='send')
         self.consume_send()
-        require(self.state['phase'] == 'accepted', 'Send not confirmed. Resume this same key for keyed recovery when an ID is known; never resend anew.')
+        if self.state['phase'] == 'accepted':
+            self.inspect_terminal()  # Retain post-send screen evidence when observation is unavailable.
+        require(self.state['phase'] == 'started', 'Task startup not confirmed. Resume this same key to reconcile the receipt; never resend anew.')
 
     def summary(self):
         receipt = self.state.get('receipt', {})
@@ -277,6 +342,8 @@ class Handoff:
                 'workspace': self.state.get('worktree'), 'agent_handle': self.state.get('handle'),
                 'request_id': self.state.get('request_id'), 'accepted': receipt.get('accepted') is True,
                 'turn_started': 'turn_started' in stages, 'receipt_stages': stages,
+                'provider': (receipt.get('prompt') or {}).get('provider'),
+                'recovery_count': len(self.state.get('recovery_history', [])),
                 'warnings': self.state.get('warnings', []), 'inspection_argv': inspections}
 
 
@@ -286,7 +353,7 @@ def target_env():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['start', 'resume', 'inspect', 'adopt'])
+    parser.add_argument('action', choices=['start', 'resume', 'inspect', 'adopt', 'recover'])
     parser.add_argument('--key', required=True, help='Stable unique operation key; reuse for recovery')
     parser.add_argument('--state-dir', type=Path, default=Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'orca-handoff')
     parser.add_argument('--repo')
@@ -296,6 +363,8 @@ def main(argv=None):
     parser.add_argument('--setup', choices=['inherit', 'run', 'skip'])
     parser.add_argument('--brief-file', type=Path)
     parser.add_argument('--worktree-id', help='Explicit manual reconciliation of an uncertain create (adopt only)')
+    parser.add_argument('--confirm-undelivered', action='store_true',
+                        help='Operator confirms original task did not start; recover permits a new send with duplicate risk')
     args = parser.parse_args(argv)
     helper = None
     try:
@@ -334,6 +403,11 @@ def main(argv=None):
                 helper.workspace(worktree)
                 state.update(phase='created', handle=None)
                 helper.save()
+            elif args.action == 'recover':
+                require(args.confirm_undelivered,
+                        'Inspect the original terminal and task history first. Recovery sends new input and can duplicate '
+                        'execution; supply --confirm-undelivered only after confirming the original task did not start.')
+                helper.recover_undelivered()
             elif args.action != 'inspect':
                 helper.run()
             print(json.dumps(helper.summary(), indent=2))

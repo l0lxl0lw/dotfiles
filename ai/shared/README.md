@@ -35,7 +35,7 @@ Directories named `_lib` hold shared resources and are not skills.
 
 | Folder | Skills |
 |---|---|
-| `develop` | `develop-brainstorm`, `develop-feature`, `develop-ticket`, `develop-research`, `develop-plan`, `develop-execute`, `develop-review` |
+| `develop` | `develop-prepare`, `develop-deliver` |
 | `write` | `write-better`, `write-humanize`, `write-html` |
 | `learn` | `learn-crash-course`, `learn-plan`, `learn-foundations`, `learn-teach-back`, `learn-find-gaps`, `learn-scenarios`, `learn-quiz`, `learn-check-model` |
 | `explain` | `explain-code-concept`, `explain-code-flow` |
@@ -64,17 +64,17 @@ Integration skills need the named MCP/application. Discovery exposes their
 instructions, not missing dependencies.
 Private adapters stay in private configuration and are never copied into public bundles.
 
-The shared catalog contains 38 skills. The business, codebase, impeccable,
+The shared catalog contains 33 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
 retired. The development methods are now selectively revived in
-[develop](skills/develop/README.md), using native skill commands and five thin
+[develop](skills/develop/README.md), using two public commands and two internal
 fresh-worker agents. Profiles and the old commit stage remain retired. The catalog
 is organized by intent in the nine folders above.
-`develop-brainstorm` and OpenCode's `/brainstorm` alias provide the conversational
-front door before an explicitly requested ticket stage. An in-chat draft remains
-available on hosts without ticket tooling.
-Its Superpowers source and MIT license travel with the installed skill.
+`develop-prepare` consolidates feature/bug clarification, research, ticket and plan
+on main. Explicit through-PR approval invokes `develop-deliver` in an Orca feature
+workspace. The former standalone stages and `/brainstorm` alias are retired;
+their useful methods and the Superpowers source/MIT license live in `develop/_lib`.
 The former `make-html` skill was restored as `write/write-html`, including its
 20 HTML examples and floating table-of-contents helper.
 `respond/respond-adhd` imports the upstream `i-have-adhd` response-formatting mode,

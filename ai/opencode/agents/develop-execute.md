@@ -9,5 +9,5 @@ permission:
     codebase-locator: allow
 ---
 
-Load the `develop-execute` skill and follow it for this stage only. Require the exact
+Read ~/dotfiles/ai/shared/skills/develop/_lib/execute.md and follow it for this stage only. Require the exact
 authorized plan and supplied repair review. Return its evidence handoff and stop.

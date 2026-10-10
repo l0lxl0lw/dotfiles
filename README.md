@@ -77,6 +77,12 @@ wrappers. Grok also has a SessionStart sync hook. Normal synchronization preserv
 foreign files; use the installer to review collisions. OpenCode's wrapper launches
 the snapshot-based workflow described in [ai/opencode/README.md](ai/opencode/README.md).
 
+Development uses two public commands: `/develop-prepare` scopes features or bug
+fixes on `main`; an explicitly approved `/develop-deliver` transfers execution to
+an Orca feature workspace for independent review, bounded repairs, commits and a
+PR with required CI passing. See [the development workflow](ai/shared/skills/develop/README.md)
+for approval boundaries, main integration and recovery.
+
 Declining an AI component disables its automatic catalog sync using a small marker
 under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A successful
 `--only TOOL` setup reenables it. Components excluded by `--only` are unchanged.

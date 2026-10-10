@@ -100,6 +100,14 @@ after an explicit sync, verification evidence is required to leave Verifying.
 
 ## Execution and Git boundaries
 
+For a recorded **deliver through PR** run, `delivery.md` governs automatic
+advancement and Git authorization: three shared repairs, merge origin/main,
+fresh verification/review after integration, generated commit messages, push,
+ready PR and required current-head CI. No routine confirmation is needed for
+these already-authorized operations. Product/scope decisions still block. The
+standalone boundaries below apply outside that mode. A green open PR remains
+In review, never Done; no PR merge is authorized by delivery.
+
 In an explicitly Orca-supervised worker, carry the injected Task/Dispatch and
 coordinator IDs into delegated children. Route blocking questions through Orca's
 `orchestration ask` contract to the coordinator; ordinary interactive sessions

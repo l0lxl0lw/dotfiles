@@ -45,9 +45,11 @@ recovered after a helper crash. A per-key OS lock excludes concurrent helpers.
 |---|---|
 | Create response complete | Resume consumes saved response, uses returned agent; no duplicate create |
 | Create timed out, partial, malformed, or lost | Never create again automatically; list worktrees with the original repo selector and inspect terminals; explicitly adopt the verified workspace |
-| One readiness wait unsatisfied | One larger retry (60s then 120s); each attempt persisted before execution |
+| Readiness wait unsatisfied or falsely satisfied during startup | One larger retry (60s then 120s); after satisfaction, poll show/read within the remaining budget for a rendered input prompt; each attempt persisted before execution |
 | Both waits consumed, including crash/timeout | Fail closed; no send, no automatic reset; inspect the saved terminal manually |
-| Accepted, without `turn_started` | Success with warning; stop. Resume returns saved receipt without another CLI send |
+| Accepted, without `turn_started` | Exit 2, startup unconfirmed. Resume inspects the same process and reconciles the exact command with its durable request ID; never sends new input automatically |
+| Old accepted state with `turn_started` | Resume migrates to `started` without another send |
+| Operator confirms input was never delivered | `recover --key KEY --confirm-undelivered` archives the old receipt and authorizes a new send to the same OpenCode process after empty-prompt readiness checks; duplicate execution remains possible |
 | Send failed ambiguously with durable ID | Resume reissues exact saved command plus `--retry-request ID`, once per resume; runtime owns replay semantics |
 | Send lost without durable ID | Stop. Inspect logs and terminal output; no guessed request ID, unkeyed retry, or new-key workaround |
 | Stale handle before initial send | Re-list; match original PTY then verify incarnation with `terminal show`; if identity was not yet saved, require one matching agent in the exact workspace |
@@ -68,15 +70,28 @@ explicit operator decision; it does not infer ownership from a matching name.
 There is no documented CLI create-retry flag in the checked version. Runtime
 create-idempotency capability alone is insufficient to invent one.
 
-Exit **0** means the requested action completed: start/resume obtained acceptance,
+Exit **0** means the requested action completed: start/resume/recover confirmed turn start,
 or inspect/adopt completed their read/reconciliation. Exit **2** means blocked;
 JSON includes available identifiers and recovery instructions. `inspect` and
 `adopt` never send. Only `receipt_stages` containing `turn_started` proves a turn
 began. Top-level CLI envelope `id` is not a durable prompt request ID.
 
+OpenCode readiness currently recognizes its rendered `Ask anything` prompt with
+`tab agents` and `ctrl+p commands` hints in a `source: screen` read. A missing
+renderer (`paneRuntimeId: -1`), blank terminal, startup output, or an unknown
+layout cannot pass. The helper revalidates process identity after waiting.
+Other agents require nonempty terminal output in addition to the idle wait.
+
+Orca 1.4.206 can report OpenCode's delivery provider as `unsupported`. Even with
+a ready screen and accepted input, that receipt cannot confirm turn start.
+The helper reports this limitation as a blocker; inspect the actual terminal
+before deciding whether recovery is appropriate. A keyed retry observes the
+original request and does not guarantee redelivery.
+
 ### Limits
 
-This provides at most one **unkeyed send attempt per retained operation key**,
+This provides at most one **unkeyed send attempt per retained operation key**
+unless the operator explicitly authorizes `recover --confirm-undelivered`,
 not a universal exactly-once guarantee. Orca's durable request/process identity
 governs keyed replay. Killing the CLI before it reports its request ID, losing the
 state directory, using a new key, external sends, or terminal process replacement

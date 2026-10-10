@@ -79,19 +79,17 @@ try:
     with urllib.request.urlopen(request, timeout=60) as response:
         agents = json.load(response)
     assert not any(item["name"] == "workflow" or item["name"].startswith("workflow-") for item in agents)
-    for stage in ("brainstorm", "feature", "ticket", "research", "plan", "execute", "review"):
+    for stage in ("prepare", "deliver"):
         name = "develop-" + stage
         assert name in public, name
         assert commands[name].get("source") == "skill", commands[name]
         assert not commands[name].get("subtask"), commands[name]
-        if stage not in ("brainstorm", "feature"):
-            assert any(item["name"] == name and item["mode"] == "subagent" for item in agents), name
-    brainstorm = commands["brainstorm"]
-    assert brainstorm.get("source") == "command", brainstorm
-    target, = re.findall(r"`([^`]+)`", brainstorm["template"])
-    assert target.startswith("wf-") and target.endswith("-develop-brainstorm"), target
-    assert any(item["name"] == target for item in result), target
-    assert "$ARGUMENTS" in brainstorm["template"], brainstorm
+    for stage in ("execute", "review"):
+        name = "develop-" + stage
+        assert any(item["name"] == name and item["mode"] == "subagent" for item in agents), name
+        assert name not in public and name not in commands, name
+    assert {name for name in public if name.startswith("develop-")} == {"develop-prepare", "develop-deliver"}
+    assert "brainstorm" not in commands
     print(f"Installed OpenCode API: {len(public)} public/builtin/private skills, {len(result) - len(public)} pinned skills; shared locations and executable command registration verified")
 finally:
     process.terminate()

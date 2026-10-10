@@ -21,7 +21,7 @@ import urllib.request
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGES = ("ticket", "research", "plan", "execute", "review")
+STAGES = ("execute", "review")
 
 
 def main():
@@ -110,6 +110,11 @@ def main():
                 catalog = {item["name"]: item for item in api("GET", "/agent")}
                 assert all("develop-" + stage in catalog for stage in STAGES)
                 parent = api("POST", "/session", {"title": "Development wiring smoke"})["id"]
+                run_message(parent, "Read-only wiring probe: return only the Workflow session ID provided in your system context. Do not call tools.")
+                messages = api("GET", f"/session/{parent}/message")
+                answers = [part.get("text", "") for message in messages if message.get("info", {}).get("role") == "assistant"
+                           for part in message.get("parts", []) if part.get("type") == "text"]
+                assert any(parent in answer for answer in answers), "Delivery session identity did not reach the live model"
                 secret = uuid.uuid4().hex
                 api("POST", f"/session/{parent}/message", {"agent": "develop-smoke-parent", "noReply": True,
                     "parts": [{"type": "text", "text": "Parent-only marker, never pass to workers: " + secret}]})
@@ -117,13 +122,14 @@ def main():
                 previous_marker = uuid.uuid4().hex
                 for number in (1, 2):
                     before = {child["id"] for child in api("GET", f"/session/{parent}/children")}
-                    probe = ("Read-only harness probe, not a business planning request. Load your assigned stage skill, "
+                    method = bundle / "opencode/skills/develop/_lib/review.md"
+                    probe = ("Read-only harness probe, not an application review. Read your assigned internal method at " + str(method) + ", "
                              "then ask one native question 'Continue probe?' with options Stop and Continue. "
                              "After the reply return only 'probe complete'. Do not call other tools, read GitHub, "
                              "publish anything or change files.")
                     if number == 1:
                         probe += " Child-only marker: " + previous_marker
-                    answered = run_message(parent, "Invoke Task exactly once with subagent_type develop-plan, "
+                    answered = run_message(parent, "Invoke Task exactly once with subagent_type develop-review, "
                         "a NEW session (no task_id), and ONLY this prompt: " + probe +
                         "\nAfter the worker returns, report its result and stop. Do not invoke another stage.")
                     new = [child for child in api("GET", f"/session/{parent}/children") if child["id"] not in before]
@@ -137,26 +143,26 @@ def main():
                     if child not in answered:
                         details = {"experimental": api("GET", "/config").get("experimental"),
                                    "session_permissions": api("GET", f"/session/{child}").get("permission"),
-                                   "question_permissions": [rule for rule in catalog["develop-plan"].get("permission", [])
+                                   "question_permissions": [rule for rule in catalog["develop-review"].get("permission", [])
                                                             if rule["permission"] in ("*", "question")]}
                         raise AssertionError("Worker did not ask a native question: " + json.dumps(details))
-                    skill_calls = [part for message in messages for part in message.get("parts", [])
-                                   if part.get("type") == "tool" and part.get("tool") == "skill"]
-                    assert any(part.get("state", {}).get("input", {}).get("name") == aliases["develop-plan"]
-                               and part["state"]["status"] == "completed" for part in skill_calls), "Pinned method not loaded"
+                    reads = [part for message in messages for part in message.get("parts", [])
+                             if part.get("type") == "tool" and part.get("tool") == "read"]
+                    assert any(str(method) in json.dumps(part.get("state", {}).get("input", {}))
+                               and part["state"]["status"] == "completed" for part in reads), "Pinned internal method not read"
                     children.append(child)
                 # Exercise the actual dispatcher method with absent authorization/artifacts.
                 for request in ("I want to develop a feature; I have supplied no issue or plan. Ask what is needed and stop.",
                                 "Run execute, but I have supplied no exact plan and no implementation authorization. Stop for clarification."):
                     session = api("POST", "/session", {"title": "Development missing-input stop"})["id"]
-                    await_questions = run_message(session, "Load the skill " + aliases["develop-feature"] +
+                    await_questions = run_message(session, "Load the skill " + aliases["develop-deliver"] +
                                                   " and follow it. Its physical shared library is " +
                                                   str(bundle / "opencode/skills/develop/_lib/workflow.md") + ". " + request)
                     messages = api("GET", f"/session/{session}/message")
                     parts = [part for message in messages if message["info"]["role"] == "assistant"
                              for part in message.get("parts", [])]
                     assert any(part.get("type") == "tool" and part.get("tool") == "skill"
-                               and part.get("state", {}).get("input", {}).get("name") == aliases["develop-feature"]
+                               and part.get("state", {}).get("input", {}).get("name") == aliases["develop-deliver"]
                                and part["state"]["status"] == "completed" for part in parts)
                     assert all(part["tool"] in ("skill", "read", "question") for part in parts if part["type"] == "tool"), \
                         "Missing-input probe performed an action instead of stopping"
@@ -165,7 +171,7 @@ def main():
                     assert not api("GET", f"/session/{session}/children"), "Dispatched without required inputs"
                 assert sentinel.read_text() == "Read-only development smoke fixture.\n"
                 print(json.dumps({"outcome": "pass", "fresh_workers": children,
-                                  "pinned_skill_and_native_questions": "pass",
+                                  "pinned_method_and_native_questions": "pass",
                                   "parent_and_sibling_isolation": "pass", "missing_input_stops": "pass",
                                   "scope": "Read-only wiring probes; not full implementation acceptance"}))
             finally:

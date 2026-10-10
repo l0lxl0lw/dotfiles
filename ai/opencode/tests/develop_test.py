@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT.parent / "shared/skills"
-STAGES = ("ticket", "research", "plan", "execute", "review")
+STAGES = ("execute", "review")
 
 
 def load(name, path):
@@ -25,7 +25,7 @@ resolver = load("develop_resolver", SHARED / "develop/_lib/resolve-root.py")
 
 
 class DevelopTest(unittest.TestCase):
-    def test_worker_skill_aliases_and_agent_names_are_distinct(self):
+    def test_internal_workers_resolve_methods_without_public_skill_commands(self):
         with tempfile.TemporaryDirectory(prefix="develop snapshot space ") as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp))
             manifest = launch.validate_bundle(bundle)
@@ -36,11 +36,15 @@ class DevelopTest(unittest.TestCase):
                 self.assertEqual(definition["mode"], "subagent")
                 self.assertNotIn("model", definition)
                 self.assertNotIn("variant", definition)
-                self.assertIn("`" + manifest["skill_aliases"][name] + "`", launch.body(path))
+                method = bundle / "opencode/skills/develop/_lib" / (stage + ".md")
+                self.assertIn(str(method), launch.body(path))
+                self.assertTrue(method.is_file())
+                self.assertNotIn(name, manifest["skill_aliases"])
                 self.assertFalse((ROOT / "commands" / (name + ".md")).exists())
-            feature = (bundle / "opencode/skills/develop/develop-feature/SKILL.md").read_text()
-            self.assertIn("subagent named develop-ticket", feature)
-            self.assertNotIn("subagent named wf-", feature)
+            for stage in ("ticket", "research", "plan"):
+                self.assertFalse((bundle / "opencode/agents" / ("develop-" + stage + ".md")).exists())
+            self.assertEqual({name for name in manifest["skill_aliases"] if name.startswith("develop-")},
+                             {"develop-prepare", "develop-deliver"})
             self.assertEqual(resolver.resolve_root(
                 bundle / "opencode/skills/develop/_lib/resolve-root.py", {}), bundle / "opencode")
 
@@ -49,21 +53,22 @@ class DevelopTest(unittest.TestCase):
             home = Path(tmp)
             skills = home / ".config/opencode/skills"
             skills.mkdir(parents=True)
-            for name in ("develop-feature", *("develop-" + stage for stage in STAGES)):
+            for name in ("develop-prepare", "develop-deliver"):
                 (skills / name).symlink_to(SHARED / "develop" / name)
-            project = home / "repo/.agents/skills/develop-plan"
+            project = home / "repo/.agents/skills/develop-prepare"
             project.mkdir(parents=True)
-            (project / "SKILL.md").write_text("---\nname: develop-plan\ndescription: Project plan\n---\nProject method\n")
-            custom = {"develop-plan": {"template": "custom command"},
-                      "skill-develop-plan": {"template": "custom fallback"}}
+            (project / "SKILL.md").write_text("---\nname: develop-prepare\ndescription: Project preparation\n---\nProject method\n")
+            custom = {"develop-prepare": {"template": "custom command"},
+                      "skill-develop-prepare": {"template": "custom fallback"}}
             env = launch.skill_environment({"HOME": tmp, "OPENCODE_CONFIG_CONTENT":
                                             json.dumps({"command": custom})}, home / "repo")
             cfg = json.loads(env["OPENCODE_CONFIG_CONTENT"])
             for name, value in custom.items():
                 self.assertEqual(cfg["command"][name], value)
-            self.assertIn(str(project / "SKILL.md"), cfg["command"]["skill-skill-develop-plan"]["template"])
-            self.assertNotIn("develop-execute", cfg["command"])
-            self.assertIn("skill-develop-execute", cfg["command"])
+            self.assertIn(str(project / "SKILL.md"), cfg["command"]["skill-skill-develop-prepare"]["template"])
+            self.assertNotIn("develop-deliver", cfg["command"])
+            self.assertIn("skill-develop-deliver", cfg["command"])
+            self.assertNotIn("skill-develop-execute", cfg["command"])
 
     def test_resolver_live_relocated_symlink_and_explicit_root(self):
         self.assertEqual(resolver.resolve_root(environ={}), ROOT)
@@ -108,3 +113,19 @@ class DevelopTest(unittest.TestCase):
             self.assertNotEqual(first, second)
             self.assertNotIn("New resource revision", (first / "opencode/skills/develop/_lib/workflow.md").read_text())
             launch.validate_bundle(first)
+
+    def test_prepare_delivery_resources_are_closed_over_in_snapshot(self):
+        with tempfile.TemporaryDirectory(prefix="delivery snapshot ") as tmp:
+            bundle = launch.build_bundle(ROOT, Path(tmp))
+            manifest = launch.validate_bundle(bundle)
+            for name in ("develop-prepare", "develop-deliver"):
+                skill = bundle / "config/skills" / manifest["skill_aliases"][name] / "SKILL.md"
+                self.assertTrue(skill.is_file())
+            self.assertTrue((bundle / "opencode/tracking/delivery.py").is_file())
+            self.assertTrue((bundle / "opencode/tracking/references/delivery.md").is_file())
+            prepare = (bundle / "opencode/skills/develop/develop-prepare/SKILL.md").read_text()
+            self.assertIn("bug", prepare)
+            self.assertIn(manifest["skill_aliases"]["develop-deliver"], prepare)
+            execute = (bundle / "opencode/skills/develop/_lib/execute.md").read_text()
+            self.assertIn("delivery run", execute)
+            self.assertIn("three-cycle", execute)

@@ -12,8 +12,8 @@ Retains intent discovery, reflected understanding, context reading, one question
 at a time, alternatives with tradeoffs, scope reduction/decomposition, scaled
 spike/bounded/architectural discussion, section review, self-review, and approval.
 
-This adaptation is an explicitly requested conversational front door to the
-develop cycle. It ends at an agreed design and ticket-ready handoff. It removes
+This adaptation is the internal clarification method of the consolidated
+Prepare stage. It produces draft decisions for research and planning. It removes
 the blanket creative-work trigger, auto-commits, automatic implementation,
 mandatory writing-plans handoff, fixed spec paths, and visual companion server.
 Spikes that require changes are separate tasks. It adds host-native question
@@ -21,4 +21,4 @@ guidance, observable acceptance rows, existing-issue resumption, separate issue
 repository/Project board handling, and an in-chat fallback when ticket tooling
 is unavailable. No Superpowers runtime or other skills are required.
 
-Keep this source record and license beside SKILL.md when installing or pinning.
+Keep this source record and license beside brainstorm.md when installing or pinning.

@@ -48,6 +48,29 @@ assert_link_to "$HOME/.config/opencode/skills/write-better" "$repo_root/ai/share
 assert_link_to "$HOME/.config/opencode/skills/learn-quiz" "$repo_root/ai/shared/skills/learn/learn-quiz"
 [[ -z "$(opencode_merge_config)" ]] || fail "default sync not idempotent"
 
+# Consolidation retires old public stages/alias but retains internal workers.
+for stage in brainstorm feature ticket research plan execute review; do
+  ln -s "$HOME/dotfiles/ai/shared/skills/develop/develop-$stage" "$HOME/.config/opencode/skills/develop-$stage"
+done
+ln -s "$HOME/dotfiles/ai/opencode/commands/brainstorm.md" "$HOME/.config/opencode/commands/brainstorm.md"
+for stage in ticket research plan; do
+  ln -s "$HOME/dotfiles/ai/opencode/agents/develop-$stage.md" "$HOME/.config/opencode/agents/develop-$stage.md"
+done
+opencode_merge_config || fail "development consolidation sync"
+for stage in brainstorm feature ticket research plan execute review; do
+  [[ ! -L "$HOME/.config/opencode/skills/develop-$stage" ]] || fail "retired public stage survived: $stage"
+done
+[[ ! -L "$HOME/.config/opencode/commands/brainstorm.md" ]] || fail "retired brainstorm alias survived"
+for stage in ticket research plan; do
+  [[ ! -L "$HOME/.config/opencode/agents/develop-$stage.md" ]] || fail "retired stage worker survived: $stage"
+done
+for stage in execute review; do
+  assert_link_to "$HOME/.config/opencode/agents/develop-$stage.md" "$repo_root/ai/opencode/agents/develop-$stage.md"
+done
+for phase in prepare deliver; do
+  assert_link_to "$HOME/.config/opencode/skills/develop-$phase" "$repo_root/ai/shared/skills/develop/develop-$phase"
+done
+
 # Existing installs still point at the former top-level directory. The sync must
 # repair dangling managed links after the move, without a compatibility symlink.
 for entry in tui.json tui/skill-commands.js agents/codebase-analyzer.md commands/track.md; do

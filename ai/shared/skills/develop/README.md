@@ -1,132 +1,94 @@
-# Develop a feature
+# Prepare and deliver features or bug fixes
 
-Shared methods for a user-driven development cycle. Each stage stops after its
-handoff; a prepared plan is not implementation approval.
+Two public entry points:
 
-```text
-brainstorm → explicit ticket request → ticket → research → plan
-plan → explicit execution approval → execute → review
-                                     ↑         │
-                                     └─ repair ┘
-review pass → separately requested git-commit / git-pr / other git-* skill
-```
-
-## Entry points
-
-| Skill / native slash command | Input | Result |
+| Command | Where | Result |
 |---|---|---|
-| `/develop-brainstorm` (OpenCode alias `/brainstorm`) | Idea or existing issue URL | Agreed design and ticket-ready handoff, in the current conversation |
-| `/develop-feature` | Requested stage, task or exact issue/artifact URLs | One fresh stage worker and its next-action handoff |
-| `/develop-ticket` | Explicit request to create/refine a ticket | Scoped issue and versioned contract |
-| `/develop-research` | Issue and optional contract URL | Source-bound research facts |
-| `/develop-plan` | Issue and exact research URL | Acceptance matrix, steps and check manifest |
-| `/develop-execute` | Issue, exact approved plan, optional review URL | Implementation/repair and actual verification receipt |
-| `/develop-review` | Issue, exact plan, verification and optional previous review | `pass`, `changes_requested`, or `blocked` |
-
-Skills register their own slash commands. OpenCode also provides the thin
-`/brainstorm` alias; stage commands have no duplicate command files.
-Direct stage commands run in the **current session**. For fresh-context execution,
-use `/develop-feature plan ISSUE_URL RESEARCH_URL`, for example. Its OpenCode
-adapter is one of five thin `develop-*` subagents; methods live here, not in agents.
-Each dispatch creates a new worker, including repairs and re-reviews. On a host
-without fresh workers, report that limitation and ask for a new session; do not
-claim isolation. A reviewer must not review its own implementation context.
-
-`/develop-feature` alone does not authorize issue creation or implementation. Ask
-for the next stage when it is ambiguous. Research and planning may publish their
-stage artifacts when requested, but an explicit chat-only/no-publication request
-takes precedence. Without an issue, scope the request and ask whether to create
-one or use an exact existing issue. No URL is fabricated.
-
-## Brainstorming before a ticket
+| `/develop-prepare` | Planning session on main | Approved scope, research, ticket, acceptance checks and implementation plan |
+| `/develop-deliver` | Dispatch from main; execution in an Orca feature workspace | Reviewed implementation, commits and an open PR with required CI green |
 
 ```text
-/brainstorm Add saved filters to the transaction list
-/brainstorm https://github.com/OWNER/REPO/issues/123
+main: Prepare → approve publication and delivery
+                     ↓ Orca handoff + receiver acknowledgement
+feature: Execute → Verify → Independent review ↔ Repair
+         → Commit → Push → Ready PR → Required CI green
 ```
 
-`develop-brainstorm` guides one focused question per turn, reads relevant context,
-compares meaningful approaches, and reviews a proportional design. It is an
-optional conversational front door, not a mandatory gate for every edit or a sixth
-stage worker. A clear ticket request can still start directly at `develop-ticket`.
+## Prepare
 
-Its handoff carries the outcome, scope/non-goals, decisions, stable requirement
-IDs, initial acceptance rows (including state effects), open questions, exact
-existing issue/artifact URLs and repository/worktree. Simple designs stay in chat;
-larger ones can use project documentation conventions or a user-chosen location.
-Design approval does not authorize implementation, issue creation, or publication.
+Prepare consolidates clarification, source research, ticket/contract and planning
+in one session. It supports features and bug fixes: bug preparation investigates
+actual/expected behavior, reproduction, root-cause evidence or explicit uncertainty,
+and regression checks. Ask only questions that require user input.
 
-An explicit create/update request transitions to `/develop-ticket` in the current
-session, or `/develop-feature ticket` when a fresh worker is requested. Pass the
-agreed handoff so the ticket stage can build on answers rather than restart the
-interview. Ticket owns the versioned contract and tracker mutations. An existing
-issue is resumed, not duplicated, and updating it requires explicit authorization.
-On hosts without the needed skill/integration, provide an in-chat ticket/update
-draft and report the missing capability instead of implying publication succeeded.
+The reviewed preparation result contains stable requirement IDs and acceptance
+rows: scenario/input → response → state change/no-change → proving checks. Required
+checks, meaningful negatives, environment prerequisites and manual evidence are
+explicit. A prepared plan does not by itself authorize implementation.
 
-Issue repository and GitHub Project board are separate destinations. Existing
-private `tracking.owner`/`tracking.number` settings select the board only. No
-issue-repository config schema is introduced here; pass the confirmed repository
-to the ticket stage and preserve exact issue URLs.
+Approve the result to publish the issue/contract/research/plan. Existing issue URLs
+are preserved. Issue repository and Project board are separate destinations; no
+configuration field is invented to infer one from the other. Partial publication
+is reconciled without duplicating issues or losing human edits.
 
-## Approval and completion
+**"Approved—publish and deliver through PR"** grants both publication and the
+delivery run for that exact plan. Otherwise Prepare stops with the published plan.
+Targeted research/design/plan revisions also use Prepare; no additional public
+stage commands or handwritten `/brainstorm` alias are installed.
 
-The plan defines done using stable requirement IDs and:
+## Deliver
 
-**scenario/input → observable response → state change/no-change → proving check**.
+The main session initializes one private journal and dispatches through the Orca
+handoff helper. It waits only for the receiving workflow's acknowledgement, then
+releases ownership. The feature workspace owns the rest of the run. Local Orca
+and a shared local filesystem/state directory are currently required.
 
-Every required criterion has actual targeted tests or justified manual evidence.
-Required repository checks, prerequisites, source identities, baseline exclusions,
-exact affected components and implementation steps are explicit. Optional coverage
-does not become a moving completion target. Missing material decisions block execution.
+The owner dispatches NEW internal `develop-execute` and `develop-review` Task
+workers. The reviewer must be independent of the writer and coordinator. Workers
+load the internal methods directly, return one evidence artifact and stop. They
+are not slash commands. Review reads actual code before author claims and uses
+source-bound verification; schema validity alone is not semantic correctness.
 
-`/develop-execute ISSUE_URL PLAN_URL` (or an equally explicit request through
-`develop-feature`) authorizes that identified implementation stage, not Git operations.
-Repairs require another explicit execute request with the exact review. There is
-**no automatic execute-review-repair loop** and therefore no automatic repair budget.
-After two unsuccessful repair rounds against one plan, stop to diagnose the remaining
-contract/fixture/evidence problem with the user before accepting another repair.
-Record the round and prior review in handoffs so resumption does not reset the count.
-Material product questions always stop the stage; no silent scope change is allowed.
+There are **three repair cycles total**, shared by review and attributable CI or
+integration defects. Initial implementation/review and routine main integration
+do not count. Each repair has fresh verification and independent review before
+push. Missing product decisions, changed scope, unrelated failures or exhausted
+repairs stop with a resumable blocker, not silently relaxed acceptance.
 
-Review inspects actual changes before author claims, then verifies source-bound
-evidence. Fixes require fresh re-review. `pass` requires every required check and no
-unresolved required finding; defects yield `changes_requested`; unavailable decisions
-or required proof yield `blocked`. A gate receipt does not replace semantic review.
+Git operations use the initial through-PR approval: generate repo-style messages,
+commit only reviewed files, push without force, and create a non-draft PR. Fetch
+origin/main before publication and final completion; merge newer commits into the
+feature branch, resolve straightforward conflicts and reverify/review integrated
+changes. Product-ambiguous conflicts need user input. Never modify the main
+checkout as part of delivery.
 
-Verified implementation is distinct from commit, PR, merge and Done. The final
-handoff names the applicable existing Git skill and exact evidence, but does not
-invoke it automatically. No `develop-commit` or legacy stage aliases are installed.
+Completion requires current-head required CI, passing independent review and the
+latest observed main integrated. It returns the PR URL, head, observed main,
+checks and repair count. It does not merge the PR, close the issue or mark Done.
 
-## Resources and host integration
+## Internal layout and recovery
 
-Read [_lib/workflow.md](_lib/workflow.md) for common rules. Resolve sibling files
-from the physical skill directory, not the flattened installation link or cwd.
-`_lib/resolve-root.py` locates the tracking integration without a machine-specific
-path: inherited `OPENCODE_WORKFLOW_ROOT` wins; otherwise inspect physical ancestors
-for the live `opencode/`, relocated `ai/opencode/`, or snapshot root. An invalid
-explicit root fails rather than silently mixing resource revisions.
+- `develop-prepare/SKILL.md` and `develop-deliver/SKILL.md`: public commands.
+- `_lib/brainstorm.md`, `ticket.md`, `research.md`, `plan.md`: preparation methods.
+- `_lib/execute.md`, `review.md`: methods for the two internal workers.
+- `_lib/workflow.md`, `resolve-root.py`: shared contract and physical integration
+  resolution; pinned snapshots retain their exact resource revision.
 
-Tracking helpers own JSON formats, GitHub packets/publication, check execution and
-content identities. This group owns stage methods. Native tools and model defaults
-belong to the host. Private full-stack adapters remain private; cross-repository
-acceptance must bind both source trees and external fixture/environment state.
+See the [delivery protocol](../../../opencode/tracking/references/delivery.md)
+for journal commands, receiver acknowledgement, worker identities, Git/CI gates
+and interruption recovery. Unknown send/worker/PR outcomes are reconciled using
+the existing key rather than duplicated. Existing standalone Git skills remain
+available outside a delivery run.
 
-OpenCode snapshots include this entire group, including the library and resolver.
-Workers load the pinned skill alias from their agent prompt. Project overrides and
-raw-skill fallbacks retain ordinary catalog precedence; they do not replace the
-pinned worker method. Custom commands can occupy a skill's slash name; use the
-catalog's `/skill-<name>` fallback in that case. Restart after catalog/config edits.
+OpenCode loads methods and sibling resources into immutable snapshots. Restart
+through the normal launcher to sync the new catalog and remove old managed links.
+The retired standalone development skills and `/brainstorm` alias are not needed.
 
 ## Provenance
 
-Adapted from the removed workflow at dotfiles `960a611^`, compared with
+The internal methods preserve the acceptance, independent review and source-bound
+verification approach adapted from dotfiles `960a611^` and
 [`opencode-workflow` at `36ffbd0`](https://github.com/l0lxl0lw/opencode-workflow/tree/36ffbd06acd7a50c89566dd58be2f66e3cf15685).
-Preserves its acceptance matrix, explicit execution approval, independent review
-and source-bound verification. Retired model profiles and the commit stage are not
-restored. Orca supervision remains a separate, explicit workflow.
-
-Brainstorming is adapted from Superpowers commit
-`8ca22dba9a94f28898bbce59f2537ff4d87c747d`; its
-[source record](develop-brainstorm/sources.md) and
-[MIT license](develop-brainstorm/LICENSE.superpowers) travel with the skill.
+Clarification is adapted from Superpowers commit
+`8ca22dba9a94f28898bbce59f2537ff4d87c747d`; its [source record](_lib/sources.md)
+and [MIT license](_lib/LICENSE.superpowers) are retained with the internal method.

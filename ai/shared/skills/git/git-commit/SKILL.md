@@ -8,6 +8,15 @@ effort: medium
 
 # Commit
 
+## Authorized delivery mode
+
+In a recorded `develop-deliver` run, the initial **deliver through PR** approval
+already authorizes a generated repo-style message and a new commit. Follow that
+run's pinned tracking/references/delivery.md and gated delivery.py commit command.
+Inspect status, full diff and recent log; stage only intended files and preserve
+hooks. Skip the standalone message/squash dialogs below; stack new commits, never
+amend. This exception does not authorize unrelated edits or publishing from main.
+
 Read `../_lib/portability.md` relative to this skill's physical directory first.
 
 Analyze the uncommitted changes and create a commit on whatever branch you are on. **This skill never pushes** — that is deliberate.

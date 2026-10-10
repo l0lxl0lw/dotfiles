@@ -42,7 +42,8 @@ class RuntimeTest(unittest.TestCase):
             self.assertEqual(cfg["agent"], {"custom": {"description": "keep"}})
             self.assertEqual(cfg["model"], "local/keep")
             self.assertFalse({"ticket", "research", "plan", "execute", "review", "commit"} & cfg["command"].keys())
-            self.assertTrue({"brainstorm", "sync", "track", "orca-coordinate", "orca-handoff"} <= cfg["command"].keys())
+            self.assertTrue({"sync", "track", "orca-coordinate", "orca-handoff"} <= cfg["command"].keys())
+            self.assertNotIn("brainstorm", cfg["command"])
             self.assertEqual(launch.environment(bundle, environ=actual), actual)
             self.assertNotIn("private-fixture-token", (bundle / "manifest.json").read_text())
             with self.assertRaisesRegex(RuntimeError, "does not exist"):

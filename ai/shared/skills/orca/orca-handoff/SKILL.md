@@ -5,6 +5,11 @@ description: Hand off a bounded task to another Orca workspace or existing agent
 
 # Orca handoff
 
+For an approved plan's autonomous execution/review/repair through green PR, use
+`develop-deliver`. It owns the run authorization, receiver acknowledgement and
+delivery journal, and calls this helper only for transport. Main still stops
+after transfer; the receiving workflow owns subsequent stage progression.
+
 Transfer ownership, deliver the brief, report the receipt, then stop. Do not create
 Run/task tracking, dispatch a supervised worker, poll completion, or treat idle as
 proof of completed work. Supervision requires the separate coordination workflow.
@@ -54,8 +59,12 @@ python3 /absolute/skill/directory/scripts/handoff.py start \
 
 The helper creates agent-first with `--no-parent --agent opencode`, without a
 prompt or base override. It extracts the complete worktree ID and one agent
-handle, inspects the terminal, waits for `tui-idle` for 60 seconds and at most one
-120-second retry, then sends text+Enter with `--wait-submit 10 --json`.
+handle, inspects the terminal, waits for `tui-idle` with a 60-second readiness
+budget and at most one 120-second retry, then rechecks the same process and
+rendered prompt before sending text+Enter with `--wait-submit 10 --json`.
+For OpenCode, the screen must contain its empty prompt and command/agent hints;
+blank output or a satisfied wait alone is insufficient. Unrecognized layouts
+block delivery rather than guessing readiness.
 
 For a user-identified existing agent, first use `terminal show` and `terminal read`
 to judge whether handing it this task is appropriate. The helper repeats those
@@ -80,6 +89,15 @@ it, and treat it as private data. Use `inspect` or `resume` with the **same key*
 - A send timeout or silence is not permission to send again. With a known durable
   ID, resume replays only the exact send plus `--retry-request ID`. Without an ID,
   stop and give identifiers/log locations and manual inspection instructions.
+- Accepted-but-unconfirmed input is a blocker. `resume` rechecks the original
+  terminal and reconciles the durable request; keyed retry may only return the
+  original receipt, not redeliver input. An unsupported provider cannot prove
+  startup through that receipt.
+- Only after the operator confirms that the original task never started, use
+  `recover --key KEY --confirm-undelivered` for a new send to the original
+  OpenCode process. Preserve the same key. This archives the old receipt and
+  carries duplicate-execution risk; an empty screen alone is not confirmation
+  that the task never ran. Never invoke recovery automatically on silence.
 - Re-list stale handles. Before initial send, select only one matching process;
   never dual-deliver. After a send attempt, never move the prompt to a replacement
   handle/process. If exact-command replay cannot be proven safe, stop.
@@ -89,7 +107,8 @@ it, and treat it as private data. Use `inspect` or `resume` with the **same key*
 Return workspace path/full ID, branch, agent handle, state key/directory, durable
 request ID, receipt stages and warnings. Say **input accepted** when `accepted`
 is true; say **turn started** only when the receipt includes `turn_started`.
-Accepted-but-unproven is still the end of the full handoff. Do not promise
-exactly-once runtime execution or claim the task itself is finished.
+Accepted-but-unproven must be reported as startup unconfirmed, not a successful
+handoff. Stop after delivery verification; do not monitor task completion or
+promise exactly-once runtime execution.
 
 After installing this skill or changing its routing, quit and restart OpenCode.

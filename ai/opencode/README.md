@@ -2,8 +2,8 @@
 
 ## Active catalog and ownership
 
-The shared catalog contains 37 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
-`remember`, and `respond`. Each skill name starts with its folder name, for example
+The shared catalog contains 33 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
+`remember`, `respond`, and `orca`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 
 **Public skills live only in `ai/shared/skills/`.** There is no maintained
@@ -14,15 +14,15 @@ This directory owns OpenCode-specific integration:
 
 | Path | Purpose |
 |---|---|
-| `agents/` | Six research specialists and five thin development stage workers |
-| `commands/` | `/brainstorm`, `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
+| `agents/` | Six research specialists and two internal execution/review workers |
+| `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
 | `tui/`, `tui.json` | Skill slash commands and command-palette integration |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
 
 The old six-stage workflow commands, workflow-* agents, model profiles and migration
 utilities are retired. Development methods are shared skills, with native slash
-commands and fresh-worker dispatch through `/develop-feature`. OpenCode's built-in `/review`
+commands `/develop-prepare` and `/develop-deliver`. OpenCode's built-in `/review`
 may still appear; it is not the former workflow command. Use `/git-commit` and the
 other shared Git skills for Git operations.
 
@@ -115,26 +115,36 @@ introduces the concept before verified entry points and a call tree; debug mode 
 concrete side effects and suggests breakpoints. `/learn-quiz` and `/learn-check-model`
 share grounding and teaching references with the explanation skills in `explain/_lib/`.
 
-### Feature development
+### Feature development and bug fixes
 
-See [the development cycle](../shared/skills/develop/README.md). The seven
-`develop-*` skills register native commands. `/brainstorm IDEA` (or an existing
-issue URL) is a thin alias for the conversational `develop-brainstorm` skill. It
-produces an agreed design and stable-requirement handoff before an explicitly
-requested ticket stage; design approval alone does not publish or implement.
-Direct stage
-commands run in the current session; `/develop-feature plan ISSUE_URL RESEARCH_URL`
-dispatches one fresh `develop-plan` worker and stops. New stage/repair/review requests
-create new workers. An implementation context cannot independently review itself.
-Workers load their pinned shared method and inherit native model defaults; no
-profiles or model overrides are injected. Project overrides affect raw skill entry
-points, not the pinned worker method.
+The default path is **Prepare → Deliver**:
 
-Advancement is user-driven. A prepared plan is not implementation authorization;
-execution requires the exact identified plan. Repairs require explicit requests and
-fresh re-review. After two unsuccessful repairs, diagnose with the user before another
-round. Passing review does not invoke Git or mark Done. Existing `git-*` skills own
-separately authorized Git operations.
+1. `/develop-prepare REQUEST` consolidates clarification, source research,
+   requirements and implementation planning on main. It handles both new features
+   and bug diagnosis/regression plans. Approve its result to publish the ticket,
+   contract, research and plan.
+2. **"Approved—publish and deliver through PR"**, or `/develop-deliver ISSUE_URL
+   PLAN_URL` with explicit through-PR authorization, creates an Orca feature
+   workspace and transfers ownership after receiver acknowledgement.
+3. That owner runs fresh execution/review workers, at most three shared review/CI
+   repair cycles, commits, pushes and opens a ready PR. It integrates origin/main
+   by merge and waits for current-head required CI. Scope decisions or genuine
+   blockers stop with the existing run key; no automatic PR merge.
+
+See [delivery protocol](tracking/references/delivery.md) for journal commands and
+recovery. Local Orca/shared filesystem is currently required.
+
+See [the development cycle](../shared/skills/develop/README.md). Only Prepare and
+Deliver register public development commands. Supporting methods are internal
+Markdown references under `develop/_lib`. The two `develop-execute` and
+`develop-review` agents load those exact pinned methods and inherit native model
+defaults. Each worker returns one result to the delivery owner; an implementation
+context cannot independently review itself. The old standalone stage commands,
+their ticket/research/plan agents and the `/brainstorm` alias are retired.
+
+Initial approval defines the delivery scope and Git authority; the owner advances
+the cycle within that authorization and the shared three-repair budget. Outside
+delivery, existing `git-*` skills still require their usual explicit requests.
 
 ## Private configuration
 

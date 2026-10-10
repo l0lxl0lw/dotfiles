@@ -40,6 +40,14 @@ parent/base requested by the user. Copy full returned workspace IDs.
 
 ## Handoff mode
 
+For **deliver through PR**, `develop-deliver` wraps this transport with a local
+delivery journal and explicit receiver acknowledgement. Main transfers ownership
+after startup; the receiving workspace owns its native Task execution/review/repair
+cycle and Git/CI lifecycle. It does not create Orca Run/Task orchestration records.
+Read `../tracking/references/delivery.md`. Its startup acknowledgement is separate
+from an Orca receipt and may prove receiver startup when provider observation is
+unsupported. A journal timeout never authorizes another unkeyed send.
+
 Load the shared `orca-handoff` skill. Use its `scripts/handoff.py` for deterministic
 create/readiness/send/receipt handling, retaining one operation key for recovery.
 The helper and usage guide live under `ai/shared/skills/orca/orca-handoff/`.

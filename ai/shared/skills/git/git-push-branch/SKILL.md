@@ -8,6 +8,16 @@ effort: medium
 
 # Push Branch
 
+## Authorized delivery mode
+
+For a recorded `develop-deliver` run, **deliver through PR** already authorizes
+generated messages, new commits and pushes without the standalone dialogs below.
+Use the pinned tracking/references/delivery.md and gated delivery.py commands.
+Every code repair needs fresh verification and independent review before push.
+Stack commits; never amend/force-push. CI repairs share the run's three-cycle
+budget and require attribution to this change. Keep waiting until current-head
+required checks pass and main is current at final observation.
+
 Read `../_lib/portability.md` relative to this skill's physical directory first.
 
 Commit the current changes on a feature branch and push them. If a PR is open for the branch, this is what updates it.

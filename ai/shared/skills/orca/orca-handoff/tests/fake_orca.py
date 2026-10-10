@@ -71,9 +71,22 @@ elif args[:2] == ['terminal', 'list']:
         terminals.append(dict(listed, handle='term_second', ptyId='pty-second'))
     emit({'terminals': terminals, 'truncated': scenario == 'truncated'})
 elif args[:2] == ['terminal', 'show']:
+    if scenario == 'startup_race' and db['waits'] == 0:
+        terminal['paneRuntimeId'] = -1
+    if scenario == 'replaced_after_wait' and db['waits']:
+        terminal['incarnationId'] = 'replacement-process'
     emit({'terminal': terminal})
 elif args[:2] == ['terminal', 'read']:
-    emit({'terminal': {'text': 'Agent at prompt', 'handle': terminal['handle']}})
+    tail = ['Ask anything… "Fix broken tests"', 'Build auto', 'tab agents  ctrl+p commands']
+    if scenario == 'startup_race' and db['waits'] == 0:
+        tail = []
+    if scenario == 'startup_race' and db['waits']:
+        reads = db.get('startup_reads', 0)
+        db['startup_reads'] = reads + 1
+        save()
+        if reads == 0:
+            tail = []
+    emit({'terminal': {'tail': tail, 'source': 'screen', 'handle': terminal['handle']}})
 elif args[:2] == ['terminal', 'wait']:
     db['waits'] += 1
     save()
@@ -105,10 +118,11 @@ elif args[:2] == ['terminal', 'send']:
             {'orchestrationRequestId': 'durable-request-1'} if scenario == 'send_ambiguous' else {})})
         sys.exit(1)
     else:
-        stages = ['input_accepted'] + ([] if scenario == 'accepted_only' else ['turn_started'])
+        stages = ['input_accepted'] + ([] if scenario in ('accepted_only', 'unsupported') else ['turn_started'])
         emit({'send': {'accepted': True, 'handle': terminal['handle'],
                        'prompt': {'requestId': 'durable-request-1', 'stages': stages,
-                                  'provider': 'opencode', 'observation': 'observed'}},
+                                   'provider': 'unsupported' if scenario == 'unsupported' else 'opencode',
+                                   'observation': 'unsupported' if scenario == 'unsupported' else 'observed'}},
               'warnings': ['fixture warning'] if scenario == 'accepted_only' else []})
         if scenario == 'crash_after_send':
             crash_parent()

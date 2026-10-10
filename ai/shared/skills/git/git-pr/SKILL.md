@@ -8,6 +8,16 @@ effort: medium
 
 # PR From Branch
 
+## Authorized delivery mode
+
+For a recorded `develop-deliver` run, initial **deliver through PR** approval
+authorizes commit/push/ready-PR publication without the standalone confirmation
+dialogs below. Use the run's pinned tracking/references/delivery.md and gated
+delivery.py commit/publish/ci commands. Preserve all diff review, repository checks,
+hooks and source-bound review gates. A new main revision is integrated via the
+delivery merge/verification/review loop. Finish at green required CI on the current
+head, not merely PR creation. No amend, force-push, PR merge or Done.
+
 Read `../_lib/portability.md` relative to this skill's physical directory first.
 
 Take a feature branch from "I think it's done" to "PR is open and CI-ready": inspect everything that differs from the default branch, ensure nothing is uncommitted, run the checks CI will run, and only then open the PR with a description that reflects the actual diff.

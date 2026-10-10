@@ -26,8 +26,11 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 38)
-        self.assertIn("develop-brainstorm", catalog)
+        self.assertEqual(len(catalog), 33)
+        self.assertIn("develop-prepare", catalog)
+        self.assertIn("develop-deliver", catalog)
+        self.assertEqual({name for name in catalog if name.startswith("develop-")},
+                         {"develop-prepare", "develop-deliver"})
         self.assertIn("write-better", catalog)
         removed = {"business", "codebase", "impeccable", "mattpocock", "omc", "utilities", "workflow"}
         shared = ROOT.parent / "shared/skills"
@@ -64,32 +67,19 @@ class SkillCatalogTest(unittest.TestCase):
             command = (bundle / "opencode/commands/orca-handoff.md").read_text()
             self.assertIn("`" + pinned_name + "`", command)
 
-    def test_brainstorm_alias_resolves_live_and_pinned_skill_with_attribution(self):
-        command = ROOT / "commands/brainstorm.md"
-        live = launch.skill_files(ROOT.parent / "shared/skills")
-        live_name, = re.findall(r"`([^`]+)`", launch.body(command))
-        self.assertIn(live_name, live)
-        self.assertIn("$ARGUMENTS", launch.body(command))
-        self.assertNotIn("model", launch.definition(command))
+    def test_internal_preparation_methods_and_attribution_travel_with_snapshot(self):
+        self.assertFalse((ROOT / "commands/brainstorm.md").exists())
+        library = ROOT.parent / "shared/skills/develop/_lib"
         with tempfile.TemporaryDirectory() as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp) / "state")
             env = launch.environment(bundle, {"HOME": tmp}, Path(tmp))
-            alias = json.loads(env["OPENCODE_CONFIG_CONTENT"])["command"]["brainstorm"]
-            pinned_name, = re.findall(r"`([^`]+)`", alias["template"])
-            manifest = launch.validate_bundle(bundle)
-            self.assertEqual(pinned_name, manifest["skill_aliases"][live_name])
-            self.assertNotEqual(pinned_name, live_name)
-            self.assertIn("$ARGUMENTS", alias["template"])
-            pinned = launch.skill_files(bundle / "config/skills")[pinned_name]
-            # Handoff references must stay in the same resource revision as brainstorm.
-            for next_skill in ("develop-ticket", "develop-feature"):
-                self.assertIn("`" + next_skill + "`", live[live_name].read_text())
-                target = manifest["skill_aliases"][next_skill]
-                self.assertIn("`" + target + "`", pinned.read_text())
-                self.assertIn(target, launch.skill_files(bundle / "config/skills"))
+            self.assertNotIn("brainstorm", json.loads(env["OPENCODE_CONFIG_CONTENT"])["command"])
+            pinned = bundle / "opencode/skills/develop/_lib"
+            for method in ("brainstorm", "ticket", "research", "plan", "execute", "review"):
+                self.assertTrue((pinned / (method + ".md")).is_file())
+            self.assertFalse(list(pinned.rglob("SKILL.md")))
             for resource in ("sources.md", "LICENSE.superpowers"):
-                self.assertEqual((pinned.parent / resource).read_bytes(),
-                                 (live[live_name].parent / resource).read_bytes())
+                self.assertEqual((pinned / resource).read_bytes(), (library / resource).read_bytes())
 
     def test_project_precedence_and_nested_launch_does_not_leak(self):
         with tempfile.TemporaryDirectory() as tmp:

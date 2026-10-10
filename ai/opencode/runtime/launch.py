@@ -406,14 +406,17 @@ def skill_environment(environ, directory=None):
         generated[alias] = value
     overlay = str((Path(env.get("OPENCODE_WORKFLOW_ROOT", str(ROOT))) / "runtime/project-skills.js").resolve())
     # Replace our prior snapshot plugin on nested launches; preserve other plugins.
-    plugins = [p for p in cfg.get("plugin", []) if p != prior.get("plugin")]
+    plugins = [p for p in cfg.get("plugin", []) if p not in (prior.get("plugin"), prior.get("delivery_plugin"))]
     plugin = Path(overlay).as_uri()
     if plugin not in plugins:
         plugins.append(plugin)
+    delivery_plugin = Path(overlay).with_name("delivery-context.js").as_uri()
+    if delivery_plugin not in plugins:
+        plugins.append(delivery_plugin)
     cfg["plugin"] = plugins
     env["OPENCODE_SKILL_CATALOG"] = json.dumps({"paths": added, "commands": generated,
                                                "projects": {name: str(path) for name, path in projects.items()},
-                                               "plugin": plugin})
+                                               "plugin": plugin, "delivery_plugin": delivery_plugin})
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps(cfg)
     env["OPENCODE_DISABLE_EXTERNAL_SKILLS"] = "1"
     env["OPENCODE_DISABLE_CLAUDE_CODE_SKILLS"] = "1"

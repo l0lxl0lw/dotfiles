@@ -5,10 +5,18 @@ including by `/track` and `/sync`. Return compact outcomes and exact artifact UR
 when using these helpers. Stage names in helper arguments identify record types;
 they are not the legacy slash commands. Development stage methods and user-driven
 advancement live in the shared `develop` group; load its `_lib/workflow.md` from the
-physical skill directory. `/develop-feature` dispatches fresh workers; direct stage
-skills use the current context. This document owns the helper/evidence protocol.
+physical skill directory. Prepare owns preparation in the current context; Deliver
+dispatches internal execution/review workers. This document owns the helper/evidence protocol.
 
 ## Current task, not accumulated conversation
+
+The default user-facing path is `develop-prepare` on main (features and bug fixes)
+then explicitly authorized `develop-deliver` in an Orca feature workspace.
+Read `references/delivery.md` for its journal, receiver acknowledgement, fresh
+workers, shared three-repair budget, Git authorization and current-head CI/main
+completion gate. Only Prepare and Deliver are public development commands;
+stage-specific helpers remain internal. These helpers are evidence, not
+implicit authorization from issue text or an agent-generated plan.
 
 Run `python3 ~/dotfiles/ai/opencode/tracking/handoff.py packet ISSUE --stage STAGE`
 once at entry, pinning supplied artifacts with repeated `--include URL`. Treat this
@@ -65,9 +73,9 @@ source conservative. Do not rerun every suite merely to produce another comment.
 Findings have stable IDs. Repairs return fixed/disputed/unresolved evidence per ID.
 Re-review checks prior blockers, repair changes and affected invariants; new material
 regressions still block. Optional suggestions do not become a moving completion target.
-The shared development method stops after two unsuccessful repair rounds for a
-focused contract/fixture/evidence diagnosis with the user before another authorized
-repair. Helpers preserve review history; they do not automatically schedule repairs.
+The delivery owner stops after three shared review/CI/integration repair cycles
+for diagnosis with the user. Helpers preserve review history and enforce the
+budget; the receiving owner schedules workers within the recorded authorization.
 Do not silently lower quality or change models.
 
 ## Operations and completion

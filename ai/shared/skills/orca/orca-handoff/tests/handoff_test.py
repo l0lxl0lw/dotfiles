@@ -81,16 +81,107 @@ class HandoffTest(unittest.TestCase):
         self.assertEqual(self.runtime()['deliveries'], 1)
         self.assertEqual((self.root / 'state/one-task/state.json').stat().st_mode & 0o777, 0o600)
 
-    def test_accepted_not_started_stops_even_on_resume(self):
+    def test_accepted_not_started_is_blocked_and_resume_observes_same_request(self):
         self.configure(scenario='accepted_only')
-        result = self.run_helper()
+        result = self.run_helper(expected=2)
         self.assertTrue(result['accepted'])
         self.assertFalse(result['turn_started'])
         self.assertIn('fixture warning', result['warnings'])
+        self.run_helper('resume', expected=2)
+        sends = self.calls(['terminal', 'send'])
+        self.assertEqual(sends[1], sends[0] + ['--retry-request', 'durable-request-1'])
+        self.assertEqual(self.runtime()['deliveries'], 1)
         before = self.calls()
-        self.run_helper('resume')
         self.run_helper('inspect')
         self.assertEqual(self.calls(), before)
+
+    def test_accepted_receipt_can_later_confirm_start(self):
+        self.configure(scenario='accepted_only')
+        self.run_helper(expected=2)
+        self.configure()
+        self.assertEqual(self.run_helper('resume')['phase'], 'started')
+        self.assertEqual(self.runtime()['deliveries'], 1)
+
+    def test_legacy_accepted_started_state_never_resends(self):
+        self.run_helper()
+        state = self.state()
+        state['phase'] = 'accepted'
+        (self.root / 'state/one-task/state.json').write_text(json.dumps(state))
+        self.assertEqual(self.run_helper('resume')['phase'], 'started')
+        self.assertEqual(len(self.calls(['terminal', 'send'])), 1)
+
+    def test_unsupported_provider_never_reports_success(self):
+        self.configure(scenario='unsupported')
+        result = self.run_helper(expected=2)
+        self.assertTrue(result['accepted'])
+        self.assertFalse(result['turn_started'])
+        self.run_helper('resume', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+
+    def test_false_idle_waits_for_rendered_prompt(self):
+        self.configure(scenario='startup_race')
+        self.run_helper()
+        self.assertGreaterEqual(self.runtime()['startup_reads'], 2)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+        commands = [c[:2] for c in self.calls()]
+        self.assertEqual(commands[-2:], [['terminal', 'read'], ['terminal', 'send']])
+
+    def test_replacement_during_wait_blocks_send(self):
+        self.configure(scenario='replaced_after_wait')
+        self.run_helper(expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 0)
+
+    def test_ready_requires_opencode_prompt_not_merely_output(self):
+        handoff = helper.Handoff(self.root, {'agent': 'opencode', 'terminal': {},
+                                           'terminal_read': {'terminal': {'source': 'screen', 'tail': ['Starting OpenCode']}}})
+        self.assertFalse(handoff.input_ready())
+        handoff.state['terminal_read']['terminal']['tail'] = [
+            'Ask anything…', 'tab agents  ctrl+p commands']
+        self.assertTrue(handoff.input_ready())
+        handoff.state['terminal_read']['terminal']['source'] = 'stream'
+        self.assertFalse(handoff.input_ready())
+        handoff.state['terminal_read']['terminal']['source'] = 'screen'
+        handoff.state['terminal']['paneRuntimeId'] = -1
+        self.assertFalse(handoff.input_ready())
+
+    def test_explicit_recovery_retains_receipt_and_reuses_workspace(self):
+        self.configure(scenario='unsupported')
+        self.run_helper(expected=2)
+        self.run_helper('recover', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+        self.configure()
+        self.run_helper('recover', extra=['--confirm-undelivered'])
+        self.assertEqual(self.runtime()['creates'], 1)
+        self.assertEqual(self.runtime()['deliveries'], 2)
+        self.assertEqual(self.state()['recovery_history'][0]['request_id'], 'durable-request-1')
+        self.run_helper('resume')
+        self.assertEqual(self.runtime()['deliveries'], 2)
+
+    def test_recovery_refuses_replaced_process(self):
+        self.configure(scenario='unsupported')
+        self.run_helper(expected=2)
+        self.configure(incarnation='replaced')
+        self.run_helper('recover', extra=['--confirm-undelivered'], expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+
+    def test_crash_during_explicit_recovery_consumes_saved_receipt(self):
+        self.configure(scenario='unsupported')
+        self.run_helper(expected=2)
+        self.configure(scenario='crash_after_send')
+        self.run_helper('recover', extra=['--confirm-undelivered'], expected=-9)
+        self.configure()
+        self.assertEqual(self.run_helper('resume')['phase'], 'started')
+        self.assertEqual(self.runtime()['deliveries'], 2)
+        self.assertEqual(len(self.state()['recovery_history']), 1)
+
+    def test_readiness_exhaustion_despite_satisfied_wait_never_sends(self):
+        with patch.dict(os.environ, self.env, clear=True), \
+                patch.object(helper.Handoff, 'input_ready', return_value=False), \
+                patch.object(helper.time, 'monotonic', side_effect=[0, 61, 62, 183]):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(helper.main(self.argv()), 2)
+        self.run_helper('resume', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 0)
 
     def test_existing_terminal_inspected_before_send(self):
         self.run_helper(extra=['--terminal', 'term_original'])
