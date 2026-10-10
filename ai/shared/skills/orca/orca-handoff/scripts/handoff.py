@@ -254,6 +254,21 @@ class Handoff:
         self.save()  # Persist explicit authorization before a new delivery attempt.
         self.run()
 
+    def retry_readiness(self):
+        """Explicit operator retry of an exhausted pre-send wait, never a resend."""
+        require(self.state['phase'] == 'created' and not self.state.get('send_args')
+                and not self.state.get('request_id')
+                and not any(c.get('mutation') == 'send' for c in self.state.get('calls', [])),
+                'Readiness retry requires a created workspace with no prior send intent.')
+        self.preflight()
+        self.inspect_terminal()  # Refuse a replaced process before resetting the budget.
+        self.state.setdefault('readiness_retries', []).append({
+            'at': time.time(), 'waits': self.state.get('waits', 0),
+            'terminal': self.state['terminal']})
+        self.state['waits'] = 0
+        self.save()
+        self.run()
+
     def run(self):
         # Consume persisted raw responses first, even if killed before saving the parsed result.
         if self.state['phase'] == 'create_pending':
@@ -295,6 +310,11 @@ class Handoff:
             require(self.state['phase'] == 'started', 'Keyed replay remains unresolved; resume later with the same key. Never send anew.')
             return
         self.inspect_terminal()
+        if self.state['terminal'].get('paneRuntimeId') == -1:
+            # Background --agent workspaces may have no mounted desktop pane.
+            # Reveal the existing terminal, then still require idle + rendered prompt.
+            self.call(['terminal', 'switch', '--terminal', self.state['handle'], '--json'])
+            self.inspect_terminal()
         ready = False
         while self.state.get('waits', 0) < 2:
             attempt = self.state.get('waits', 0)
@@ -353,7 +373,7 @@ def target_env():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['start', 'resume', 'inspect', 'adopt', 'recover'])
+    parser.add_argument('action', choices=['start', 'resume', 'inspect', 'adopt', 'recover', 'retry-ready'])
     parser.add_argument('--key', required=True, help='Stable unique operation key; reuse for recovery')
     parser.add_argument('--state-dir', type=Path, default=Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'orca-handoff')
     parser.add_argument('--repo')
@@ -408,6 +428,8 @@ def main(argv=None):
                         'Inspect the original terminal and task history first. Recovery sends new input and can duplicate '
                         'execution; supply --confirm-undelivered only after confirming the original task did not start.')
                 helper.recover_undelivered()
+            elif args.action == 'retry-ready':
+                helper.retry_readiness()
             elif args.action != 'inspect':
                 helper.run()
             print(json.dumps(helper.summary(), indent=2))
