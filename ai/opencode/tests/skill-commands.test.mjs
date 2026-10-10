@@ -29,6 +29,7 @@ test("exposes global and project skill commands, preserving custom and built-in 
     { name: "custom", source: "command", template: "Keep this workflow" },
     { name: "custom", source: "skill" },
     { name: "remote", source: "mcp" },
+    { name: "remote", source: "skill" },
     { name: "help", source: "skill" },
     { name: "h", source: "skill" },
   ]);
@@ -48,26 +49,26 @@ test("hides workflow snapshot aliases while retaining ordinary workflow skills",
     { name: "wf-ec476e75e8-poke-holes", source: "skill" },
     { name: "wf-ec476e75e8-develop-plan", source: "skill" },
     { name: "git-commit", source: "skill" },
-    { name: "develop-feature", source: "skill" },
-    { name: "develop-execute", source: "skill" },
+    { name: "develop-prepare", source: "skill" },
+    { name: "develop-deliver", source: "skill" },
     { name: "wf-helper", source: "skill" },
   ]);
   await plugin.tui(fixture.api);
   assert.deepEqual(fixture.layers[0].commands.map((command) => command.slashName), [
-    "git-commit", "develop-feature", "develop-execute", "wf-helper",
+    "git-commit", "develop-prepare", "develop-deliver", "wf-helper",
   ]);
 });
 
-test("a TUI built-in collision selects an executable server fallback", async () => {
+test("native names and aliases win even with fallback-description lookalikes", async () => {
   const fixture = host([
     { name: "help", source: "skill", description: "A project help skill" },
     { name: "skill-help", source: "command", description: "Skill fallback: help", template: "Read skill file" },
+    { name: "h", source: "skill" },
+    { name: "skill-h", source: "command", description: "Skill fallback: h", template: "User content" },
   ]);
   await plugin.tui(fixture.api);
-  const command = fixture.layers[0].commands[0];
-  assert.equal(command.slashName, "skill-help");
-  await command.run();
-  assert.deepEqual(fixture.inserted, [{ text: "/skill-help " }]);
+  assert.deepEqual(fixture.layers[0].commands, []);
+  assert.deepEqual(fixture.inserted, []);
 });
 
 test("does not register after disposal or silently accept a failed catalog request", async () => {
@@ -76,4 +77,7 @@ test("does not register after disposal or silently accept a failed catalog reque
   await plugin.tui(fixture.api);
   assert.equal(fixture.layers.length, 0);
   await assert.rejects(plugin.tui(host(undefined).api), /Unable to load/);
+  const failure = host([]);
+  failure.api.client.command.list = async () => ({ data: [], error: "unavailable" });
+  await assert.rejects(plugin.tui(failure.api), /Unable to load/);
 });

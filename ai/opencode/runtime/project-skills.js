@@ -24,8 +24,8 @@ export default async ({ client }) => {
       if (!projects[input.command]) return;
       const { data, error } = await client.command.list();
       if (error || !Array.isArray(data)) throw new Error("Cannot resolve project skill command");
-      // Explicit commands retain their routing and content; /skill-<name> remains
-      // available for a project skill with that same name.
+      // Explicit commands retain their routing and content; the skill tool remains
+      // available for a project skill with that same name, subject to permissions.
       if (data.find((item) => item.name === input.command)?.source !== "skill") return;
       const skill = await read(input.command);
       const text = `${skill.content.replaceAll("$ARGUMENTS", input.arguments)}\n\nBase directory for this skill: ${skill.base}\n\nUser arguments:\n${input.arguments}`;

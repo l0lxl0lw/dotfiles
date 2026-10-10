@@ -84,11 +84,13 @@ it for the session; say "stop adhd mode" or "normal mode" to turn it off.
 ## OpenCode commands and project skills
 
 Launch through the `opencode` shell wrapper to sync before startup. Every resolved
-skill has its native slash command unless another command owns that name. The launcher
-also supplies `/skill-<name>` fallback commands pointing at the exact selected file;
-if that name is occupied, another `skill-` prefix is added. This preserves custom
-commands while keeping colliding skills callable. Internal `wf-<hash>-*` snapshots
-stay hidden from the terminal menu.
+skill has its native slash command unless another command owns that name. Native
+names/aliases and custom/MCP commands win collisions; load a colliding skill through
+the skill tool, subject to normal permissions. No `/skill-<name>` fallback commands
+are generated. User-authored lookalikes remain intact, and nested launches remove
+only exact matches to legacy generated-command ownership metadata. Internal
+`wf-<hash>-*` snapshots stay hidden from the terminal menu. Restart from updated
+resources for these changes; running sessions and old snapshots are unchanged.
 
 Project skills are discovered between the worktree root and launch directory.
 Prefer `.agents/skills/<name>/SKILL.md` for cross-tool project skills. Existing
@@ -101,8 +103,9 @@ are added explicitly. Repository skills never become global symlinks.
 Because native duplicate discovery can finish out of order, the launcher's
 `runtime/project-skills.js` plugin enforces the chosen project file when the skill
 tool or native skill command executes. Explicit custom commands keep their behavior.
-Raw `opencode debug skill` metadata may show a different duplicate; fallback commands
-and execution use the selected project file. `--pure` disables this execution plugin.
+Raw `opencode debug skill` metadata may show a different duplicate; skill-tool and
+native skill-command execution use the selected project file. `--pure` disables
+this execution plugin.
 
 OpenCode's workflow snapshot includes the shared library and helper resources. Its
 content identity changes when shared resources change; existing workflow children

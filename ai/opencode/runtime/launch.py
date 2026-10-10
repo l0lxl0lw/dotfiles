@@ -351,7 +351,7 @@ def project_skill_sources(directory):
 
 
 def skill_environment(environ, directory=None):
-    """Add explicit project sources and executable fallback commands without editing HOME."""
+    """Add explicit project sources and retire owned legacy aliases without editing HOME."""
     env = dict(environ)
     cwd = Path(directory or Path.cwd()).resolve()
     home = Path(env.get("HOME", str(Path.home())))
@@ -382,28 +382,6 @@ def skill_environment(environ, directory=None):
     # enforces the chosen winner independently of native discovery ordering.
     added = [str(path.parent) for path in projects.values() if str(path.parent) not in paths]
     skills["paths"] = [*paths, *added]
-    occupied = set(commands) | set(selected)
-    for source in (global_dir, cwd / ".opencode"):
-        for folder in ("commands", "command"):
-            occupied.update(p.stem for p in (source / folder).glob("*.md"))
-    generated = {}
-    for name, path in sorted(selected.items()):
-        if re.match(r"wf-[a-f0-9]+-", name):
-            continue
-        alias = "skill-" + name
-        while alias in occupied:
-            alias = "skill-" + alias
-        occupied.add(alias)
-        # Read by exact path: this also handles a native command hiding the skill
-        # or a project definition overriding a same-name global definition.
-        value = {"description": "Skill fallback: " + name,
-                 "template": "Read " + json.dumps(str(path)) + " and follow that skill. "
-                             "Its base directory is " + json.dumps(str(path.parent)) + ". "
-                             "Use the host's native tools; AskUserQuestion means its question dialog "
-                             "(or ask in chat when unavailable). Load the skill before acting.\n\n"
-                             "User arguments:\n$ARGUMENTS"}
-        commands[alias] = value
-        generated[alias] = value
     overlay = str((Path(env.get("OPENCODE_WORKFLOW_ROOT", str(ROOT))) / "runtime/project-skills.js").resolve())
     # Replace our prior snapshot plugin on nested launches; preserve other plugins.
     plugins = [p for p in cfg.get("plugin", []) if p not in (prior.get("plugin"), prior.get("delivery_plugin"))]
@@ -414,7 +392,7 @@ def skill_environment(environ, directory=None):
     if delivery_plugin not in plugins:
         plugins.append(delivery_plugin)
     cfg["plugin"] = plugins
-    env["OPENCODE_SKILL_CATALOG"] = json.dumps({"paths": added, "commands": generated,
+    env["OPENCODE_SKILL_CATALOG"] = json.dumps({"paths": added, "commands": {},
                                                "projects": {name: str(path) for name, path in projects.items()},
                                                "plugin": plugin, "delivery_plugin": delivery_plugin})
     env["OPENCODE_CONFIG_CONTENT"] = json.dumps(cfg)
