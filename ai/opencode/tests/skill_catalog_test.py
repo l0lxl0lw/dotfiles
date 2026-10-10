@@ -1,4 +1,4 @@
-"""Shared/project discovery, command fallbacks, and snapshot resource closure."""
+"""Shared/project discovery, legacy command cleanup, and snapshot resource closure."""
 import importlib.util
 import json
 import os
@@ -97,25 +97,69 @@ class SkillCatalogTest(unittest.TestCase):
             env = launch.skill_environment({"HOME": tmp}, child)
             cfg = json.loads(env["OPENCODE_CONFIG_CONTENT"])
             self.assertEqual(set(cfg["skills"]["paths"]), {str(chosen.parent), str(local.parent)})
-            self.assertIn(str(chosen), cfg["command"]["skill-example"]["template"])
+            self.assertEqual(cfg["command"], {})
+            self.assertEqual(json.loads(env["OPENCODE_SKILL_CATALOG"])["projects"],
+                             {"example": str(chosen), "nested": str(local)})
             self.assertEqual(launch.skill_environment(env, child), env)
             elsewhere = home / "elsewhere"
             elsewhere.mkdir()
             other = json.loads(launch.skill_environment(env, elsewhere)["OPENCODE_CONFIG_CONTENT"])
             self.assertEqual(other["skills"]["paths"], [])
             self.assertNotIn("skill-nested", other["command"])
-            self.assertIn(".config/opencode/skills", other["command"]["skill-example"]["template"])
+            self.assertEqual(other["command"], {})
 
-    def test_preserves_custom_commands_and_avoids_alias_collisions(self):
+    def test_preserves_custom_lookalikes_without_generating_aliases(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             skill(home / ".config/opencode/skills", "plan")
-            original = {"plan": {"template": "custom plan"}, "skill-plan": {"template": "custom alias"}}
+            original = {"plan": {"template": "custom plan"},
+                        "skill-plan": {"template": "custom alias"},
+                        "skill-skill-plan": {"description": "Skill fallback: plan", "template": "user content"},
+                        "unrelated": {"description": "Skill fallback: plan", "template": "keep me"}}
             env = {"HOME": tmp, "OPENCODE_CONFIG_CONTENT": json.dumps({"command": original})}
             cfg = json.loads(launch.skill_environment(env, home)["OPENCODE_CONFIG_CONTENT"])
             self.assertEqual(cfg["command"]["plan"], original["plan"])
             self.assertEqual(cfg["command"]["skill-plan"], original["skill-plan"])
-            self.assertIn("$ARGUMENTS", cfg["command"]["skill-skill-plan"]["template"])
+            self.assertEqual(cfg["command"], original)
+
+    def test_legacy_cleanup_is_exact_and_stable_in_live_and_pinned_launches(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            repo = home / "repo"
+            repo.mkdir()
+            chosen = skill(repo / ".agents/skills", "example")
+            legacy = {"description": "Skill fallback: example", "template": "old $ARGUMENTS"}
+            edited = {**legacy, "template": "user edit $ARGUMENTS"}
+            original = {"skill-example": legacy, "skill-edited": edited, "skill-unowned": legacy}
+            prior = {"commands": {"skill-example": legacy, "skill-edited": legacy, "skill-missing": legacy},
+                     "paths": ["/old/project"], "plugin": "file:///old/project-skills.js",
+                     "delivery_plugin": "file:///old/delivery-context.js"}
+            bundle = launch.build_bundle(ROOT, home / "state")
+            for mode in ("live", "pinned"):
+                with self.subTest(mode=mode):
+                    env = {"HOME": tmp, "OPENCODE_SKILL_CATALOG": json.dumps(prior),
+                           "OPENCODE_CONFIG_CONTENT": json.dumps({"command": original,
+                               "skills": {"paths": ["/old/project"]}, "model": "keep/model",
+                               "plugin": [prior["plugin"], prior["delivery_plugin"], "unrelated-plugin"]})}
+                    run = (lambda e, d: launch.environment(bundle, e, d)) if mode == "pinned" else launch.skill_environment
+                    result = run(env, repo)
+                    cfg = json.loads(result["OPENCODE_CONFIG_CONTENT"])
+                    self.assertNotIn("skill-example", cfg["command"])
+                    self.assertNotIn("skill-missing", cfg["command"])
+                    self.assertEqual(cfg["command"]["skill-edited"], edited)
+                    self.assertEqual(cfg["command"]["skill-unowned"], legacy)
+                    self.assertEqual(json.loads(result["OPENCODE_SKILL_CATALOG"])["commands"], {})
+                    self.assertEqual(json.loads(result["OPENCODE_SKILL_CATALOG"])["projects"], {"example": str(chosen)})
+                    self.assertEqual(cfg["model"], "keep/model")
+                    self.assertEqual(result["HOME"], tmp)
+                    self.assertNotIn("/old/project", cfg["skills"]["paths"])
+                    self.assertEqual(len(cfg["plugin"]), 3)
+                    self.assertIn("unrelated-plugin", cfg["plugin"])
+                    self.assertEqual(run(result, repo), result)
+                    other = run(result, home)
+                    self.assertEqual(json.loads(other["OPENCODE_SKILL_CATALOG"])["projects"], {})
+                    self.assertEqual(json.loads(other["OPENCODE_CONFIG_CONTENT"])["skills"]["paths"], [])
+                    self.assertEqual(run(other, home), other)
 
     def test_nested_templates_are_not_skills_and_duplicates_fail(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -177,4 +221,5 @@ class SkillCatalogTest(unittest.TestCase):
             result = subprocess.run([binary, "debug", "config"], cwd=repo, env=env, capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stderr)
             commands = json.loads(result.stdout)["command"]
-            self.assertIn(str(chosen), commands["skill-example"]["template"])
+            self.assertNotIn("skill-example", commands)
+            self.assertFalse(any(c.get("description", "").startswith("Skill fallback: ") for c in commands.values()))

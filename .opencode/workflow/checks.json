@@ -27,6 +27,27 @@
       "success_pattern": "^PASS: .*OpenCode skills",
       "required": true,
       "allow_skips": false
+    },
+    {
+      "id": "JS_SKILLS",
+      "argv": ["node", "--test", "--test-reporter=tap", "ai/opencode/tests/skill-commands.test.mjs", "ai/opencode/tests/project-skills.test.mjs", "ai/opencode/tests/delivery-context.test.mjs"],
+      "cwd": ".",
+      "kind": "test",
+      "format": "script",
+      "success_pattern": "^# pass [1-9][0-9]*$",
+      "skip_pattern": "^# (?:skipped|todo) [1-9][0-9]*$|\\b(?:SKIP|TODO)\\b",
+      "required": true,
+      "allow_skips": false
+    },
+    {
+      "id": "CATALOG_HTTP",
+      "argv": ["python3", "-B", "ai/opencode/tests/catalog_smoke.py"],
+      "cwd": ".",
+      "kind": "test",
+      "format": "script",
+      "success_pattern": "^Installed OpenCode API:",
+      "required": true,
+      "allow_skips": false
     }
   ]
 }

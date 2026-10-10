@@ -16,7 +16,7 @@ This directory owns OpenCode-specific integration:
 |---|---|
 | `agents/` | Six research specialists and four internal planning/scoping/execution/review workers |
 | `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
-| `runtime/` | Resource snapshots, private/project skill discovery and command fallbacks |
+| `runtime/` | Resource snapshots, private/project skill discovery and execution overlay |
 | `tui/`, `tui.json` | Skill slash commands and command-palette integration |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
 
@@ -95,9 +95,14 @@ menus but remain available by explicit reference. Existing custom/MCP commands a
 TUI names or aliases take priority. Selecting a skill inserts `/<name> ` so arguments
 can be entered before submission. New skills need only a `SKILL.md`, not a command file.
 
-The launcher also generates `/skill-<name>` fallbacks referencing the exact selected
-skill file, adding another `skill-` prefix if needed to avoid a collision. Shared
+The launcher does not generate `/skill-<name>` fallback commands. For a colliding
+name, load the skill through the skill tool, subject to normal permissions; the
+original native/custom/MCP slash command or native alias keeps its behavior.
+Nested launches remove legacy generated commands only when they exactly match
+their ownership metadata, preserving edited or user-authored lookalikes. Shared
 skill contents and sibling resources are included in the immutable snapshot.
+Restart OpenCode from updated resources to use this behavior; running sessions
+and old pinned snapshots are unchanged.
 
 The sync installs `tui.json` when no machine-local config occupies that path and no
 `tui.jsonc` exists. For a custom TUI config, add `"./tui/skill-commands.js"` to its

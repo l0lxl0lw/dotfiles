@@ -55,7 +55,7 @@ class DevelopTest(unittest.TestCase):
             self.assertEqual(resolver.resolve_root(
                 bundle / "opencode/skills/develop/_lib/resolve-root.py", {}), bundle / "opencode")
 
-    def test_native_catalog_fallback_preserves_custom_commands_and_project_override(self):
+    def test_native_catalog_preserves_custom_commands_and_project_override(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             skills = home / ".config/opencode/skills"
@@ -72,10 +72,10 @@ class DevelopTest(unittest.TestCase):
             cfg = json.loads(env["OPENCODE_CONFIG_CONTENT"])
             for name, value in custom.items():
                 self.assertEqual(cfg["command"][name], value)
-            self.assertIn(str(project / "SKILL.md"), cfg["command"]["skill-skill-develop-prepare"]["template"])
-            self.assertNotIn("develop-deliver", cfg["command"])
-            self.assertIn("skill-develop-deliver", cfg["command"])
-            self.assertNotIn("skill-develop-execute", cfg["command"])
+            self.assertEqual(cfg["command"], custom)
+            self.assertEqual(json.loads(env["OPENCODE_SKILL_CATALOG"])["projects"],
+                             {"develop-prepare": str((project / "SKILL.md").resolve())})
+            self.assertEqual(json.loads(env["OPENCODE_SKILL_CATALOG"])["commands"], {})
 
     def test_resolver_live_relocated_symlink_and_explicit_root(self):
         self.assertEqual(resolver.resolve_root(environ={}), ROOT)
