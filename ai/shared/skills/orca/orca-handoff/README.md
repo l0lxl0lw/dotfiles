@@ -46,7 +46,7 @@ recovered after a helper crash. A per-key OS lock excludes concurrent helpers.
 | Create response complete | Resume consumes saved response, uses returned agent; no duplicate create |
 | Create timed out, partial, malformed, or lost | Never create again automatically; list worktrees with the original repo selector and inspect terminals; explicitly adopt the verified workspace |
 | Readiness wait unsatisfied or falsely satisfied during startup | One larger retry (60s then 120s); after satisfaction, poll show/read within the remaining budget for a rendered input prompt; each attempt persisted before execution |
-| Both waits consumed, including crash/timeout | Fail closed; no send, no automatic reset; inspect the saved terminal manually |
+| Both waits consumed, including crash/timeout | Fail closed; no automatic reset. After inspection, explicit `retry-ready --key KEY` starts a new bounded readiness budget only for the original process with no prior send intent |
 | Accepted, without `turn_started` | Exit 2, startup unconfirmed. Resume inspects the same process and reconciles the exact command with its durable request ID; never sends new input automatically |
 | Old accepted state with `turn_started` | Resume migrates to `started` without another send |
 | Operator confirms input was never delivered | `recover --key KEY --confirm-undelivered` archives the old receipt and authorizes a new send to the same OpenCode process after empty-prompt readiness checks; duplicate execution remains possible |
@@ -75,6 +75,11 @@ or inspect/adopt completed their read/reconciliation. Exit **2** means blocked;
 JSON includes available identifiers and recovery instructions. `inspect` and
 `adopt` never send. Only `receipt_stages` containing `turn_started` proves a turn
 began. Top-level CLI envelope `id` is not a durable prompt request ID.
+
+Background workspaces can report `paneRuntimeId: -1` until their desktop terminal
+is mounted. Before readiness waiting, the helper reveals that existing terminal
+with `terminal switch`, then revalidates its identity; it never creates another
+terminal. The idle wait and rendered-prompt checks still must pass.
 
 OpenCode readiness currently recognizes its rendered `Ask anything` prompt with
 `tab agents` and `ctrl+p commands` hints in a `source: screen` read. A missing

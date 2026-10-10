@@ -62,7 +62,9 @@ prompt or base override. It extracts the complete worktree ID and one agent
 handle, inspects the terminal, waits for `tui-idle` with a 60-second readiness
 budget and at most one 120-second retry, then rechecks the same process and
 rendered prompt before sending text+Enter with `--wait-submit 10 --json`.
-For OpenCode, the screen must contain its empty prompt and command/agent hints;
+If the existing terminal has no mounted renderer, the helper reveals it with
+`terminal switch` and rechecks the same process before waiting. For OpenCode,
+the screen must contain its empty prompt and command/agent hints;
 blank output or a satisfied wait alone is insufficient. Unrecognized layouts
 block delivery rather than guessing readiness.
 
@@ -102,7 +104,9 @@ it, and treat it as private data. Use `inspect` or `resume` with the **same key*
   never dual-deliver. After a send attempt, never move the prompt to a replacement
   handle/process. If exact-command replay cannot be proven safe, stop.
 - Readiness exhaustion is a blocker, not a reason to bypass waiting. No prompt was
-  sent; report the saved terminal and wait results for manual inspection.
+  sent; inspect the saved terminal and wait results. An explicit
+  `retry-ready --key KEY` can retry the bounded waits after inspection. It refuses
+  any prior send intent or changed process and never creates a new workspace.
 
 Return workspace path/full ID, branch, agent handle, state key/directory, durable
 request ID, receipt stages and warnings. Say **input accepted** when `accepted`

@@ -215,6 +215,40 @@ class HandoffTest(unittest.TestCase):
         waits = self.calls(['terminal', 'wait'])
         self.assertEqual([a[a.index('--timeout-ms') + 1] for a in waits], ['60000', '120000'])
 
+    def test_explicit_pre_send_retry_reuses_original_workspace(self):
+        self.configure(scenario='not_ready')
+        self.run_helper(expected=2)
+        self.configure()
+        result = self.run_helper('retry-ready')
+        self.assertTrue(result['turn_started'])
+        self.assertEqual(self.runtime()['creates'], 1)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+        self.assertEqual(self.state()['readiness_retries'][0]['waits'], 2)
+        self.run_helper('retry-ready', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+
+    def test_pre_send_retry_refuses_prior_send_and_replaced_process(self):
+        self.configure(scenario='not_ready')
+        self.run_helper(expected=2)
+        self.configure(incarnation='different-process')
+        self.run_helper('retry-ready', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 0)
+        self.configure()
+        state = self.state()
+        state['calls'].append({'mutation': 'send'})
+        (self.root / 'state/one-task/state.json').write_text(json.dumps(state))
+        self.run_helper('retry-ready', expected=2)
+        self.assertEqual(self.runtime()['deliveries'], 0)
+
+    def test_background_renderer_is_revealed_before_wait_and_send(self):
+        self.configure(scenario='background_renderer')
+        result = self.run_helper()
+        self.assertTrue(result['turn_started'])
+        commands = [c[:2] for c in self.calls()]
+        self.assertLess(commands.index(['terminal', 'switch']), commands.index(['terminal', 'wait']))
+        self.assertEqual(self.runtime()['creates'], 1)
+        self.assertEqual(self.runtime()['deliveries'], 1)
+
     def test_unsatisfied_waits_never_send_even_after_resume(self):
         self.configure(scenario='not_ready')
         self.run_helper(expected=2)

@@ -187,6 +187,47 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(self.creates, 1)
         self.assertEqual(self.git(self.source, 'show', 'main:value.txt'), '1')
 
+    def launch_recovery_fixture(self):
+        self.state.update(stage='blocked', resume_stage='launch', blocker='readiness')
+        for key in ('owner_session', 'workspace', 'branch', 'observed_main'):
+            self.state.pop(key, None)
+        directory = self.directory / 'handoff' / self.directory.name
+        directory.mkdir(parents=True)
+        receipt = {'phase': 'created', 'calls': [],
+                   'worktree': {'path': str(self.work)}, 'brief': 'original pinned brief'}
+        (directory / 'state.json').write_text(json.dumps(receipt))
+        os.chdir(self.source)
+        return directory, receipt
+
+    def test_pre_ack_recovery_retains_pin_and_ignores_new_source_edits(self):
+        self.launch_recovery_fixture()
+        (self.source / 'value.txt').write_text('unrelated local edit\n')
+        pin = self.state['resource_root']
+        def transport(argv, *args, **kwargs):
+            if 'retry-ready' in argv:
+                return subprocess.CompletedProcess(argv, 2, '{"accepted":true,"turn_started":false}', '')
+            return self.command(argv, *args, **kwargs)
+        with patch.object(delivery, 'command', side_effect=transport) as call:
+            self.run.recover_launch()
+        retries = [x.args[0] for x in call.call_args_list if 'retry-ready' in x.args[0]]
+        self.assertEqual(len(retries), 1)
+        self.assertEqual(self.state['stage'], 'launch')
+        self.assertEqual(self.state['resource_root'], pin)
+        self.assertNotIn('owner_session', self.state)
+        self.assertTrue(self.state['handoff_result']['accepted'])
+        self.assertEqual((self.source / 'value.txt').read_text(), 'unrelated local edit\n')
+        self.assertEqual(self.state['repairs'], 0)
+
+    def test_pre_ack_recovery_refuses_prior_send_or_receiver(self):
+        directory, receipt = self.launch_recovery_fixture()
+        receipt['calls'] = [{'mutation': 'send'}]
+        (directory / 'state.json').write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(RuntimeError, 'prior send'):
+            self.run.recover_launch()
+        self.state['owner_session'] = 'receiver'
+        with self.assertRaisesRegex(RuntimeError, 'pre-acknowledgement'):
+            self.run.recover_launch()
+
     def test_stale_source_cannot_finish_review_or_publish(self):
         self.ready()
         (self.work / 'value.txt').write_text('3\n')

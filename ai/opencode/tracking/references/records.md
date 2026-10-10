@@ -4,6 +4,14 @@ These are helper-owned JSON formats, not native OpenCode configuration keys.
 `packet.py` validates structure; `verify.py` runs checks; independent review evaluates
 whether the contract, tests and implementation are actually sufficient.
 
+Published comments display readable Markdown sections, steps and check definitions.
+The complete record remains in the hidden `opencode-workflow:v2` HTML envelope;
+helpers read that record, not the visible rendering. Integrity hashes bind both
+representations. Existing JSON-rendered comments remain valid and are not rewritten.
+Do not manually reformat published comments: changing visible text invalidates its
+hash and makes it discussion requiring reconciliation. Local JSON inputs, check
+manifests and delivery/verification state retain their existing formats.
+
 ## Ticket → contract
 
 1. Create/update the issue only under the existing identity/authorization rules.

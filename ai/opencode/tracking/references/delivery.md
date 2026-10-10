@@ -31,6 +31,23 @@ do not deliver again under another key. Keyed Orca receipt reconciliation cannot
 guarantee redelivery. Explicit operator-confirmed lost-input recovery stays in the
 Orca helper and preserves its original state; never invoke it automatically.
 
+### Pre-send launch recovery
+
+For an explicitly requested repair when a workspace was created but readiness
+failed before any send intent, run `delivery.py recover-launch --key TASK` from
+the original main checkout using the current repaired helper. This narrow action
+may repair an older pinned run: it records helper hashes but preserves that run's
+resource root, exact brief, approved plan, workspace and repair budget. It refuses
+an acknowledged run, pending worker, prior send intent or changed repository.
+The transport revalidates the original terminal/process and uses `retry-ready`;
+the receiver still runs the original pinned protocol and must acknowledge it.
+
+New edits in the planning checkout do not enter the already-created worktree, so
+this recovery does not require discarding/stashing them. Initial dispatch still
+requires clean main. After recovery, use the pinned `wait-start` action; an
+accepted receipt alone does not prove startup. Recovery never creates a new
+workspace or resends a previously attempted prompt.
+
 The receiving owner begins with:
 
 ```sh

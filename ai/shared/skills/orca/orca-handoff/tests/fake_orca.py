@@ -71,10 +71,16 @@ elif args[:2] == ['terminal', 'list']:
         terminals.append(dict(listed, handle='term_second', ptyId='pty-second'))
     emit({'terminals': terminals, 'truncated': scenario == 'truncated'})
 elif args[:2] == ['terminal', 'show']:
+    if scenario == 'background_renderer' and not db.get('revealed'):
+        terminal['paneRuntimeId'] = -1
     if scenario == 'startup_race' and db['waits'] == 0:
         terminal['paneRuntimeId'] = -1
     if scenario == 'replaced_after_wait' and db['waits']:
         terminal['incarnationId'] = 'replacement-process'
+    emit({'terminal': terminal})
+elif args[:2] == ['terminal', 'switch']:
+    db['revealed'] = True
+    save()
     emit({'terminal': terminal})
 elif args[:2] == ['terminal', 'read']:
     tail = ['Ask anything… "Fix broken tests"', 'Build auto', 'tab agents  ctrl+p commands']

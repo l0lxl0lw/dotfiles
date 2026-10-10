@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -166,6 +167,48 @@ class Delivery:
         self.state.update(owner_session=session, workspace=path, branch=branch,
                           terminal=terminal, acknowledged_at=time.time(), stage='execute')
         self.save('receiver_acknowledged')
+
+    def recover_launch(self):
+        """Repair only an unsent launch using current transport and the original pin."""
+        require(not self.state.get('owner_session') and not self.state.get('attempt')
+                and (self.state['stage'] == 'launch' or
+                     (self.state['stage'] == 'blocked' and self.state.get('resume_stage') == 'launch')),
+                'Recovery is only for a pre-acknowledgement launch')
+        source = str(evidence.root())
+        require(source == self.state['source'] and git(source, 'branch', '--show-current') == 'main'
+                and git(source, 'remote', 'get-url', 'origin') == self.state['origin'],
+                'Recover from the original main planning checkout')
+        self.plan()
+        home = self.directory / 'handoff'
+        saved = home / self.directory.name / 'state.json'
+        receipt = json.loads(saved.read_text())
+        require(receipt.get('phase') == 'created' and not receipt.get('send_args')
+                and not receipt.get('request_id')
+                and not any(c.get('mutation') == 'send' for c in receipt.get('calls', [])),
+                'Recovery requires an existing workspace with no prior send intent')
+        work = str(Path(receipt['worktree']['path']).resolve())
+        require(work != source and git(work, 'remote', 'get-url', 'origin') == self.state['origin']
+                and git(work, 'branch', '--show-current') not in ('', 'main'),
+                'Original feature workspace is unavailable or changed identity')
+        script = ROOT / 'skills/orca/orca-handoff/scripts/handoff.py'
+        if not script.exists():
+            script = ROOT.parent / 'shared/skills/orca/orca-handoff/scripts/handoff.py'
+        require(script.is_file(), 'Current recovery transport unavailable')
+        # The existing worktree is already created: new main edits cannot enter it.
+        # Preserve the original brief, plan, resource pin, identities and repair budget.
+        self.state.setdefault('launch_recoveries', []).append({
+            'at': time.time(), 'previous_blocker': self.state.get('blocker'),
+            'helper': str(Path(__file__).resolve()),
+            'helper_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            'transport': str(script), 'transport_sha256': hashlib.sha256(script.read_bytes()).hexdigest()})
+        self.state['stage'] = 'launch'
+        self.state.pop('resume_stage', None)
+        self.state.pop('blocker', None)
+        self.save('launch_recovery_intent')
+        response = command([sys.executable, '-B', str(script), 'retry-ready', '--key', self.directory.name,
+                            '--state-dir', str(home)], allowed=(0, 2), timeout=600)
+        self.state['handoff_result'] = json.loads(response.stdout)
+        self.save('launch_recovery_receipt')
 
     def begin(self):
         self.workspace()
@@ -438,7 +481,7 @@ def initialize(directory, args):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action', choices=['init', 'inspect', 'dispatch', 'wait-start', 'ack', 'begin', 'claim', 'finish',
+    p.add_argument('action', choices=['init', 'inspect', 'dispatch', 'recover-launch', 'wait-start', 'ack', 'begin', 'claim', 'finish',
                                      'repair', 'integration-failure', 'sync', 'commit', 'publish', 'ci', 'block', 'resume', 'abandon-worker'])
     p.add_argument('--key', required=True)
     p.add_argument('--state-dir', type=Path, default=Path(os.environ.get('OPENCODE_WORKFLOW_STATE',
@@ -476,10 +519,12 @@ def main(argv=None):
             else:
                 state = json.loads(path.read_text())
                 require(state['version'] == 1, 'Unsupported delivery state')
-                require(state['resource_root'] == str(ROOT), 'Resume with the recorded resource revision')
+                require(state['resource_root'] == str(ROOT) or args.action == 'recover-launch',
+                        'Resume with the recorded resource revision')
                 helper = Delivery(directory, state)
                 action = args.action
                 if action == 'dispatch': helper.dispatch()
+                elif action == 'recover-launch': helper.recover_launch()
                 elif action == 'ack': helper.ack(args.session)
                 elif action == 'begin': helper.begin()
                 elif action == 'claim': helper.claim(args.attempt, args.session)
