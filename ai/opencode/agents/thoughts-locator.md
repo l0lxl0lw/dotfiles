@@ -1,6 +1,7 @@
 ---
 description: Locate directly relevant historical decisions when a caller names a history question or document area.
 mode: subagent
+hidden: true
 model: openai/gpt-5.6-luna-fast
 variant: medium
 permission:

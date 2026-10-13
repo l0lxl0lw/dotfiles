@@ -9,12 +9,12 @@ export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_REVISION
 unset OPENCODE_CONFIG_CONTENT OPENCODE_PRIVATE_SKILL_COMMANDS OPENCODE_SKILL_CATALOG
 mkdir -p "$HOME/dotfiles/ai/opencode"
-for name in commands agents runtime tui; do
+for name in commands agents runtime; do
   ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
 done
 mkdir -p "$HOME/dotfiles/ai"
 ln -s "$repo_root/ai/shared" "$HOME/dotfiles/ai/shared"
-ln -s "$repo_root/ai/opencode/tui.json" "$HOME/dotfiles/ai/opencode/tui.json"
+ln -s "$repo_root/ai/opencode/cli.json" "$HOME/dotfiles/ai/opencode/cli.json"
 compdef() { :; }
 source "$repo_root/zsh/functions.zsh"
 
@@ -27,8 +27,7 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
-assert_link_to "$HOME/.config/opencode/tui.json" "$repo_root/ai/opencode/tui.json"
-assert_link_to "$HOME/.config/opencode/tui/skill-commands.js" "$repo_root/ai/opencode/tui/skill-commands.js"
+assert_link_to "$HOME/.config/opencode/cli.json" "$repo_root/ai/opencode/cli.json"
 for f in "$repo_root"/ai/opencode/agents/*.md; do
   assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
 done
@@ -73,12 +72,12 @@ done
 
 # Existing installs still point at the former top-level directory. The sync must
 # repair dangling managed links after the move, without a compatibility symlink.
-for entry in tui.json tui/skill-commands.js agents/codebase-analyzer.md commands/track.md; do
+for entry in cli.json agents/codebase-analyzer.md commands/track.md; do
   rm "$HOME/.config/opencode/$entry"
   ln -s "$HOME/dotfiles/opencode/$entry" "$HOME/.config/opencode/$entry"
 done
 opencode_merge_config || fail "relocated catalog sync"
-for entry in tui.json tui/skill-commands.js agents/codebase-analyzer.md commands/track.md; do
+for entry in cli.json agents/codebase-analyzer.md commands/track.md; do
   assert_link_to "$HOME/.config/opencode/$entry" "$repo_root/ai/opencode/$entry"
 done
 
@@ -131,15 +130,16 @@ ln -s "$HOME/dotfiles/opencode/agents/workflow-execute.md" "$dst/agents/workflow
 ln -s "$HOME/dotfiles/ai/shared/skills/writing/clear-message" "$dst/skills/clear-message"
 ln -s "$HOME/dotfiles/ai/shared/skills/integrations/life-memory" "$dst/skills/life-memory"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
-rm "$dst/tui.json"
-print -r -- '{"theme":"my-theme","plugin":["vendor"]}' > "$dst/tui.json"
+rm "$dst/cli.json"
+print -r -- '{"theme":{"name":"my-theme"},"plugins":["vendor"]}' > "$dst/cli.json"
 opencode_merge_config || fail "retired handoff cleanup"
 [[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" && ! -L "$dst/commands/git-retired.md" ]] || fail "retired managed links survived"
 [[ ! -L "$dst/commands/git-commit.md" && ! -L "$dst/commands/quiz-me.md" ]] || fail "redundant skill command links survived"
 [[ ! -L "$dst/skills/workflow-execute" && ! -L "$dst/commands/execute.md" && ! -L "$dst/agents/workflow-execute.md" ]] || fail "retired workflow links survived"
 [[ ! -L "$dst/skills/clear-message" && ! -L "$dst/skills/life-memory" ]] || fail "renamed skill links survived"
 [[ "$(readlink "$dst/plugins/fresh-session.js")" == "$test_tmp/vendor-plugin" ]] || fail "foreign plugin removed"
-[[ -f "$dst/tui.json" && ! -L "$dst/tui.json" ]] || fail "machine-local TUI config removed"
+[[ -f "$dst/cli.json" && ! -L "$dst/cli.json" ]] || fail "machine-local CLI config removed"
+[[ ! -L "$dst/tui.json" && ! -L "$dst/tui/skill-commands.js" ]] || fail "legacy TUI links survived"
 
 # The wrapper syncs before launch, forwards arguments and returns binary status.
 mkdir -p "$test_tmp/bin"

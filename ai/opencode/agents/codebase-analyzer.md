@@ -1,6 +1,7 @@
 ---
 description: Resolve one consequential runtime, database, ownership or error-handling question with source evidence.
 mode: subagent
+hidden: true
 model: openai/gpt-6-astra
 variant: medium
 permission:

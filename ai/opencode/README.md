@@ -17,7 +17,7 @@ This directory owns OpenCode-specific integration:
 | `agents/` | Six research specialists and four internal planning/scoping/execution/review workers |
 | `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and execution overlay |
-| `tui/`, `tui.json` | Skill slash commands and command-palette integration |
+| `cli.json` | OpenCode v2 TUI configuration and Orca status integration |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
 
 The old six-stage workflow commands, workflow-* agents, model profiles and migration
@@ -89,24 +89,19 @@ native duplicate discovery can finish out of order. Native permission checks and
 custom commands are preserved. Raw `debug skill` metadata can reflect another duplicate;
 OpenCode's `--pure` mode disables the plugin overlay.
 
-`tui/skill-commands.js` exposes discovered skills as slash commands and a Skills entry
-in the command palette. Internal `wf-<hash>-*` snapshot aliases are hidden from both
-menus but remain available by explicit reference. Existing custom/MCP commands and
-TUI names or aliases take priority. Selecting a skill inserts `/<name> ` so arguments
-can be entered before submission. New skills need only a `SKILL.md`, not a command file.
-
-The launcher does not generate `/skill-<name>` fallback commands. For a colliding
-name, load the skill through the skill tool, subject to normal permissions; the
-original native/custom/MCP slash command or native alias keeps its behavior.
+OpenCode v2 exposes discovered skills through `@<name>` mentions, such as
+`@sentry-bug-scan`, while built-in and explicit Markdown commands use `/<name>`.
+New skills need only a `SKILL.md`, not a command file. The launcher does not generate
+slash-command aliases or `/skill-<name>` fallbacks; use the native skill mention or
+the skill tool, subject to normal permissions.
 Nested launches remove legacy generated commands only when they exactly match
 their ownership metadata, preserving edited or user-authored lookalikes. Shared
 skill contents and sibling resources are included in the immutable snapshot.
 Restart OpenCode from updated resources to use this behavior; running sessions
 and old pinned snapshots are unchanged.
 
-The sync installs `tui.json` when no machine-local config occupies that path and no
-`tui.jsonc` exists. For a custom TUI config, add `"./tui/skill-commands.js"` to its
-`plugin` array. Restart OpenCode to load changes.
+The sync installs the OpenCode v2 `cli.json` when no machine-local config occupies
+that path and no `cli.jsonc` exists. Restart OpenCode to load changes.
 
 ### Learning and explanation
 
@@ -122,7 +117,7 @@ share grounding and teaching references with the explanation skills in `explain/
 
 ### Feature development and bug fixes
 
-`/sentry-bug-scan [optional scope]` performs a read-only hunt for one concrete defect. It
+`@sentry-bug-scan [optional scope]` performs a read-only hunt for one concrete defect. It
 uses the `codebase-analyzer` worker to challenge each candidate, independently checks
 the decisive source, and reports nothing unless the trigger, expected behavior,
 runtime path, impact, and missing guard are all supported by evidence.

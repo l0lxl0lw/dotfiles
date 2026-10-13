@@ -1,6 +1,7 @@
 ---
 description: Fresh independent worker for development acceptance review or re-review.
 mode: subagent
+hidden: true
 permission:
   edit:
     "*": deny

@@ -1,6 +1,7 @@
 ---
 description: Fresh read-only planner that turns the agreed design and verified research into an executable draft plan and acceptance checks.
 mode: subagent
+hidden: true
 permission:
   edit: deny
   bash: deny

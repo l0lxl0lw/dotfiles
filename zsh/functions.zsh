@@ -643,12 +643,8 @@ opencode_merge_config() {
     mkdir -p "$opencode_dir/plugins"
     _agentcfg_link "$f" "$opencode_dir/plugins/${f:t}" "OpenCode plugin '${f:t}'"
   done
-  for f in "$repo"/tui/*.js(N-.); do
-    mkdir -p "$opencode_dir/tui"
-    _agentcfg_link "$f" "$opencode_dir/tui/${f:t}" "OpenCode TUI plugin '${f:t}'"
-  done
-  if [[ -f "$repo/tui.json" && ! -e "$opencode_dir/tui.jsonc" ]]; then
-    _agentcfg_link "$repo/tui.json" "$opencode_dir/tui.json" "OpenCode TUI config"
+  if [[ -f "$repo/cli.json" && ! -e "$opencode_dir/cli.jsonc" ]]; then
+    _agentcfg_link "$repo/cli.json" "$opencode_dir/cli.json" "OpenCode CLI config"
   fi
   for f in "$opencode_dir"/commands/*(N@); do
     _agentcfg_is_managed "$f" || continue
@@ -665,7 +661,9 @@ opencode_merge_config() {
   for f in \
     "$opencode_dir/dotfiles-handoff" \
     "$opencode_dir/commands/implement-plan.md" \
-    "$opencode_dir/plugins/fresh-session.js"; do
+    "$opencode_dir/plugins/fresh-session.js" \
+    "$opencode_dir/tui.json" \
+    "$opencode_dir/tui/skill-commands.js"; do
     _agentcfg_is_managed "$f" || continue
     rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
   done

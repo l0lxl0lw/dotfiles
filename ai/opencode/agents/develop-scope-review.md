@@ -1,6 +1,7 @@
 ---
 description: Fresh read-only scoping reviewer for larger or riskier preparations; challenges design and plan completeness before approval, not implementation correctness.
 mode: subagent
+hidden: true
 permission:
   edit: deny
   bash: deny
