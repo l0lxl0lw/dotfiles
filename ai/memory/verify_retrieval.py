@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import re
 
-from granola_layers import OUTLINE_START, OUTLINE_END, transcript_data
+from granola_layers import OUTLINE_START, OUTLINE_END, transcript_data, validate_notes_projection
 from memory import digest, settings
 from recall import OUTLINE, index, read, search, sections
 
@@ -29,8 +29,16 @@ def audit(cfg):
         outline = note.split(OUTLINE_START, 1)[1].split(OUTLINE_END, 1)[0]
         import html
         import xml.etree.ElementTree as ET
-        source_outline = html.unescape(ET.fromstring((folder / "original-notes.xml").read_text()).findtext("summary") or "").strip()
-        good = projection == original.strip() and source_outline in outline and digest(source_outline.encode()) == row["outline_sha256"]
+        source_node = ET.fromstring((folder / "original-notes.xml").read_text())
+        source_outline = html.unescape(source_node.findtext("summary") or "").strip()
+        source_private = html.unescape(source_node.findtext("private_notes") or "").strip()
+        projection_problem = None
+        try:
+            validate_notes_projection(folder / "Notes.md", sid, source_node.attrib["url"], source_private, source_outline, row["revision"])
+        except ValueError as exc:
+            projection_problem = str(exc)
+            problems.append({"meeting": row["meeting"], "issue": "Notes projection differs", "detail": projection_problem})
+        good = projection == original.strip() and source_outline in outline and digest(source_outline.encode()) == row["outline_sha256"] and not projection_problem
         if not good:
             problems.append({"meeting": row["meeting"], "issue": "Local source content differs"})
         results.append({"meeting": row["meeting"], "complete": good, "paragraphs": row["paragraphs"], "needs_review": row.get("needs_review", False)})

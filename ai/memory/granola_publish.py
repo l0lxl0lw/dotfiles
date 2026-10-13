@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from granola_mcp import text_content
 from memory import atomic, digest, encode, locked, now, settings, write_note
-from granola_layers import staged_nodes, publish as publish_layers, source_id, managed, frontmatter
+from granola_layers import staged_nodes, publish as publish_layers, source_id, managed, frontmatter, immutable, preflight_archive
 
 
 def decode_json_response(data):
@@ -59,7 +59,7 @@ def main():
     synthesis = json.loads((staging / "synthesis.json").read_text())
     account = decode_json_response(json.loads((staging / "account.json").read_text()))
     staged = staged_nodes(staging)
-    nodes = {sid: (node, raw) for sid, (node, raw, _) in staged.items() if sid in {m['id'] for m in inventory}}
+    nodes = {sid: value for sid, value in staged.items() if sid in {m['id'] for m in inventory}}
     ids = {m["id"] for m in inventory}
     if ids != set(nodes) or ids != set(synthesis["meetings"]):
         raise ValueError("Inventory, retrieved notes and reviewed synthesis IDs must match exactly")
@@ -79,7 +79,27 @@ def main():
         for m in inventory:
             sid = m["id"]
             entry = synthesis["meetings"][sid]
-            node, raw = nodes[sid]
+            node, raw, response = nodes[sid]
+            transcript_path = staging / (sid + "-transcript.json")
+            transcript_response = json.loads(transcript_path.read_text()) if transcript_path.exists() else None
+            transcript = decode_json_response(transcript_response) if transcript_response and not transcript_response.get("isError") else None
+            has_transcript = bool(transcript and transcript.get("transcript"))
+            revision = digest(encode({"notes": raw, "transcript": transcript_response}))[:16]
+            source = f"Sources/Granola/{sid}/{revision}"
+            source_path = cfg["vault"] / source
+            date = datetime.strptime(m["date"][:12].strip(), "%b %d, %Y").date().isoformat()
+            meeting = existing.get(sid, f"Meetings/{date} — {entry['title']} — {sid[:8]}")
+            summary = html.unescape(node.findtext("summary") or "").strip()
+            private_notes = html.unescape(node.findtext("private_notes") or "").strip()
+            if m["url"] != node.attrib["url"]:
+                raise ValueError(f"Inventory and retrieved notes URL mismatch for {sid}")
+            if transcript_response is None:
+                raise ValueError(f"Missing local transcript for {sid}; fetch it or record unavailability explicitly")
+            preflight_archive(cfg, node, raw, response, transcript_response)
+        for m in inventory:
+            sid = m["id"]
+            entry = synthesis["meetings"][sid]
+            node, raw, response = nodes[sid]
             transcript_path = staging / (sid + "-transcript.json")
             transcript_response = json.loads(transcript_path.read_text()) if transcript_path.exists() else None
             transcript = decode_json_response(transcript_response) if transcript_response and not transcript_response.get("isError") else None
@@ -92,7 +112,7 @@ def main():
             summary = html.unescape(node.findtext("summary") or "").strip()
             private_notes = html.unescape(node.findtext("private_notes") or "").strip()
             if not (source_path / "Notes.md").exists():
-                atomic(source_path / "original-notes.xml", raw)
+                immutable(source_path / "original-notes.xml", raw)
                 atomic(source_path / "metadata.json", json.dumps({**m, "retrieved_at": now(), "workspace": account["active_workspace"], "revision": revision}, indent=2))
                 notes = f"# Granola notes — {m['title']}\n\nDate: {m['date']}\n\n[Original meeting]({m['url']})\n\n"
                 notes += "Preserved Granola output. Summaries may contain transcription or attribution errors.\n\n"
@@ -101,7 +121,7 @@ def main():
                 notes += "## Summary\n\n" + (summary or "No summary returned.") + f"\n\n## Related synthesis\n\n[[{meeting}]]\n"
                 atomic(source_path / "Notes.md", frontmatter(notes, {"title": f"{date} — {entry['title']} — original Granola outline", "type": "source", "retrieval_layer": "source", "source_id": sid}))
                 if transcript_response:
-                    atomic(source_path / "original-transcript-response.json", json.dumps(transcript_response, ensure_ascii=False, indent=2))
+                    immutable(source_path / "original-transcript-response.json", json.dumps(transcript_response, ensure_ascii=False, indent=2))
                 if has_transcript:
                     # Preserve supplied labels. A microphone label doesn't establish a person's identity.
                     context = transcript.get("recording_context", {})

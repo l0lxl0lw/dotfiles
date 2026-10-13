@@ -300,7 +300,11 @@ resolution refuses fuzzy substitutions. Search results require evidence verifica
 archives full transcripts, verifies every projected paragraph, and embeds the complete
 original outline as actual text at the bottom of each meeting. The gist and discussion
 stay above the source detail. It preserves source revisions and human writing; edits to
-managed blocks cause a conflict instead of being overwritten. A changed source revision
+managed blocks cause a conflict instead of being overwritten. Existing archived Notes
+are also checked semantically against their immutable source ID, meeting URL, private
+notes, summary, and optional revision before any meeting, wiki, report, or registry
+mutation. Both importer wrapper formats remain valid; conflicting source projections or
+raw artifacts are never repaired or overwritten automatically. A changed source revision
 marks synthesis as needing review. Missing/unavailable transcripts prevent a completeness
 claim; resolve or document the gap before finishing the import.
 
@@ -311,8 +315,10 @@ update private synthesis before `granola_publish.py`; it now finishes with layer
 publication. No transcript/outline retrieval from Granola is needed for normal recall
 after a successful import. Rerun the local publisher to verify source completeness.
 
-`verify_retrieval.py` checks archived transcript equality, inline outline completeness,
-and file/heading/block citations. Pass `--cases <private-json>` for source-ranking and
+`verify_retrieval.py` checks archived transcript equality, registered archived Notes
+payloads, inline outline completeness, and file/heading/block citations. Its source audit
+is bounded by `layers.json` and does not scan unregistered archives. Pass `--cases
+<private-json>` for source-ranking and
 support-term regression cases; keep personal queries and expected notes in private state.
 These checks establish local completeness and tested retrieval behavior, not universal
 answer accuracy. Use explicit source review for uncertain or conflicting claims.
