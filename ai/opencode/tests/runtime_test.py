@@ -49,6 +49,25 @@ class RuntimeTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "does not exist"):
                 launch.environment(bundle, environ={"OPENCODE_CONFIG_DIR": "/unrelated/custom"})
 
+    def test_snapshot_bridge_preserves_global_config_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            global_dir = home / ".config/opencode"
+            global_dir.mkdir(parents=True)
+            config = global_dir / "opencode.json"
+            config.write_text(json.dumps({"mcp": {"playwright": {
+                "type": "local", "command": ["npx", "-y", "@playwright/mcp"]}}}))
+            bundle = launch.build_bundle(ROOT, Path(tmp) / "state")
+
+            env = launch.environment(bundle, environ={"HOME": str(home)})
+            bridge = Path(env["OPENCODE_CONFIG_DIR"])
+
+            self.assertEqual((bridge / "opencode.json").resolve(), config.resolve())
+            self.assertEqual(json.loads((bridge / "opencode.json").read_text())["mcp"], {
+                "playwright": {"type": "local", "command": ["npx", "-y", "@playwright/mcp"]
+            }})
+            self.assertEqual(launch.environment(bundle, environ=env), env)
+
     def test_orca_hooks_and_custom_agents_are_preserved_without_home_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = launch.build_bundle(ROOT, Path(tmp) / "state")

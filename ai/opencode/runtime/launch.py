@@ -175,35 +175,46 @@ def validate_bundle(bundle):
     return manifest
 
 
-def compose_config(bundle, existing):
+def compose_config(bundle, existing, global_dir=None):
     """Layer owned workflow links with an IDE's existing hooks/assets, without copying credentials."""
     owned = bundle / "config"
-    if not existing or Path(existing).resolve() == owned.resolve():
+    existing = Path(existing).resolve() if existing else None
+    global_dir = Path(global_dir).resolve() if global_dir and Path(global_dir).is_dir() else None
+    if existing == owned.resolve():
         return owned
-    foreign = Path(existing).resolve()
-    if not foreign.is_dir():
-        raise RuntimeError("Existing OPENCODE_CONFIG_DIR does not exist: " + str(foreign))
+    if existing and not existing.is_dir():
+        raise RuntimeError("Existing OPENCODE_CONFIG_DIR does not exist: " + str(existing))
     parent = bundle.parent.parent / "launch-configs"
-    if foreign.parent == parent.resolve() and (foreign / "bridge.json").exists():
-        meta = json.loads((foreign / "bridge.json").read_text())
+    if existing and existing.parent == parent.resolve() and (existing / "bridge.json").exists():
+        meta = json.loads((existing / "bridge.json").read_text())
         if meta.get("bundle") == str(bundle):
-            return foreign
+            return existing
     mapping = {}
+    strict_keys = set()
     folders = {"agent", "agents", "command", "commands", "skill", "skills", "plugin", "plugins"}
-    for entry in foreign.iterdir():
-        if entry.name in (".git", "bridge.json"):
-            continue
-        if entry.name in folders and entry.is_dir():
-            for child in entry.iterdir():
-                mapping[entry.name + "/" + child.name] = child.resolve()
-        else:
-            mapping[entry.name] = entry
+    foreign_dirs = [path for path in (global_dir, existing) if path and path != owned.resolve()]
+    if not foreign_dirs:
+        return owned
+    for foreign in dict.fromkeys(foreign_dirs):
+        for entry in foreign.iterdir():
+            if entry.name in (".git", "bridge.json"):
+                continue
+            if entry.name in folders and entry.is_dir():
+                for child in entry.iterdir():
+                    key = entry.name + "/" + child.name
+                    mapping[key] = child.resolve()
+                    if foreign == existing and foreign != global_dir:
+                        strict_keys.add(key)
+            else:
+                mapping[entry.name] = entry
+                if foreign == existing and foreign != global_dir:
+                    strict_keys.add(entry.name)
     for folder in ("agents", "commands", "skills"):
         for entry in (owned / folder).iterdir():
             key = folder + "/" + entry.name
             singular = folder[:-1] + "/" + entry.name
             for candidate in (key, singular):
-                if candidate in mapping and mapping[candidate] != entry.resolve():
+                if candidate in strict_keys and mapping[candidate] != entry.resolve():
                     raise RuntimeError("Custom config conflicts with owned workflow entry " + candidate + "; use --live or reconcile it explicitly")
             mapping[key] = entry.resolve()
     key = digest(json.dumps({"bundle": str(bundle), "links": {k: str(v) for k, v in mapping.items()}}, sort_keys=True).encode())
@@ -216,7 +227,8 @@ def compose_config(bundle, existing):
                 path = temp / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.symlink_to(source, target_is_directory=source.is_dir())
-            (temp / "bridge.json").write_text(json.dumps({"bundle": str(bundle), "custom_directory": str(foreign)}))
+            (temp / "bridge.json").write_text(json.dumps({"bundle": str(bundle),
+                "source_directories": [str(path) for path in dict.fromkeys(foreign_dirs)]}))
             try:
                 temp.rename(target)
             except OSError:
@@ -241,10 +253,10 @@ def environment(bundle, environ=None, directory=None):
     env = dict(os.environ if environ is None else environ)
     existing = env.get("OPENCODE_CONFIG_DIR")
     global_dir = Path(env.get("XDG_CONFIG_HOME", str(Path(env.get("HOME", str(Path.home()))) / ".config"))) / "opencode"
-    # The ordinary global directory is already loaded by OpenCode. IDE-owned
-    # extra directories (notably Orca hooks) need a composed catalog instead.
+    # OpenCode v2 treats OPENCODE_CONFIG_DIR as the global directory rather than
+    # layering it on top, so include machine-local settings in the bridge too.
     custom = existing if existing and Path(existing).resolve() != global_dir.resolve() else None
-    config_dir = compose_config(bundle, custom)
+    config_dir = compose_config(bundle, custom, global_dir)
     root = bundle / "opencode"
     # Preserve user JSON, credentials and model settings. Managed commands are
     # loaded from their native definitions.
