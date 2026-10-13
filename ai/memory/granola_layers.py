@@ -76,6 +76,89 @@ def source_id(text):
     return (yaml.safe_load(match[1]) or {}).get("source_id")
 
 
+def notes_projection(text, expected_private, expected_summary):
+    """Parse the source-bearing fields shared by both supported Notes wrappers."""
+    match = re.match(r"\A---\n(.*?)\n---\n", text, re.S)
+    if not match:
+        raise ValueError("Notes projection has missing or malformed frontmatter")
+    import yaml
+    try:
+        document = yaml.compose(match[1], Loader=yaml.SafeLoader)
+        meta = yaml.safe_load(match[1]) or {}
+    except yaml.YAMLError as exc:
+        raise ValueError("Notes projection has missing or malformed frontmatter") from exc
+    if not isinstance(document, yaml.nodes.MappingNode) or not isinstance(meta, dict):
+        raise ValueError("Notes projection has missing or malformed frontmatter")
+
+    def occurrences_in_mapping(mapping, field, active=None):
+        active = set() if active is None else active
+        if id(mapping) in active:
+            raise ValueError("Notes projection has missing or malformed frontmatter")
+        active.add(id(mapping))
+        occurrences = 0
+        for key, value in mapping.value:
+            if isinstance(key, yaml.nodes.ScalarNode) and key.value == field:
+                occurrences += 1
+            if isinstance(key, yaml.nodes.ScalarNode) and key.tag == "tag:yaml.org,2002:merge":
+                merged = value.value if isinstance(value, yaml.nodes.SequenceNode) else [value]
+                if not all(isinstance(node, yaml.nodes.MappingNode) for node in merged):
+                    raise ValueError("Notes projection has missing or malformed frontmatter")
+                occurrences += sum(occurrences_in_mapping(node, field, active) for node in merged)
+        active.remove(id(mapping))
+        return occurrences
+
+    for field, required in (("source_id", True), ("source_revision", False)):
+        occurrences = occurrences_in_mapping(document, field)
+        if (required and occurrences != 1) or (not required and occurrences > 1):
+            raise ValueError(f"Notes projection has missing or duplicated {field}")
+        if occurrences and (not isinstance(meta.get(field), str) or not meta[field].strip()):
+            raise ValueError(f"Notes projection has malformed {field}")
+    body = text[match.end():]
+    private_marker = "## Private notes\n\n"
+    summary_marker = "\n\n## Summary\n\n"
+    related_marker = "\n\n## Related synthesis\n\n"
+    private = expected_private or "No private notes returned."
+    summary = expected_summary
+    source_sections = private_marker + private + summary_marker + summary + related_marker
+    if body.count(source_sections) != 1:
+        raise ValueError("Notes projection has missing, malformed, or duplicated source sections")
+    before, after = body.split(source_sections, 1)
+    wrapper_heading = re.compile(r"^## (?:Private notes|Summary|Related synthesis)\s*$", re.M)
+    if wrapper_heading.search(before) or wrapper_heading.search(after):
+        raise ValueError("Notes projection has missing, malformed, or duplicated source sections")
+    link_pattern = r"^\[Original meeting\]\(([^\n]+)\)\s*$"
+    links = re.findall(link_pattern, before, re.M) + re.findall(link_pattern, after, re.M)
+    if len(links) != 1:
+        raise ValueError("Notes projection has missing or duplicated original meeting URL")
+    return {
+        "source_id": meta["source_id"],
+        "source_revision": meta.get("source_revision"),
+        "url": links[0],
+        "private_notes": private,
+        "summary": summary,
+    }
+
+
+def validate_notes_projection(path, sid, url, private, summary, revision):
+    if not path.exists():
+        return
+    try:
+        observed = notes_projection(path.read_text(), private, summary)
+    except ValueError as exc:
+        raise ValueError(f"Source projection conflict at {path}: {exc}") from exc
+    expected = {
+        "source_id": sid,
+        "url": url,
+        "private_notes": private or "No private notes returned.",
+        "summary": summary,
+    }
+    for field, value in expected.items():
+        if observed[field] != value:
+            raise ValueError(f"Source projection conflict at {path}: {field} differs")
+    if observed["source_revision"] is not None and observed["source_revision"] != revision:
+        raise ValueError(f"Source projection conflict at {path}: source_revision differs")
+
+
 def managed(text, name, value, hashes):
     start, end = f"<!-- life-memory:{name}:start -->", f"<!-- life-memory:{name}:end -->"
     pattern = re.escape(start) + r".*?" + re.escape(end)
@@ -108,7 +191,7 @@ def immutable(path, content):
         atomic(path, data)
 
 
-def archive(cfg, node, raw, response, transcript_response, meeting):
+def archive_inputs(node, raw, transcript_response):
     sid = str(UUID(node.attrib["id"]))
     transcript = transcript_data(transcript_response, sid)
     outline = html.unescape(node.findtext("summary") or "").strip()
@@ -116,8 +199,28 @@ def archive(cfg, node, raw, response, transcript_response, meeting):
     if not outline:
         raise ValueError(f"No outline returned for {sid}")
     revision = digest(encode({"notes": raw, "transcript": transcript_response}))[:16]
+    return sid, transcript, outline, private, revision
+
+
+def preflight_archive(cfg, node, raw, response, transcript_response):
+    """Validate every existing immutable source artifact without writing anything."""
+    sid, transcript, outline, private, revision = archive_inputs(node, raw, transcript_response)
+    folder = cfg["vault"] / f"Sources/Granola/{sid}/{revision}"
+    immutable_inputs = {
+        folder / "original-notes.xml": raw,
+        folder / ("original-meeting-response-" + digest(encode(response))[:16] + ".json"): json.dumps(response, ensure_ascii=False, indent=2),
+        folder / "original-transcript-response.json": json.dumps(transcript_response, ensure_ascii=False, indent=2),
+    }
+    for path, content in immutable_inputs.items():
+        if path.exists() and path.read_bytes() != content.encode():
+            raise ValueError(f"Source revision conflict at {path}")
+    validate_notes_projection(folder / "Notes.md", sid, node.attrib["url"], private, outline, revision)
+    return sid, transcript, outline, private, revision, folder
+
+
+def archive(cfg, node, raw, response, transcript_response, meeting):
+    sid, transcript, outline, private, revision, folder = preflight_archive(cfg, node, raw, response, transcript_response)
     rel = f"Sources/Granola/{sid}/{revision}"
-    folder = cfg["vault"] / rel
     # Keep existing archived projections byte-for-byte. Missing new projections are
     # published with descriptive titles; the exact response remains alongside them.
     immutable(folder / "original-notes.xml", raw)
@@ -133,6 +236,8 @@ def archive(cfg, node, raw, response, transcript_response, meeting):
         })
         text += f"[Original meeting]({node.attrib['url']})\n\n## Private notes\n\n{private or 'No private notes returned.'}\n\n## Summary\n\n{outline}\n\n## Related synthesis\n\n[[{meeting}]]\n"
         immutable(folder / "Notes.md", text)
+    else:
+        validate_notes_projection(folder / "Notes.md", sid, node.attrib["url"], private, outline, revision)
     if not (folder / "Transcript.md").exists():
         text = frontmatter("\n# " + title + " — full transcript\n\n", {
             "title": title + " — full transcript", "type": "source", "retrieval_layer": "transcript",
@@ -172,6 +277,10 @@ def publish(cfg, staging):
             tr = json.loads(tp.read_text())
             transcript_data(tr, sid)
             meetings.append((path, old, sid, tr))
+        for path, old, sid, tr in meetings:
+            meeting = str(path.relative_to(cfg["vault"]))[:-3]
+            node, raw, response = nodes[sid]
+            preflight_archive(cfg, node, raw, response, tr)
         for path, old, sid, tr in meetings:
             meeting = str(path.relative_to(cfg["vault"]))[:-3]
             node, raw, response = nodes[sid]

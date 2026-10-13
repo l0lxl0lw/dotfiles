@@ -69,6 +69,10 @@ Do not rely on a successful tool response alone as proof of correct resolution.
   they share words. Update both the relevant overview and the source-linked meeting.
 - Managed outline/evidence sections have conflict detection. Preserve human edits and
   source revisions. Changed sources require synthesis review, not silent summary replacement.
+- Archived Granola Notes retain either supported wrapper, but their source ID, original
+  meeting URL, private notes, summary, and optional revision must still match the immutable
+  raw source. Publication rejects divergence before changing downstream notes, and the
+  registry-bounded retrieval audit reports it without scanning unregistered archives.
 
 ## Verification
 

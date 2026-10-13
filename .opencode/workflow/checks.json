@@ -2,50 +2,34 @@
   "version": 1,
   "checks": [
     {
-      "id": "ORCA_HANDOFF",
-      "argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "ai/shared/skills/orca/orca-handoff/tests", "-p", "*_test.py"],
+      "id": "MEMORY_UNIT",
+      "argv": ["/Users/zuzu/.local/share/life-memory-venv/bin/python", "-m", "unittest", "discover", "-s", "ai/memory", "-p", "test_*.py"],
+      "cwd": ".",
+      "env": {"PYTHONDONTWRITEBYTECODE": "1"},
+      "env_keys": ["TMPDIR"],
       "kind": "test",
       "format": "unittest",
       "required": true,
       "allow_skips": false
     },
     {
-      "id": "PYTHON",
-      "argv": ["python3", "-B", "-m", "unittest", "discover", "-s", "ai/opencode/tests", "-p", "*_test.py"],
-      "kind": "test",
-      "format": "unittest",
-      "required": true,
-      "allow_skips": false,
-      "env": {"OPENCODE_CATALOG_SMOKE": "1"},
-      "env_keys": ["PYTHONPATH", "TMPDIR"]
-    },
-    {
-      "id": "SHELL",
-      "argv": ["zsh", "zsh/tests/opencode_config_test.zsh"],
+      "id": "MEMORY_OPENCODE_SMOKE",
+      "argv": ["python3.12", "ai/memory/smoke_opencode.py"],
+      "cwd": ".",
+      "env": {"PYTHONDONTWRITEBYTECODE": "1"},
+      "env_keys": ["PATH", "TMPDIR"],
       "kind": "test",
       "format": "script",
-      "success_pattern": "^PASS: .*OpenCode skills",
+      "success_pattern": "\"live_plugin_capture\": \"pass\"",
       "required": true,
       "allow_skips": false
     },
     {
-      "id": "JS_SKILLS",
-      "argv": ["node", "--test", "--test-reporter=tap", "ai/opencode/tests/skill-commands.test.mjs", "ai/opencode/tests/project-skills.test.mjs", "ai/opencode/tests/delivery-context.test.mjs"],
+      "id": "MEMORY_JS_SYNTAX",
+      "argv": ["node", "--check", "ai/memory/life-memory.js"],
       "cwd": ".",
-      "kind": "test",
-      "format": "script",
-      "success_pattern": "^# pass [1-9][0-9]*$",
-      "skip_pattern": "^# (?:skipped|todo) [1-9][0-9]*$|\\b(?:SKIP|TODO)\\b",
-      "required": true,
-      "allow_skips": false
-    },
-    {
-      "id": "CATALOG_HTTP",
-      "argv": ["python3", "-B", "ai/opencode/tests/catalog_smoke.py"],
-      "cwd": ".",
-      "kind": "test",
-      "format": "script",
-      "success_pattern": "^Installed OpenCode API:",
+      "kind": "compile",
+      "format": "exit",
       "required": true,
       "allow_skips": false
     }
