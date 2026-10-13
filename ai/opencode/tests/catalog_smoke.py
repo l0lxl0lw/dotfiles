@@ -61,7 +61,7 @@ try:
     if result is None:
         raise RuntimeError("OpenCode catalog API did not become ready")
     public = {item["name"]: item for item in result if not item["name"].startswith("wf-")}
-    for name in ("remember-life", "write-humanize", "write-better", "learn-teach-back", "use-remotion",
+    for name in ("sentry-bug-scan", "remember-life", "write-humanize", "write-better", "learn-teach-back", "use-remotion",
                  "explain-code-flow", "learn-quiz", "git-sync-orca-workspaces"):
         assert name in public, name
         assert "/ai/shared/skills/" in str(Path(public[name]["location"]).resolve()), public[name]["location"]

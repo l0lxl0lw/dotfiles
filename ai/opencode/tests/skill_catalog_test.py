@@ -26,7 +26,8 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 33)
+        self.assertEqual(len(catalog), 34)
+        self.assertIn("sentry-bug-scan", catalog)
         self.assertIn("develop-prepare", catalog)
         self.assertIn("develop-deliver", catalog)
         self.assertEqual({name for name in catalog if name.startswith("develop-")},
@@ -36,7 +37,7 @@ class SkillCatalogTest(unittest.TestCase):
         shared = ROOT.parent / "shared/skills"
         self.assertFalse(any(path.relative_to(shared).parts[0] in removed for path in catalog.values()))
         self.assertEqual({path.relative_to(shared).parts[0] for path in catalog.values()},
-                         {"develop", "write", "learn", "explain", "git", "use", "remember", "respond", "orca"})
+                          {"develop", "write", "learn", "explain", "git", "use", "remember", "respond", "sentry", "orca"})
         for name, path in catalog.items():
             self.assertEqual(name, path.parent.name)
             self.assertTrue(name.startswith(path.relative_to(shared).parts[0] + "-"), name)

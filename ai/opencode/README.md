@@ -2,8 +2,8 @@
 
 ## Active catalog and ownership
 
-The shared catalog contains 33 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
-`remember`, `respond`, and `orca`. Each skill name starts with its folder name, for example
+The shared catalog contains 34 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
+`remember`, `respond`, `sentry`, and `orca`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 
 **Public skills live only in `ai/shared/skills/`.** There is no maintained
@@ -121,6 +121,11 @@ concrete side effects and suggests breakpoints. `/learn-quiz` and `/learn-check-
 share grounding and teaching references with the explanation skills in `explain/_lib/`.
 
 ### Feature development and bug fixes
+
+`/sentry-bug-scan [optional scope]` performs a read-only hunt for one concrete defect. It
+uses the `codebase-analyzer` worker to challenge each candidate, independently checks
+the decisive source, and reports nothing unless the trigger, expected behavior,
+runtime path, impact, and missing guard are all supported by evidence.
 
 The default path is **Prepare → Deliver**:
 

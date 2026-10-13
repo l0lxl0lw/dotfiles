@@ -15,6 +15,7 @@ ai/
         ├── orca/
         ├── remember/
         ├── respond/
+        ├── sentry/
         ├── use/
         └── write/
 ```
@@ -43,6 +44,7 @@ Directories named `_lib` hold shared resources and are not skills.
 | `use` | `use-notion`, `use-elevenlabs`, `use-remotion`, `use-excalidraw` |
 | `remember` | `remember-life` |
 | `respond` | `respond-adhd` |
+| `sentry` | `sentry-bug-scan` |
 | `orca` | `orca-handoff` |
 
 Skills expose slash commands with these exact names. Sync after renaming to prune
@@ -64,7 +66,7 @@ Integration skills need the named MCP/application. Discovery exposes their
 instructions, not missing dependencies.
 Private adapters stay in private configuration and are never copied into public bundles.
 
-The shared catalog contains 33 skills. The business, codebase, impeccable,
+The shared catalog contains 34 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
 retired. The development methods are now selectively revived in
