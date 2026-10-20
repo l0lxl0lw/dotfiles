@@ -17,7 +17,7 @@ This directory owns OpenCode-specific integration:
 | `agents/` | Six research specialists and four internal planning/scoping/execution/review workers |
 | `commands/` | `/track`, `/sync`, `/orca-coordinate`, `/orca-handoff` |
 | `runtime/` | Resource snapshots, private/project skill discovery and execution overlay |
-| `cli.json` | OpenCode v2 TUI configuration and Orca status integration |
+| `cli.json`, `settings/` | Portable global settings, browser instructions, explicit apply/import helper |
 | `tracking/`, `schemas/`, `orca/`, `tests/` | Tracking/evidence helpers, record formats, Orca integration and verification |
 
 The old six-stage workflow commands, workflow-* agents, model profiles and migration
@@ -37,7 +37,7 @@ and commands against your provider access. See the [root README](../README.md)
 for updates, restoration and optional memory.
 
 The shell `opencode` wrapper runs `opencode_merge_config`, then starts the launcher.
-It links shared skills and managed agents, commands and TUI files into
+It links shared skills and managed agents and commands into
 `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`. The destination must already exist;
 sync does not create configuration for an assistant that has not been set up.
 Foreign files and symlinks are preserved. Only retired links owned by dotfiles are
@@ -100,8 +100,8 @@ skill contents and sibling resources are included in the immutable snapshot.
 Restart OpenCode from updated resources to use this behavior; running sessions
 and old pinned snapshots are unchanged.
 
-The sync installs the OpenCode v2 `cli.json` when no machine-local config occupies
-that path and no `cli.jsonc` exists. Restart OpenCode to load changes.
+Global settings are installed as writable copies, not symlinks. See
+[Global settings](#global-settings) for apply, conflict handling and explicit import.
 
 ### Learning and explanation
 
@@ -238,12 +238,76 @@ fast-forward. It refuses staged work, local-only commits and incompatible reposi
 states; untracked and ignored files are preserved. Configure machine-specific targets
 and schedules privately. See [Orca integration](orca/README.md).
 
-## Local settings
+## Global settings
 
-Sync never creates, replaces or edits `opencode.json`/`opencode.jsonc`. Provider
-credentials, global model overrides and optional `subagent_depth` remain machine-local.
-There is deliberately no placeholder global `AGENTS.md`: OpenCode falls back to
-`~/.claude/CLAUDE.md` only when its own global `AGENTS.md` is absent.
+The repository is the source of truth for **portable** global preferences:
+
+| Source | Installed destination |
+|---|---|
+| `settings/opencode.json` | `$XDG_CONFIG_HOME/opencode/opencode.json` |
+| `cli.json` | `$XDG_CONFIG_HOME/opencode/cli.json` |
+| `settings/browser-preferences.md` | `$XDG_CONFIG_HOME/opencode/browser-preferences.md` |
+
+`XDG_CONFIG_HOME` defaults to `~/.config`. JSON files and browser instructions are
+writable copies: application changes cannot write through to Git. No global
+`AGENTS.md` is installed. Portable preferences currently disable built-in web search
+and select Google through Orca's browser using configured instructions.
+
+```sh
+opencode_settings status
+opencode_settings apply
+# After changing a preference inside OpenCode, explicitly select what to capture:
+opencode_settings import --key /model
+opencode_settings import --file cli.json --key /theme
+```
+
+The same helper works without the shell function:
+`python3 -B ~/dotfiles/ai/opencode/settings/manage.py status`.
+Import previews only the selected keys, asks for approval, and never commits.
+`--yes` approves a preview without prompting. Whole-file import is intentionally
+unavailable. Import is restricted to ordinary preference categories; integrations,
+credentials and machine-specific paths must be reviewed and edited manually.
+The checks are conservative safeguards, not a substitute for reviewing the Git diff.
+
+Apply overlays tracked values while preserving unrelated local configuration.
+Instruction, plugin, skill-path and watcher-ignore lists retain local/vendor entries
+and add/remove only tracked contributions. Other arrays (such as ordered permission
+rules) are managed as whole values, not merged as unordered sets.
+Last-applied managed values are stored under
+`${XDG_STATE_HOME:-~/.local/state}/dotfiles/opencode-settings/<config-id>/`.
+That state excludes unrelated local settings. Backups of modified files are kept
+in its `backups/` directory with mode 0600; backups may contain credentials and
+must remain local. Restore one by inspecting it and copying it to its original
+destination while OpenCode is stopped.
+
+The shell wrapper and direct `runtime/launch.py` startup propagate safe changes
+automatically. They preserve and report local drift instead of overwriting it.
+Explicit apply stops on conflicts; use `apply --force` only to deliberately replace
+changed managed values after backup. Initial migration of the old owned CLI
+symlink also requires `apply --force`. Foreign settings symlinks are never replaced.
+`deploy.sh --only opencode` offers a backed-up, explicit application/migration.
+
+When both Git and OpenCode changed a managed value, choose whether to import the
+local value or force-apply the tracked one. Removing a tracked key removes its
+installed value only when the installed value still matches the last applied one.
+**Import is never automatic.** Settings not yet tracked remain local; select a
+key to import it or edit the tracked source to start managing it.
+
+`{config_dir}` and `{repo}` in tracked JSON strings expand to installation paths.
+The Orca status plugin is enabled only when its referenced local file exists;
+Orca installs that plugin separately. Existing foreign plugins are preserved.
+This does not install Orca or copy authentication state to a new machine.
+
+If `opencode.jsonc` or `cli.jsonc` exists, the helper refuses settings changes rather
+than stripping comments or creating a competing JSON file. Reconcile it into JSON
+manually first. Invalid JSON and symlinked config directories also fail safely.
+Status is read-only. Import/apply are serialized and apply checks for edits made
+during confirmation before replacing files atomically.
+
+Direct binary/desktop launches use the last installed files; use the launcher for
+automatic propagation. Restart OpenCode after applying changes. Project configs,
+environment overrides and managed system configuration can still override global
+defaults; these are preferences, not enforced policies.
 
 Shared skills use host-native tools and canonical resource paths. OpenCode-specific
 agent/command model settings and terminal behavior live here. Skills requiring MCPs or
@@ -253,6 +317,7 @@ private adapters still require those integrations.
 
 ```sh
 zsh zsh/tests/opencode_config_test.zsh
+python3 -B -m unittest discover -s ai/opencode/tests -p settings_test.py
 node --test ai/opencode/tests/*.test.mjs
 OPENCODE_CATALOG_SMOKE=1 python3 -B -m unittest discover -s ai/opencode/tests -p '*_test.py'
 python3 -B ai/opencode/tests/catalog_smoke.py

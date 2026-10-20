@@ -9,7 +9,7 @@ export HOME="$test_tmp/home"
 unset XDG_CONFIG_HOME OPENCODE_CONFIG_DIR OPENCODE_WORKFLOW_ROOT OPENCODE_WORKFLOW_REVISION
 unset OPENCODE_CONFIG_CONTENT OPENCODE_PRIVATE_SKILL_COMMANDS OPENCODE_SKILL_CATALOG
 mkdir -p "$HOME/dotfiles/ai/opencode"
-for name in commands agents runtime; do
+for name in commands agents runtime settings; do
   ln -s "$repo_root/ai/opencode/$name" "$HOME/dotfiles/ai/opencode/$name"
 done
 mkdir -p "$HOME/dotfiles/ai"
@@ -27,7 +27,8 @@ opencode_merge_config || fail "absent config sync"
 [[ ! -e "$HOME/.config" ]] || fail "created absent global config"
 mkdir -p "$HOME/.config/opencode"
 opencode_merge_config || fail "default path sync"
-assert_link_to "$HOME/.config/opencode/cli.json" "$repo_root/ai/opencode/cli.json"
+[[ -f "$HOME/.config/opencode/cli.json" && ! -L "$HOME/.config/opencode/cli.json" ]] || fail "CLI settings must be a writable copy"
+[[ -f "$HOME/.config/opencode/opencode.json" && ! -L "$HOME/.config/opencode/opencode.json" ]] || fail "global settings must be a writable copy"
 for f in "$repo_root"/ai/opencode/agents/*.md; do
   assert_link_to "$HOME/.config/opencode/agents/${f:t}" "$f"
 done
@@ -72,12 +73,12 @@ done
 
 # Existing installs still point at the former top-level directory. The sync must
 # repair dangling managed links after the move, without a compatibility symlink.
-for entry in cli.json agents/codebase-analyzer.md commands/track.md; do
+for entry in agents/codebase-analyzer.md commands/track.md; do
   rm "$HOME/.config/opencode/$entry"
   ln -s "$HOME/dotfiles/opencode/$entry" "$HOME/.config/opencode/$entry"
 done
 opencode_merge_config || fail "relocated catalog sync"
-for entry in cli.json agents/codebase-analyzer.md commands/track.md; do
+for entry in agents/codebase-analyzer.md commands/track.md; do
   assert_link_to "$HOME/.config/opencode/$entry" "$repo_root/ai/opencode/$entry"
 done
 
@@ -130,7 +131,7 @@ ln -s "$HOME/dotfiles/opencode/agents/workflow-execute.md" "$dst/agents/workflow
 ln -s "$HOME/dotfiles/ai/shared/skills/writing/clear-message" "$dst/skills/clear-message"
 ln -s "$HOME/dotfiles/ai/shared/skills/integrations/life-memory" "$dst/skills/life-memory"
 ln -s "$test_tmp/vendor-plugin" "$dst/plugins/fresh-session.js"
-rm "$dst/cli.json"
+rm -f "$dst/cli.json"
 print -r -- '{"theme":{"name":"my-theme"},"plugins":["vendor"]}' > "$dst/cli.json"
 opencode_merge_config || fail "retired handoff cleanup"
 [[ ! -L "$dst/dotfiles-handoff" && ! -L "$dst/commands/implement-plan.md" && ! -L "$dst/commands/git-retired.md" ]] || fail "retired managed links survived"

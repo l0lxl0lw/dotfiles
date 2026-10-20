@@ -37,7 +37,7 @@ Python and Node are not needed to start the wizard. Linux is not supported by it
 | `claude` | Offers Homebrew `claude-code` and jq; initializes status-line settings and links skills/agents/hooks |
 | `codex` | Offers Homebrew `codex`; initializes managed settings and links skills/instructions; respects `CODEX_HOME` |
 | `grok` | Configures an existing Grok CLI, respecting `GROK_HOME`; missing CLI is reported for manual installation because no verified package is registered |
-| `opencode` | Offers Homebrew `opencode`, Python and GitHub CLI; links its catalog under `XDG_CONFIG_HOME` |
+| `opencode` | Offers Homebrew `opencode`, Python and GitHub CLI; links its catalog and applies portable global settings under `XDG_CONFIG_HOME` |
 | `private-config` | Optionally clones a user-supplied private Git URL into `~/dotfiles-private` |
 | `life-memory` | Offers Python 3.12, isolated Basic Memory dependencies, vault/backup paths, selected-client hooks/MCP and optional launchd maintenance |
 
@@ -76,6 +76,13 @@ and OpenCode synchronize managed resources when launched through their shell
 wrappers. Grok also has a SessionStart sync hook. Normal synchronization preserves
 foreign files; use the installer to review collisions. OpenCode's wrapper launches
 the snapshot-based workflow described in [ai/opencode/README.md](ai/opencode/README.md).
+
+OpenCode's portable settings live in `ai/opencode/settings/` and
+`ai/opencode/cli.json`. Use `opencode_settings status` and `opencode_settings apply`
+to review and propagate them. Application changes stay local until explicitly
+captured, for example `opencode_settings import --key /model`. Settings are writable
+copies, not repo symlinks; credentials and machine-specific integrations remain local.
+See [global settings](ai/opencode/README.md#global-settings) for migration and conflicts.
 
 Development uses two public commands: `/develop-prepare` scopes features or bug
 fixes on `main`; an explicitly approved `/develop-deliver` transfers execution to

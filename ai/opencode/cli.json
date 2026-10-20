@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/v2/cli.json",
   "plugins": [
-    "file:///Users/zuzu/.config/opencode/plugins/orca-opencode-status-tui/tui.js"
+    "file://{config_dir}/plugins/orca-opencode-status-tui/tui.js"
   ]
 }

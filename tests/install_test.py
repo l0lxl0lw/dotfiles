@@ -213,12 +213,15 @@ class InstallTest(unittest.TestCase):
         self.stub("gh", "exit 0")
         self.env["XDG_CONFIG_HOME"] = str(self.home / "custom config")
         config = self.home / "custom config/opencode"
-        self.deploy("--only", "opencode", answers="y\n")
-        self.assertTrue((config / "tui.json").is_symlink())
+        proc = self.deploy("--only", "opencode", answers="y\n")
+        self.assertTrue((config / "cli.json").is_file(), proc.stdout + proc.stderr)
+        self.assertFalse((config / "cli.json").is_symlink())
         settings = config / "opencode.json"
         settings.write_text('{"model":"keep/model"}')
-        self.deploy("--only", "opencode", answers="y\n")
-        self.assertEqual(settings.read_text(), '{"model":"keep/model"}')
+        self.deploy("--only", "opencode", answers="y\nb\n")
+        data = json.loads(settings.read_text())
+        self.assertEqual(data["model"], "keep/model")
+        self.assertFalse(data["websearch"])
         self.assertFalse((self.home / ".config/opencode").exists())
 
     def test_memory_existing_vault_mismatch_fails_before_writing(self):

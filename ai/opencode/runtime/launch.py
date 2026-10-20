@@ -440,6 +440,11 @@ def main():
     parser.add_argument("--live", action="store_true", help="Use normal live catalogs without snapshots")
     parser.add_argument("args", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    # Also cover IDE launches that invoke this launcher without the shell wrapper.
+    # Nested/pinned sessions retain their resource identity; diagnostics stay read-only.
+    settings = ROOT / "settings/manage.py"
+    if not os.environ.get("OPENCODE_WORKFLOW_ROOT") and not args.doctor and not args.prepare and settings.exists():
+        subprocess.run([sys.executable, "-B", str(settings), "sync"], check=True)
     if args.live:
         binary = shutil.which("opencode")
         if not binary:

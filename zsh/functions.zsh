@@ -610,7 +610,7 @@ grok() {
 }
 
 # Link shared skills and OpenCode native commands/agents into its config directory.
-# Existing machine-local JSON/JSONC files remain untouched.
+# Portable settings are merged as writable copies; local changes require explicit import.
 opencode_merge_config() {
   _agentcfg_enabled opencode || return 0
   emulate -L zsh
@@ -623,6 +623,13 @@ opencode_merge_config() {
   [[ -d "$opencode_dir" ]] || return 0
 
   _agentcfg_reset
+  if [[ -f "$repo/settings/manage.py" ]]; then
+    if [[ "${DOTFILES_INSTALL:-}" == 1 ]]; then
+      PYTHONDONTWRITEBYTECODE=1 python3 "$repo/settings/manage.py" apply --force || return $?
+    else
+      PYTHONDONTWRITEBYTECODE=1 python3 "$repo/settings/manage.py" sync || return $?
+    fi
+  fi
   _agentcfg_sync_skill_sources "$opencode_dir/skills" \
     "$HOME/dotfiles/ai/shared/skills"
 
@@ -643,9 +650,6 @@ opencode_merge_config() {
     mkdir -p "$opencode_dir/plugins"
     _agentcfg_link "$f" "$opencode_dir/plugins/${f:t}" "OpenCode plugin '${f:t}'"
   done
-  if [[ -f "$repo/cli.json" && ! -e "$opencode_dir/cli.jsonc" ]]; then
-    _agentcfg_link "$repo/cli.json" "$opencode_dir/cli.json" "OpenCode CLI config"
-  fi
   for f in "$opencode_dir"/commands/*(N@); do
     _agentcfg_is_managed "$f" || continue
     [[ -f "$repo/commands/${f:t}" ]] && continue
@@ -690,4 +694,9 @@ opencode() {
 opencode_workflow() {
   opencode_merge_config || return
   PYTHONDONTWRITEBYTECODE=1 python3 "${OPENCODE_WORKFLOW_ROOT:-$HOME/dotfiles/ai/opencode}/runtime/launch.py" "$@"
+}
+
+# Settings changes are copied out; importing selected keys is always explicit.
+opencode_settings() {
+  PYTHONDONTWRITEBYTECODE=1 python3 "$HOME/dotfiles/ai/opencode/settings/manage.py" "$@"
 }
