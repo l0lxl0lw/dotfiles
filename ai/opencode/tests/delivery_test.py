@@ -649,6 +649,111 @@ class DeliveryTest(unittest.TestCase):
     def authorize_additive(self):
         self.run.authorize_revision(self.plan_url, True, False, 'User approved exact additive plan through same PR')
 
+    def correction_fixture(self):
+        self.additive_fixture()
+        self.authorize_additive()
+        attempt = self.worker('stopped-initial-writer')
+        self.state.setdefault('abandoned_workers', []).append({**self.state.pop('attempt'),
+            'reason': 'Stopped on ZIP metadata feasibility blocker'})
+        self.state.update(stage='blocked', resume_stage='execute', blocker='ZIP-01 artifact', repairs=2)
+        self.old = json.loads(json.dumps(self.state))
+        self.plan = {**self.plan, 'steps': ['Allow bounded metadata reader to resolve ZIP-01']}
+        self.plan_url = self.record('plan', self.plan)['url']
+        self.run.save()
+        return attempt
+
+    def test_initial_execution_correction_archives_blocker_and_preserves_budget_and_history(self):
+        attempt = self.correction_fixture()
+        previous_rewrite = {'lease': 'original-lease', 'published_head': self.old['published_head']}
+        self.state['history_revision'] = json.loads(json.dumps(previous_rewrite))
+        with patch.object(self.run, 'gate', side_effect=AssertionError('No current gate exists')):
+            with patch.object(delivery, 'command', side_effect=self.command) as call:
+                self.authorize_additive()
+        self.assertFalse(any(c.args[0][:2] in (['git', 'push'], ['git', 'commit'], ['git', 'merge'])
+                             for c in call.call_args_list))
+        revision = self.state['revisions'][-1]
+        self.assertEqual(revision['kind'], 'initial-execution-plan-correction')
+        self.assertEqual(revision['authorization'], 'through-pr-additive-no-history-rewrite')
+        for key in ('blocker', 'resume_stage', 'stage', 'abandoned_workers', 'workers', 'worker_sessions'):
+            self.assertEqual(revision['prior'][key], self.old.get(key, []))
+        self.assertEqual(revision['prior']['abandoned_workers'][-1]['id'], attempt)
+        for key in ('repairs', 'source_head', 'resource_root', 'pr', 'workers', 'worker_sessions',
+                    'published_head', 'owner_session', 'workspace', 'source', 'branch', 'origin'):
+            self.assertEqual(self.state[key], self.old[key])
+        self.assertEqual(self.state['history_revision'], previous_rewrite)
+        self.assertEqual(self.state['repairs'], 2)
+        self.assertEqual(self.state['stage'], 'execute')
+        self.assertNotIn('blocker', self.state)
+        self.assertNotIn('resume_stage', self.state)
+        self.run.plan()
+        with self.assertRaisesRegex(RuntimeError, 'authorization'):
+            self.run.rewrite_publish('No new rewrite permission')
+        with self.assertRaises(RuntimeError):
+            self.authorize_additive()
+
+    def test_initial_execution_correction_rejects_evidence_exhaustion_and_wrong_stages(self):
+        self.correction_fixture()
+        for key in ('verification', 'verification_run', 'review', 'ci'):
+            self.state[key] = None  # Even an incomplete current record is not initial execution.
+            with self.assertRaisesRegex(RuntimeError, 'no current'):
+                self.authorize_additive()
+            self.state.pop(key)
+        self.state['repairs'] = 3
+        with self.assertRaisesRegex(RuntimeError, 'exhausted'):
+            self.authorize_additive()
+        self.assertEqual(self.state['repairs'], 3)
+        self.state['repairs'] = 2
+        for stage, resume in (('execute', None), ('review', None), ('needs_repair', None),
+                              ('blocked', 'review'), ('blocked', 'needs_repair'), ('blocked', 'ci')):
+            self.state.update(stage=stage, resume_stage=resume)
+            with self.assertRaises(RuntimeError):
+                self.authorize_additive()
+        self.assertEqual(len(self.state['revisions']), 1)
+
+    def test_initial_execution_correction_requires_approval_changed_plan_and_blocker(self):
+        self.correction_fixture()
+        for plan, authorized, rewrite, reason in ((self.plan_url, False, False, 'Approved'),
+                (None, True, False, 'Approved'), (self.plan_url, True, False, ' '),
+                (self.old['plan'], True, False, 'Approved'), (self.plan_url, True, True, 'Approved')):
+            with self.assertRaises(RuntimeError):
+                self.run.authorize_revision(plan, authorized, rewrite, reason)
+        self.plan_url = self.record('plan', {**self.plan, 'steps':
+            ['Implement approved additive installer and preview release']})['url']
+        with self.assertRaisesRegex(RuntimeError, 'changed plan'):
+            self.authorize_additive()
+        self.state.pop('blocker')
+        with self.assertRaisesRegex(RuntimeError, 'blocker'):
+            self.authorize_additive()
+        self.assertEqual(len(self.state['revisions']), 1)
+
+    def test_initial_execution_correction_retains_source_remote_pr_and_prior_plan_guards(self):
+        self.correction_fixture()
+        self.state['attempt'] = {'id': 'pending'}
+        with self.assertRaisesRegex(RuntimeError, 'pending worker'):
+            self.authorize_additive()
+        self.state.pop('attempt')
+        (self.work / 'user-work.txt').write_text('Preserve me')
+        with self.assertRaisesRegex(RuntimeError, 'clean source'):
+            self.authorize_additive()
+        (self.work / 'user-work.txt').unlink()
+        self.state['published_head'] = self.state['source_head']
+        with self.assertRaisesRegex(RuntimeError, 'Original published head'):
+            self.authorize_additive()
+        self.state['published_head'] = self.old['published_head']
+        for heads in (['moved'], [self.old['published_head'], 'moved']):
+            with patch.object(self.run, 'remote_head', side_effect=heads):
+                with self.assertRaisesRegex(RuntimeError, 'Remote head changed'):
+                    self.authorize_additive()
+        self.pr['state'] = 'CLOSED'
+        with self.assertRaisesRegex(RuntimeError, 'Original open'):
+            self.authorize_additive()
+        self.pr['state'] = 'OPEN'
+        prior = next(c for c in self.comments if c['html_url'] == self.old['plan'])
+        prior['body'] = prior['body'].replace('Implement approved', 'Tampered approved')
+        with self.assertRaises(RuntimeError):
+            self.authorize_additive()
+        self.assertEqual(len(self.state['revisions']), 1)
+
     def test_completed_additive_archives_completion_without_review_gate_or_rewrite_grant(self):
         self.additive_fixture()
         previous_rewrite = {'lease': 'original-lease', 'published_head': self.old['published_head'],

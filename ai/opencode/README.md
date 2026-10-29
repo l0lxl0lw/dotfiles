@@ -2,7 +2,7 @@
 
 ## Active catalog and ownership
 
-The shared catalog contains 34 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
+The shared catalog contains 35 skills in `develop`, `write`, `learn`, `explain`, `git`, `use`,
 `remember`, `respond`, `sentry`, and `orca`. Each skill name starts with its folder name, for example
 `write/write-better` exposes `/write-better`. See the [full catalog](../shared/README.md#naming-and-catalog).
 

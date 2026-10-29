@@ -438,16 +438,23 @@ class Delivery:
                         path, allowed=(0, 1)).returncode == 0, 'Prepared main revision is not in origin/main')
 
     def authorize_revision(self, plan_url, authorized, allow_history_rewrite, reason):
-        additive = self.state['stage'] == 'complete'
+        completed = self.state['stage'] == 'complete'
+        correction = self.state['stage'] == 'blocked' and self.state.get('resume_stage') == 'execute'
+        additive = completed or correction
         require(authorized and plan_url and reason and reason.strip(),
                 'Exact plan, through-PR authorization and reason required')
         if additive:
-            require(not allow_history_rewrite, 'Completed delivery permits additive revision only, not history rewrite')
+            require(not allow_history_rewrite, 'Additive revision permits no history rewrite')
         else:
             require(allow_history_rewrite, 'History-rewrite authorization required for blocked CI revision')
         path = self.workspace()
         require(additive or (self.state['stage'] == 'blocked' and self.state.get('resume_stage') == 'ci'),
-                'Revision requires a completed delivery or blocked published CI-stage run')
+                'Revision requires a completed delivery or blocked published execute/CI-stage run')
+        if correction:
+            require(self.state['repairs'] < 3, 'Three repair cycles exhausted; plan correction cannot reset repairs')
+            require(not any(k in self.state for k in ('verification', 'verification_run', 'review', 'ci')),
+                    'Initial-execution plan correction requires no current verification/review/CI evidence')
+            require(self.state.get('blocker'), 'Record the initial-execution feasibility blocker first')
         require(not self.state.get('attempt'), 'Reconcile the pending worker first')
         require(not git(path, 'status', '--porcelain'), 'Revision requires clean source')
         require(not self.state.get('history_revision') or self.state['history_revision'].get('published_head'),
@@ -471,8 +478,12 @@ class Delivery:
         require(prior_contract, 'Prior contract record unavailable')
         archived = {k: self.state.get(k) for k in ('plan', 'plan_digest', 'contract_revision', 'verification',
                     'verification_run', 'review', 'ci', 'published_head', 'blocker', 'resume_stage')}
-        if additive:
+        if completed:
             archived.update(stage=self.state['stage'], completed_at=self.state.get('completed_at'))
+        if correction:
+            archived.update(stage=self.state['stage'], workers=self.state.get('workers', []),
+                            abandoned_workers=self.state.get('abandoned_workers', []),
+                            worker_sessions=self.state.get('worker_sessions', []))
         pinned = Path(self.state['resource_root']) / 'tracking/delivery.py'
         revision = {'at': time.time(), 'reason': reason, 'prior': archived, 'prior_plan_record': prior,
                     'prior_contract_record': prior_contract,
@@ -484,6 +495,8 @@ class Delivery:
                     'helper': str(Path(__file__).resolve()),
                     'helper_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                     'pinned_helper_sha256': hashlib.sha256(pinned.read_bytes()).hexdigest()}
+        if correction:
+            revision['kind'] = 'initial-execution-plan-correction'
         # Reobserve the lease and PR immediately before persisting authorization.
         self.revision_pr(old_head)
         require(self.remote_head() == old_head, 'Remote head changed')
@@ -495,7 +508,7 @@ class Delivery:
                           contract_revision=contract['revision'], stage='execute')
         for key in ('verification', 'verification_run', 'review', 'ci', 'blocker', 'resume_stage'):
             self.state.pop(key, None)
-        if additive:
+        if completed:
             self.state.pop('completed_at', None)
         self.save('revision_authorized')
 

@@ -191,6 +191,34 @@ review, commit, sync, normal `publish` and CI. Normal publication is nonforce an
 updates the same existing PR. `rewrite-publish` is not authorized by this mode.
 No fresh key, dispatch, budget reset or new force permission is implied.
 
+### Explicit feasibility correction before initial execution evidence
+
+If initial execution stops on a demonstrated plan-feasibility blocker, the user
+may approve an exact corrected Plan and renew through-PR delivery on the same key:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --reason 'Blocker artifact and exact user approval for initial-execution plan correction'
+```
+
+This narrow additive mode requires `blocked` with `resume_stage=execute`, a
+recorded blocker, no pending worker, fewer than three consumed repairs, and no
+current verification, verification-run, review or CI evidence. It
+cannot bypass review findings, attributable CI/integration repairs or an exhausted
+budget. Reconcile a stopped worker through `abandon-worker` first, with its actual
+identity and blocker evidence; do not discard an active worker or hand-edit state.
+
+All additive revision checks above remain: clean exact original published local
+head, original open ready PR, twice-observed remote/PR identity, fetched main and
+prepared-source ancestry, exact changed approved Plan/current contract and intact
+prior plan/contract records. No `--allow-history-rewrite` is allowed. The same
+additive revision archive records `kind=initial-execution-plan-correction`, the
+blocker/resume stage and worker/abandoned-worker identities. It invalidates current
+evidence and enters execute, preserving the pin, source, key, owner, PR, worker
+history, repair usage and any previously published `history_revision` unchanged.
+It performs no source edit, commit, push, redispatch or budget reset. Use the
+original pinned helper for fresh execution/independent review and ordinary
+nonforce publication/CI; this command is not a passing implementation verdict.
+
 ### Explicit same-run scope revision and feature-history publication
 
 Only after the user approves the exact revised plan and rewriting this feature

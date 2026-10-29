@@ -26,7 +26,8 @@ class SkillCatalogTest(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_catalog_is_complete(self):
         catalog = launch.skill_files(ROOT.parent / "shared/skills")
         self.assertFalse(list((ROOT / "skills").rglob("SKILL.md")))
-        self.assertEqual(len(catalog), 34)
+        self.assertEqual(len(catalog), 35)
+        self.assertIn("use-watermarks-remover", catalog)
         self.assertIn("sentry-bug-scan", catalog)
         self.assertIn("develop-prepare", catalog)
         self.assertIn("develop-deliver", catalog)
@@ -67,6 +68,25 @@ class SkillCatalogTest(unittest.TestCase):
             pinned_name = manifest["skill_aliases"]["orca-handoff"]
             command = (bundle / "opencode/commands/orca-handoff.md").read_text()
             self.assertIn("`" + pinned_name + "`", command)
+
+    def test_watermarks_skill_attribution_and_references_travel_with_snapshot(self):
+        source = ROOT.parent / "shared/skills/use/use-watermarks-remover"
+        text = (source / "SKILL.md").read_text()
+        self.assertIn("name: use-watermarks-remover", text)
+        self.assertIn("5c180932a00c793261177f79aee21db8929f3fe2", text)
+        self.assertIn("WATERMARKS_SERVICE_URL", text)
+        references = re.findall(r"`(references/[^`]+\.md)`", text)
+        self.assertEqual(len(set(references)), 6)
+        self.assertIn("Copyright (c) 2026 Guillaume Meyer", (source / "LICENSE").read_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = launch.build_bundle(ROOT, Path(tmp))
+            manifest = json.loads((bundle / "manifest.json").read_text())
+            alias = manifest["skill_aliases"]["use-watermarks-remover"]
+            pinned = launch.skill_files(bundle / "opencode/skills")[alias].parent
+            for relative in ["LICENSE", *references]:
+                self.assertEqual((source / relative).read_bytes(), (pinned / relative).read_bytes())
+            self.assertFalse((pinned / "service").exists())
+            self.assertFalse((pinned / "hooks").exists())
 
     def test_internal_preparation_methods_and_attribution_travel_with_snapshot(self):
         self.assertFalse((ROOT / "commands/brainstorm.md").exists())

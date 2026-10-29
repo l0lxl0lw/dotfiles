@@ -41,7 +41,7 @@ Directories named `_lib` hold shared resources and are not skills.
 | `learn` | `learn-crash-course`, `learn-plan`, `learn-foundations`, `learn-teach-back`, `learn-find-gaps`, `learn-scenarios`, `learn-quiz`, `learn-check-model` |
 | `explain` | `explain-code-concept`, `explain-code-flow` |
 | `git` | `git-commit`, `git-branch-and-pr`, `git-pr`, `git-push-branch`, `git-push-to-main`, `git-merge-pr`, `git-cleanup`, `git-sync`, `git-explain-diff`, `git-explain-branch`, `git-sync-orca-workspaces` |
-| `use` | `use-notion`, `use-elevenlabs`, `use-remotion`, `use-excalidraw` |
+| `use` | `use-notion`, `use-elevenlabs`, `use-remotion`, `use-excalidraw`, `use-watermarks-remover` |
 | `remember` | `remember-life` |
 | `respond` | `respond-adhd` |
 | `sentry` | `sentry-bug-scan` |
@@ -66,7 +66,7 @@ Integration skills need the named MCP/application. Discovery exposes their
 instructions, not missing dependencies.
 Private adapters stay in private configuration and are never copied into public bundles.
 
-The shared catalog contains 34 skills. The business, codebase, impeccable,
+The shared catalog contains 35 skills. The business, codebase, impeccable,
 mattpocock, omc, utilities, and workflow families were removed after a usage review.
 Their six workflow stage commands and seven dependent OpenCode agents were also
 retired. The development methods are now selectively revived in
@@ -82,6 +82,15 @@ The former `make-html` skill was restored as `write/write-html`, including its
 `respond/respond-adhd` imports the upstream `i-have-adhd` response-formatting mode,
 with its source reference and MIT license preserved. Invoke `/respond-adhd` to enable
 it for the session; say "stop adhd mode" or "normal mode" to turn it off.
+
+`use/use-watermarks-remover` imports the upstream `remove-ai-marks` skill from
+[guillaumemeyer/watermarks-remover](https://github.com/guillaumemeyer/watermarks-remover),
+with its pinned source revision, references, and MIT license preserved. Invoke
+`/use-watermarks-remover` for Unicode, AI-provenance metadata, and best-effort
+watermark cleaning of content you own or are authorized to process. It requires
+a separately configured upstream HTTP service (`WATERMARKS_SERVICE_URL`, default
+`http://127.0.0.1:8765`); importing or syncing the skill does not install or start
+that service or its optional backends.
 
 ## OpenCode commands and project skills
 
