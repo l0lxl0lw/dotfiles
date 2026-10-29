@@ -1,7 +1,6 @@
 ---
 description: Resolve a specific external API or dependency question using primary documentation.
 mode: subagent
-hidden: true
 model: openai/gpt-6-astra
 variant: medium
 permission:

@@ -149,6 +149,11 @@ All four development agents load exact pinned methods and inherit native model
 defaults. The old standalone stage commands, ticket/research stage agents and
 the `/brainstorm` alias remain retired.
 
+The ten research/development workers use `mode: subagent` without `hidden: true`.
+OpenCode V2 excludes hidden agents from the model's subagent catalog, so hiding
+these workers would prevent Prepare and Deliver from discovering them. Subagent
+mode keeps them out of primary-agent selection without hiding them from callers.
+
 Initial approval defines the delivery scope and Git authority; the owner advances
 the cycle within that authorization and the shared three-repair budget. Outside
 delivery, existing `git-*` skills still require their usual explicit requests.

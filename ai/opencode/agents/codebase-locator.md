@@ -1,7 +1,6 @@
 ---
 description: Locate entry points, implementation files and tests for one bounded codebase question.
 mode: subagent
-hidden: true
 model: openai/gpt-5.6-luna-fast
 variant: medium
 permission:

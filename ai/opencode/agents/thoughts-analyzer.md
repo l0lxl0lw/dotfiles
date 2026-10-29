@@ -1,7 +1,6 @@
 ---
 description: Extract relevant decisions and contradictions from explicitly supplied historical artifacts.
 mode: subagent
-hidden: true
 model: openai/gpt-6-astra
 variant: medium
 permission:

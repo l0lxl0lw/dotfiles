@@ -1,7 +1,6 @@
 ---
 description: Fresh worker for explicitly approved implementation or repair of a development plan.
 mode: subagent
-hidden: true
 permission:
   question: allow
   task:

@@ -1,7 +1,6 @@
 ---
 description: Find one or two close implementation and test analogues for a concrete proposed change.
 mode: subagent
-hidden: true
 model: openai/gpt-5.6-luna-fast
 variant: medium
 permission:

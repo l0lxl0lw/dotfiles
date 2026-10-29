@@ -34,7 +34,7 @@ class DevelopTest(unittest.TestCase):
                 path = bundle / "opencode/agents" / (name + ".md")
                 definition = launch.definition(path)
                 self.assertEqual(definition["mode"], "subagent")
-                self.assertTrue(definition["hidden"])
+                self.assertFalse(definition.get("hidden", False))
                 self.assertNotIn("model", definition)
                 self.assertNotIn("variant", definition)
                 method = bundle / "opencode/skills/develop/_lib" / (stage + ".md")
@@ -51,7 +51,8 @@ class DevelopTest(unittest.TestCase):
             for name in ("codebase-locator", "codebase-analyzer", "codebase-pattern-finder",
                           "web-search-researcher", "thoughts-locator", "thoughts-analyzer"):
                 definition = launch.definition(bundle / "opencode/agents" / (name + ".md"))
-                self.assertTrue(definition["hidden"])
+                self.assertEqual(definition["mode"], "subagent")
+                self.assertFalse(definition.get("hidden", False))
                 self.assertEqual(definition["permission"]["task"], "deny")
             self.assertEqual({name for name in manifest["skill_aliases"] if name.startswith("develop-")},
                              {"develop-prepare", "develop-deliver"})
