@@ -415,6 +415,177 @@ class Delivery:
                 require('(HTTP 404)' in result.stderr and bool(rules), 'Classic required-check policy unavailable')
         return contexts
 
+    def remote_head(self):
+        ref = 'refs/heads/' + self.state['branch']
+        rows = git(self.workspace(), 'ls-remote', '--exit-code', 'origin', ref).splitlines()
+        require(len(rows) == 1 and rows[0].split()[1] == ref, 'Remote branch unavailable or ambiguous')
+        return rows[0].split()[0]
+
+    def revision_pr(self, head):
+        require(self.gh('repo', 'view', '--json', 'nameWithOwner')['nameWithOwner'] == self.state['github_repo'],
+                'GitHub repository changed')
+        pr = self.view_pr()
+        require(pr.get('url') == self.state['pr'] and pr['state'] == 'OPEN'
+                and not pr['isDraft'] and not pr['isCrossRepository'], 'Original open same-repository PR required')
+        require(pr['headRefName'] == self.state['branch'] and pr['baseRefName'] == 'main', 'PR branch mismatch')
+        require(pr['headRefOid'] == head, 'PR head changed')
+        return pr
+
+    def revision_ancestry(self):
+        path = self.workspace()
+        self.sync_for_publication()
+        require(command(['git', 'merge-base', '--is-ancestor', self.state['source_head'], 'origin/main'],
+                        path, allowed=(0, 1)).returncode == 0, 'Prepared main revision is not in origin/main')
+
+    def authorize_revision(self, plan_url, authorized, allow_history_rewrite, reason):
+        additive = self.state['stage'] == 'complete'
+        require(authorized and plan_url and reason and reason.strip(),
+                'Exact plan, through-PR authorization and reason required')
+        if additive:
+            require(not allow_history_rewrite, 'Completed delivery permits additive revision only, not history rewrite')
+        else:
+            require(allow_history_rewrite, 'History-rewrite authorization required for blocked CI revision')
+        path = self.workspace()
+        require(additive or (self.state['stage'] == 'blocked' and self.state.get('resume_stage') == 'ci'),
+                'Revision requires a completed delivery or blocked published CI-stage run')
+        require(not self.state.get('attempt'), 'Reconcile the pending worker first')
+        require(not git(path, 'status', '--porcelain'), 'Revision requires clean source')
+        require(not self.state.get('history_revision') or self.state['history_revision'].get('published_head'),
+                'An authorized revision is already pending')
+        old_head = self.state.get('published_head')
+        require(old_head and git(path, 'rev-parse', 'HEAD') == old_head, 'Original published head required')
+        self.revision_pr(old_head)
+        require(self.remote_head() == old_head, 'Remote head changed')
+        self.revision_ancestry()
+        issue, comments = handoff.issue_and_comments(self.state['issue'])
+        require(issue['url'] == self.state['issue'], 'Issue changed')
+        plan, contract = verify.approved_plan(issue, comments, plan_url)
+        require(plan_url != self.state['plan'] and evidence.digest(plan) != self.state['plan_digest'],
+                'Use an exact newly approved, changed plan record')
+        # Superseded evidence is archived, not passed through the current-plan gate.
+        prior = next((c for c in comments if c['html_url'] == self.state['plan']), None)
+        require(prior and evidence.digest(packet.parse(prior)['record']) == self.state['plan_digest'],
+                'Prior plan record changed or unavailable')
+        prior_contract = next((c for c in comments if (packet.metadata(c) or {}).get('stage') == 'contract'
+                               and packet.parse(c)['record'].get('revision') == self.state['contract_revision']), None)
+        require(prior_contract, 'Prior contract record unavailable')
+        archived = {k: self.state.get(k) for k in ('plan', 'plan_digest', 'contract_revision', 'verification',
+                    'verification_run', 'review', 'ci', 'published_head', 'blocker', 'resume_stage')}
+        if additive:
+            archived.update(stage=self.state['stage'], completed_at=self.state.get('completed_at'))
+        pinned = Path(self.state['resource_root']) / 'tracking/delivery.py'
+        revision = {'at': time.time(), 'reason': reason, 'prior': archived, 'prior_plan_record': prior,
+                    'prior_contract_record': prior_contract,
+                    'plan': plan_url, 'plan_digest': evidence.digest(plan), 'contract': contract,
+                    'plan_record': packet.select(comments, 'plan', plan_url, required=True),
+                    'authorization': 'through-pr-additive-no-history-rewrite' if additive else 'through-pr-and-branch-history-rewrite',
+                    'observed_main': git(path, 'rev-parse', 'origin/main'),
+                    'branch': self.state['branch'], 'pr': self.state['pr'], 'lease': old_head,
+                    'helper': str(Path(__file__).resolve()),
+                    'helper_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                    'pinned_helper_sha256': hashlib.sha256(pinned.read_bytes()).hexdigest()}
+        # Reobserve the lease and PR immediately before persisting authorization.
+        self.revision_pr(old_head)
+        require(self.remote_head() == old_head, 'Remote head changed')
+        revision = json.loads(json.dumps(revision))
+        self.state.setdefault('revisions', []).append(revision)
+        if not additive:
+            self.state['history_revision'] = revision
+        self.state.update(plan=plan_url, plan_digest=evidence.digest(plan),
+                          contract_revision=contract['revision'], stage='execute')
+        for key in ('verification', 'verification_run', 'review', 'ci', 'blocker', 'resume_stage'):
+            self.state.pop(key, None)
+        if additive:
+            self.state.pop('completed_at', None)
+        self.save('revision_authorized')
+
+    def rewrite_publish(self, reason):
+        require(reason and reason.strip(), 'Supply history publication reason')
+        path = self.workspace()
+        revision = self.state.get('history_revision')
+        require(revision and not revision.get('published_head'), 'Explicit history-rewrite authorization required')
+        require(self.state['stage'] == 'publish', 'Fresh passing review required before history publication')
+        require(not self.state.get('attempt'), 'Reconcile the pending worker first')
+        require(not git(path, 'status', '--porcelain'), 'History publication requires clean source')
+        require(revision['branch'] == self.state['branch'] and revision['pr'] == self.state['pr']
+                and revision['plan'] == self.state['plan'] and revision['plan_digest'] == self.state['plan_digest'],
+                'History authorization identity changed')
+        self.gate()
+        require(self.state.get('review') and self.state['review'] != revision['prior']['review']
+                and self.state.get('verification') != revision['prior']['verification'], 'Fresh passing review required')
+        self.revision_ancestry()
+        head = git(path, 'rev-parse', 'HEAD')
+        require(head != revision['lease'], 'History publication requires a new head')
+        intent = revision.get('intent')
+        if intent:
+            require(intent['expected_head'] == head, 'Publication intent head changed; reconcile first')
+        remote = self.remote_head()
+        if not (intent and remote == head):
+            require(remote == revision['lease'], 'Remote head moved from originally authorized lease')
+            self.revision_pr(revision['lease'])
+            if not intent:
+                revision['intent'] = {'expected_head': head, 'lease': revision['lease'], 'reason': reason,
+                                      'at': time.time(), 'helper_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+                self.save('rewrite_push_intent')
+            git(path, 'push', '--force-with-lease=refs/heads/' + revision['branch'] + ':' + revision['lease'],
+                'origin', head + ':refs/heads/' + revision['branch'])
+        # A lost push response is reconciled above without a second push or PR creation.
+        require(self.remote_head() == head, 'Remote head differs after history publication')
+        self.revision_pr(head)
+        revision['published_head'] = head
+        self.state.update(stage='ci', published_head=head)
+        self.save('rewrite_published')
+
+    def observed_checks(self, expected):
+        # Observe every reported check, not only protected-branch requirements.
+        # An empty policy must not hide a failed repository CI/security job.
+        result = command(['gh', 'pr', 'checks', self.state['pr'], '--repo', self.state['github_repo'],
+                          '--json', 'name,state,bucket,link'], self.workspace(), allowed=(0, 1, 8))
+        try:
+            checks = json.loads(result.stdout)
+        except ValueError:
+            require(not expected and 'no checks reported' in (result.stdout + result.stderr).lower(),
+                    'Check observation unavailable')
+            checks = []
+        require(isinstance(checks, list), 'Malformed check response')
+        for check in checks:
+            require(isinstance(check, dict) and isinstance(check.get('name'), str)
+                    and check.get('bucket') in ('pass', 'fail', 'cancel', 'pending', 'skipping'),
+                    'Malformed check response')
+        return checks
+
+    def ci_failure(self, reason):
+        """Recover a pinned run's observed CI failure without replacing its pin."""
+        path = self.workspace()
+        stage = self.state['stage']
+        require(stage == 'ci' or (stage == 'blocked' and self.state.get('resume_stage') == 'ci'),
+                'CI failure recovery requires a published CI-stage run')
+        require(reason and reason.strip(), 'Supply CI failure diagnosis')
+        require(not self.state.get('attempt'), 'Reconcile the pending worker first')
+        require(not git(path, 'status', '--porcelain'), 'CI cannot cover uncommitted changes')
+        self.gate()
+        pr = self.view_pr()
+        self.check_pr(pr)
+        require(self.state.get('published_head') == pr['headRefOid'], 'Published CI head changed')
+        expected = self.required_contexts()
+        checks = self.observed_checks(expected)
+        self.check_pr(self.view_pr())
+        require(any(c['bucket'] in ('fail', 'cancel') for c in checks),
+                'No current-head CI failure to recover')
+        pinned = Path(self.state['resource_root']) / 'tracking/delivery.py'
+        self.state.setdefault('ci_failure_recoveries', []).append({
+            'reason': reason, 'at': time.time(), 'head': pr['headRefOid'],
+            'helper': str(Path(__file__).resolve()),
+            'helper_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            'pinned_helper_sha256': hashlib.sha256(pinned.read_bytes()).hexdigest(),
+        })
+        self.state['ci'] = {'head': pr['headRefOid'], 'expected': sorted(expected), 'checks': checks,
+                            'missing': sorted(expected - {c['name'] for c in checks}), 'observed_at': time.time()}
+        self.state.update(stage='needs_repair', repair_reason='ci')
+        self.state.pop('resume_stage', None)
+        self.state.pop('blocker', None)
+        self.save('ci_failure_recovered')
+
     def ci(self):
         path = self.workspace()
         require(self.state['stage'] == 'ci', 'PR publication required before CI observation')
@@ -423,16 +594,7 @@ class Delivery:
         pr = self.view_pr()
         self.check_pr(pr)
         expected = self.required_contexts()
-        result = command(['gh', 'pr', 'checks', self.state['pr'], '--repo', self.state['github_repo'],
-                          '--required', '--json', 'name,state,bucket,link'], path, allowed=(0, 1, 8))
-        try:
-            checks = json.loads(result.stdout)
-        except ValueError:
-            # An explicit empty policy plus gh's no-required-checks result is not a missing CI response.
-            require(not expected and 'no required checks reported' in (result.stdout + result.stderr).lower(),
-                    'Required check observation unavailable')
-            checks = []
-        require(isinstance(checks, list), 'Malformed check response')
+        checks = self.observed_checks(expected)
         self.check_pr(self.view_pr())  # Reject a head change during observation.
         names = {c['name'] for c in checks}
         missing = sorted(expected - names)
@@ -482,7 +644,8 @@ def initialize(directory, args):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('action', choices=['init', 'inspect', 'dispatch', 'recover-launch', 'wait-start', 'ack', 'begin', 'claim', 'finish',
-                                     'repair', 'integration-failure', 'sync', 'commit', 'publish', 'ci', 'block', 'resume', 'abandon-worker'])
+                                     'repair', 'integration-failure', 'sync', 'commit', 'publish', 'ci', 'ci-failure',
+                                     'authorize-revision', 'rewrite-publish', 'block', 'resume', 'abandon-worker'])
     p.add_argument('--key', required=True)
     p.add_argument('--state-dir', type=Path, default=Path(os.environ.get('OPENCODE_WORKFLOW_STATE',
                    str(Path.home() / '.local/state/opencode-workflow'))) / 'deliveries')
@@ -491,6 +654,7 @@ def main(argv=None):
     p.add_argument('--body-file', type=Path)
     p.add_argument('--file', action='append', default=[])
     p.add_argument('--authorize-through-pr', action='store_true')
+    p.add_argument('--allow-history-rewrite', action='store_true')
     p.add_argument('--attributable', action='store_true', help='CI failure was diagnosed as caused by this change')
     p.add_argument('--confirm-worker-stopped', action='store_true')
     p.add_argument('--timeout', type=int, default=120)
@@ -519,7 +683,8 @@ def main(argv=None):
             else:
                 state = json.loads(path.read_text())
                 require(state['version'] == 1, 'Unsupported delivery state')
-                require(state['resource_root'] == str(ROOT) or args.action == 'recover-launch',
+                require(state['resource_root'] == str(ROOT) or args.action in
+                        ('recover-launch', 'ci-failure', 'authorize-revision', 'rewrite-publish'),
                         'Resume with the recorded resource revision')
                 helper = Delivery(directory, state)
                 action = args.action
@@ -535,6 +700,10 @@ def main(argv=None):
                 elif action == 'commit': helper.commit(args.message, args.file)
                 elif action == 'publish': helper.publish(args.title, args.body_file)
                 elif action == 'ci': helper.ci()
+                elif action == 'ci-failure': helper.ci_failure(args.reason)
+                elif action == 'authorize-revision': helper.authorize_revision(
+                    args.plan, args.authorize_through_pr, args.allow_history_rewrite, args.reason)
+                elif action == 'rewrite-publish': helper.rewrite_publish(args.reason)
                 elif action == 'block':
                     require(args.reason and state['stage'] != 'complete', 'Supply blocker for an active run')
                     state.update(resume_stage=state.get('resume_stage', state['stage']), stage='blocked', blocker=args.reason)

@@ -6,6 +6,8 @@ prepared result. **Deliver through PR** covers that exact published plan's
 execution, independent review, three repair cycles, commits, pushes, ready PR,
 attributable CI repairs and merge-based integration of origin/main. It does not
 authorize PR merge, changed product scope, hook bypasses or force-pushes.
+An explicitly renewed scope/history authorization is available only through the
+guarded same-run actions below; ordinary publication remains nonforce.
 
 ## Journal and dispatch
 
@@ -138,6 +140,8 @@ force, reconciles an existing PR for the exact branch, then creates one only if
 no previous create intent is ambiguous. Commit retry inspects current source;
 unchanged committed bytes preserve the gate. Hooks run normally.
 
+CI observes all reported checks as well as the required-check policy: an empty
+policy cannot hide failing, pending or skipped repository/security checks.
 Poll `ci` every 15–30 seconds while pending, keeping the existing run. Each call
 is bounded; on session interruption continue from its journal. If GitHub awaits
 external permission, required-workflow rules need unsupported inspection, checks
@@ -152,6 +156,102 @@ advanced, run sync and the verification/review/publication loop again. No finite
 run can guarantee freshness after its final observation.
 
 ## Recovery
+
+### Explicit additive scope after completion, on the same PR
+
+After the user explicitly approves an exact **new, changed Plan** and renewed
+through-PR delivery for additive scope, reopen the completed run from its bound
+feature checkout using the current canonical helper and the **same key/state root**:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --reason 'Exact user approval for additive scope on the existing PR'
+```
+
+Do **not** pass `--allow-history-rewrite`: completed runs reject that flag. This
+mode grants no history rewrite, including reuse of an earlier rewrite grant.
+It requires a completed delivery, no pending worker or unpublished authorized
+rewrite, clean source at the exact published local head, and the original open,
+ready same-repository PR targeting main. It checks the exact remote head and PR
+again before recording authorization, fetches main, and requires main inclusion
+and prepared-source ancestry. The new exact plan and current contract must pass
+the existing approval/integrity checks, and the prior plan digest must still match.
+The superseded review need not pass the new-plan gate to authorize this transition.
+
+The revision archive records explicit additive-only authorization, prior completion
+timestamp, plan/contract records, verification/review/CI evidence, observed head
+and helper hashes. It removes current verification, review, CI and `completed_at`
+and enters execute. It preserves the original resource pin, source head, owner,
+workspace, branch, PR, worker history and repair count; it does not replace the
+prior `history_revision` record or lease. It neither redispatches nor resets repairs,
+edits application files, commits or pushes. Repeating authorization while execution
+is active rejects; continue the same run rather than authorizing it again.
+
+Use the **original pinned helper** for execution, fresh verification and independent
+review, commit, sync, normal `publish` and CI. Normal publication is nonforce and
+updates the same existing PR. `rewrite-publish` is not authorized by this mode.
+No fresh key, dispatch, budget reset or new force permission is implied.
+
+### Explicit same-run scope revision and feature-history publication
+
+Only after the user approves the exact revised plan and rewriting this feature
+branch's history, use the current canonical helper from the bound feature checkout:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --allow-history-rewrite --reason 'Exact user approval and scope/history rationale'
+```
+
+The history-rewrite mode of this cross-pin action requires a **blocked run resuming CI**, no pending worker,
+clean source at the original published head, the same open ready same-repository
+PR targeting main, and its exact current remote branch head. It fetches main and
+checks both main inclusion and prepared-source ancestry. The exact newly approved
+plan must be current, valid, changed, and at a new URL; the prior plan's recorded
+digest must still match. It archives prior plan/contract records, artifact
+identities, CI/blocker evidence, the original observed branch lease, and old/new
+helper hashes. It preserves the resource pin, source head, PR, workers and repair
+budget, invalidates verification/review, and enters execute. It never redispatches
+or resets repairs. This action records explicit authorization; it cannot prove a
+human actually gave it, so the coordinator must obtain that approval first.
+
+Continue execution, verification, independent review, commit, sync and CI with the
+**original pinned helper**. The coordinator may separately perform the explicitly
+approved normal Git interactive rebase/squash on only the bound feature branch,
+preserving the intended final tree. The helper does not rebase, reset, amend,
+transform commits, alter Git configuration, or bypass hooks. After the rewrite,
+obtain fresh verification and passing independent review of the new scope and
+final source, commit any reviewed changes, then use:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py rewrite-publish --key TASK --reason 'Publish the explicitly approved feature-only history rewrite'
+```
+
+This second cross-pin action requires publish stage, clean current source, fresh
+passing evidence for the revised plan, the same branch/PR/repository, current main
+and prepared-source ancestry. It records the expected new SHA before pushing with
+`--force-with-lease=refs/heads/BRANCH:ORIGINALLY_AUTHORIZED_SHA`. A moved remote is
+a blocker, never a reason to refresh the lease. It only updates the existing PR;
+it cannot create or merge one. It records the new published head and enters CI
+only after observing the exact new remote head and matching original PR.
+
+If a push response is lost, rerun the same action/key with unchanged reviewed
+source. A persisted intent plus the expected new remote SHA reconciles the
+existing PR **without repeating the push**. An old remote SHA retries the same
+guarded lease; any other SHA or changed local intent head blocks. Never hand-edit
+the journal, pin, budget or lease. These explicit actions do not grant general
+cross-pin access to the other stages. `publish` remains the ordinary nonforce path.
+
+For an explicitly requested repair of an older pinned run whose helper ignored
+non-required failures, invoke the current source helper's `ci-failure --key TASK
+--reason DIAGNOSIS` from the bound feature workspace with the original state root.
+This narrow cross-revision operation accepts only a published CI-stage run (or a
+blocked run resuming CI), no pending worker, a clean reviewed source and the exact
+published/current PR head. It rechecks policy and all checks and requires an actual
+current-head failure before entering `needs_repair`. It records both helper hashes
+and evidence, preserves the original resource pin, artifacts, plan and repair count,
+and never completes a run or authorizes code edits itself. Continue using the
+original pinned helper's attributable `repair` action, then fresh execution/review.
+For completion with an older helper, independently wait for all reported checks to
+pass before invoking its required-only `ci` gate. Never change branch policy,
+hand-edit a journal or reset the budget as a workaround.
 
 ```sh
 python3 ROOT/tracking/delivery.py block --key TASK --reason 'Evidence and specific unresolved question'

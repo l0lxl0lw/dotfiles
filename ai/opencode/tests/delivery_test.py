@@ -108,6 +108,7 @@ class DeliveryTest(unittest.TestCase):
         elif args[:2] == ['pr', 'view']:
             result = {**self.pr, 'headRefOid': self.git(self.remote, 'rev-parse', 'refs/heads/feature')}
         elif args[:2] == ['pr', 'checks']:
+            self.assertNotIn('--required', args, 'Optional CI must not be hidden by an empty policy')
             result = self.checks
         elif args[0] == 'api' and '/rules/branches/' in args[1]:
             result = [{'type': 'required_status_checks', 'parameters': {
@@ -328,6 +329,501 @@ class DeliveryTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'head differs'):
             self.run.ci()
         self.assertEqual(self.state['stage'], 'ci')
+
+    def test_optional_ci_failure_pending_skipped_and_green_under_empty_policy(self):
+        self.ready(); self.publish()
+        self.expected = []
+        for bucket in ('pending', 'skipping'):
+            self.checks = [{'name': 'repository-ci', 'bucket': bucket}]
+            self.run.ci()
+            self.assertEqual(self.state['stage'], 'ci')
+        self.checks = [{'name': 'repository-ci', 'bucket': 'fail'}]
+        self.run.ci()
+        self.assertEqual(self.state['stage'], 'needs_repair')
+        self.assertEqual(self.state['repairs'], 0)
+
+    def test_ci_failure_cross_pin_cli_preserves_identity_budget_and_requires_attribution(self):
+        self.ready(); self.publish()
+        pin = self.root / 'old-resource'
+        (pin / 'tracking').mkdir(parents=True)
+        (pin / 'tracking/delivery.py').write_text('# original pinned helper\n')
+        self.state.update(resource_root=str(pin), stage='blocked', resume_stage='ci',
+                          blocker='Optional CI ignored', repairs=1)
+        self.run.save()
+        self.expected = []
+        self.checks = [{'name': 'repository-ci', 'bucket': 'fail'}]
+        args = ['--key', 'fixture', '--state-dir', str(self.directory.parent)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(delivery.main(['resume', *args]), 2)
+            self.assertEqual(delivery.main(['ci-failure', *args, '--reason', 'Observed introduced compiler error']), 0)
+        saved = json.loads((self.directory / 'state.json').read_text())
+        self.assertEqual(saved['stage'], 'needs_repair')
+        self.assertEqual(saved['repair_reason'], 'ci')
+        self.assertEqual(saved['resource_root'], str(pin))
+        for key in ('repairs', 'plan', 'plan_digest', 'contract_revision', 'review', 'verification', 'pr', 'published_head'):
+            self.assertEqual(saved[key], self.state[key])
+        self.assertEqual(saved['ci']['head'], self.state['published_head'])
+        self.assertEqual(len(saved['ci_failure_recoveries']), 1)
+        self.assertNotIn('blocker', saved)
+        recovered = delivery.Delivery(self.directory, saved)
+        with self.assertRaisesRegex(RuntimeError, 'attribution'):
+            recovered.repair('Missing attribution')
+        recovered.repair('Compiler log proves introduced defect', attributable=True)
+        self.assertEqual(saved['repairs'], 2)
+
+    def test_ci_failure_recovery_rejects_no_failure_active_worker_dirty_or_stale_head(self):
+        self.ready(); self.publish()
+        self.state.update(stage='blocked', resume_stage='ci')
+        for bucket in ('pass', 'pending', 'skipping'):
+            self.checks = [{'name': 'repository-ci', 'bucket': bucket}]
+            with self.assertRaisesRegex(RuntimeError, 'No current-head CI failure'):
+                self.run.ci_failure('Diagnosis')
+        self.checks = [{'name': 'repository-ci', 'bucket': 'fail'}]
+        self.state['attempt'] = {'id': 'active'}
+        with self.assertRaisesRegex(RuntimeError, 'pending worker'):
+            self.run.ci_failure('Diagnosis')
+        self.state.pop('attempt')
+        (self.work / 'unexpected.txt').write_text('local user work')
+        with self.assertRaisesRegex(RuntimeError, 'uncommitted'):
+            self.run.ci_failure('Diagnosis')
+        (self.work / 'unexpected.txt').unlink()
+        self.state['published_head'] = 'stale'
+        with self.assertRaisesRegex(RuntimeError, 'Published CI head changed'):
+            self.run.ci_failure('Diagnosis')
+        self.assertEqual(self.state['stage'], 'blocked')
+        self.assertEqual(self.state['repairs'], 0)
+        self.assertNotIn('ci_failure_recoveries', self.state)
+
+    def test_ci_failure_recovery_rejects_wrong_stage_or_head_change_during_observation(self):
+        self.ready(); self.publish()
+        self.state.update(stage='blocked', resume_stage='execute')
+        with self.assertRaisesRegex(RuntimeError, 'CI-stage'):
+            self.run.ci_failure('Diagnosis')
+        self.state['resume_stage'] = 'ci'
+        self.checks = [{'name': 'repository-ci', 'bucket': 'fail'}]
+        original = self.run.view_pr()
+        with patch.object(self.run, 'view_pr', side_effect=[original, {**original, 'headRefOid': 'changed'}]):
+            with self.assertRaisesRegex(RuntimeError, 'head differs'):
+                self.run.ci_failure('Diagnosis')
+        self.assertEqual(self.state['stage'], 'blocked')
+
+    def test_ci_empty_response_requires_observed_empty_policy_and_valid_gh_result(self):
+        self.ready(); self.publish()
+        self.expected = []
+        def transport(argv, *args, **kwargs):
+            if argv[:3] == ['gh', 'pr', 'checks']:
+                return subprocess.CompletedProcess(argv, 1, '', 'no checks reported on branch')
+            return self.command(argv, *args, **kwargs)
+        with patch.object(delivery, 'command', side_effect=transport):
+            self.run.ci()
+        self.assertEqual(self.state['stage'], 'complete')
+
+    def revision_fixture(self):
+        self.ready(); self.publish()
+        self.state.update(stage='blocked', resume_stage='ci', blocker='Scope decision', repairs=2)
+        self.old = json.loads(json.dumps(self.state))
+        self.plan = {**self.plan, 'steps': ['Implement approved revised scope and remove historical fixture']}
+        self.plan_url = self.record('plan', self.plan)['url']
+        self.run.save()
+
+    def authorize_revision(self):
+        self.run.authorize_revision(self.plan_url, True, True, 'User explicitly approved revised scope and feature rewrite')
+
+    def rewrite_fixture(self):
+        self.authorize_revision()
+        (self.work / 'scope.txt').write_text('Approved revised scope\n')
+        self.git(self.work, 'add', 'scope.txt')
+        self.git(self.work, 'commit', '--fixup', self.old['published_head'])
+        tree = self.git(self.work, 'rev-parse', 'HEAD^{tree}')
+        self.git(self.work, '-c', 'sequence.editor=true', 'rebase', '-i', '--autosquash', self.state['source_head'])
+        self.assertEqual(self.git(self.work, 'rev-parse', 'HEAD^{tree}'), tree)
+        self.verification('writer-revision')
+        self.review(session='reviewer-revision')
+
+    def test_revision_requires_explicit_flags_reason_new_exact_plan(self):
+        self.revision_fixture()
+        for authorized, rewrite, reason, plan in ((False, True, 'Approved', self.plan_url),
+                (True, False, 'Approved', self.plan_url), (True, True, '', self.plan_url),
+                (True, True, 'Approved', self.old['plan'])):
+            with self.assertRaises(RuntimeError):
+                self.run.authorize_revision(plan, authorized, rewrite, reason)
+        self.assertEqual(self.state['plan'], self.old['plan'])
+        self.assertNotIn('revisions', self.state)
+
+    def test_revision_preserves_budget_pin_identity_and_archives_old_evidence(self):
+        self.revision_fixture()
+        self.authorize_revision()
+        revision = self.state['history_revision']
+        for key in ('repairs', 'source_head', 'resource_root', 'pr', 'workers', 'worker_sessions', 'published_head'):
+            self.assertEqual(self.state[key], self.old[key])
+        for key in ('plan', 'plan_digest', 'contract_revision', 'review', 'verification', 'verification_run'):
+            self.assertEqual(revision['prior'][key], self.old[key])
+        self.assertEqual(revision['lease'], self.old['published_head'])
+        self.assertEqual(self.state['plan'], self.plan_url)
+        self.assertEqual(self.state['stage'], 'execute')
+        self.assertNotIn('review', self.state)
+        self.assertNotIn('verification', self.state)
+        self.assertEqual(len(revision['helper_sha256']), 64)
+        self.assertEqual(len(revision['pinned_helper_sha256']), 64)
+        with self.assertRaisesRegex(RuntimeError, 'passing review'):
+            self.run.rewrite_publish('Approved rewrite')
+
+    def test_revision_rejects_pending_dirty_wrong_branch_local_head_or_remote(self):
+        self.revision_fixture()
+        self.state['attempt'] = {'id': 'pending'}
+        with self.assertRaisesRegex(RuntimeError, 'pending worker'):
+            self.authorize_revision()
+        self.state.pop('attempt')
+        (self.work / 'untracked').write_text('user work')
+        with self.assertRaisesRegex(RuntimeError, 'clean source'):
+            self.authorize_revision()
+        (self.work / 'untracked').unlink()
+        self.state['branch'] = 'other'
+        with self.assertRaisesRegex(RuntimeError, 'Branch changed'):
+            self.authorize_revision()
+        self.state['branch'] = 'feature'
+        self.state['published_head'] = self.state['source_head']
+        with self.assertRaisesRegex(RuntimeError, 'Original published head'):
+            self.authorize_revision()
+        self.state['published_head'] = self.old['published_head']
+        with patch.object(self.run, 'remote_head', return_value='changed'):
+            with self.assertRaisesRegex(RuntimeError, 'Remote head changed'):
+                self.authorize_revision()
+        self.pr['baseRefName'] = 'other'
+        with self.assertRaisesRegex(RuntimeError, 'PR branch mismatch'):
+            self.authorize_revision()
+        self.assertNotIn('revisions', self.state)
+
+    def test_revision_rejects_modified_old_plan_and_new_plan_integrity(self):
+        self.revision_fixture()
+        comment = self.comments[-1]
+        body = comment['body']
+        comment['body'] = body.replace('Implement approved', 'Tampered approved')
+        with self.assertRaises(RuntimeError):
+            self.authorize_revision()
+        comment['body'] = body
+        self.comments[1]['body'] = self.comments[1]['body'].replace('Implement and verify', 'Tampered old plan')
+        with self.assertRaises(RuntimeError):
+            self.authorize_revision()
+        self.assertEqual(self.state['plan'], self.old['plan'])
+
+    def test_rewrite_publication_uses_original_lease_same_pr_and_keeps_main(self):
+        self.revision_fixture(); self.rewrite_fixture()
+        with patch.object(delivery, 'command', side_effect=self.command) as call:
+            self.run.rewrite_publish('Publish approved feature-only rewrite')
+        pushes = [c.args[0] for c in call.call_args_list if c.args[0][:2] == ['git', 'push']]
+        self.assertEqual(len(pushes), 1)
+        self.assertIn('--force-with-lease=refs/heads/feature:' + self.old['published_head'], pushes[0])
+        self.assertNotIn('--no-verify', pushes[0])
+        self.assertEqual(self.state['stage'], 'ci')
+        self.assertEqual(self.creates, 1)
+        self.assertEqual(self.state['pr'], self.old['pr'])
+        self.assertEqual(self.git(self.remote, 'rev-parse', 'main'), self.state['source_head'])
+        self.assertEqual(self.state['repairs'], 2)
+        self.run.ci()
+        self.assertEqual(self.state['stage'], 'complete')
+
+    def test_rewrite_requires_authorization_review_and_unchanged_remote(self):
+        with self.assertRaisesRegex(RuntimeError, 'authorization'):
+            self.run.rewrite_publish('No authorization')
+        self.revision_fixture(); self.rewrite_fixture()
+        self.state['review'] = self.old['review']
+        with self.assertRaises(RuntimeError):
+            self.run.rewrite_publish('Stale review')
+        self.state['review'] = self.comments[-1]['html_url']
+        with patch.object(self.run, 'remote_head', return_value='moved'):
+            with self.assertRaisesRegex(RuntimeError, 'originally authorized lease'):
+                self.run.rewrite_publish('Remote moved')
+        self.assertNotIn('intent', self.state['history_revision'])
+
+    def test_rewrite_ambiguous_success_reconciles_without_repeating_push(self):
+        self.revision_fixture(); self.rewrite_fixture()
+        def transport(argv, *args, **kwargs):
+            result = self.command(argv, *args, **kwargs)
+            if argv[:2] == ['git', 'push']:
+                raise RuntimeError('Lost successful push response')
+            return result
+        with patch.object(delivery, 'command', side_effect=transport):
+            with self.assertRaisesRegex(RuntimeError, 'Lost successful'):
+                self.run.rewrite_publish('Approved rewrite')
+        self.assertEqual(self.state['published_head'], self.old['published_head'])
+        saved = json.loads((self.directory / 'state.json').read_text())
+        self.run = delivery.Delivery(self.directory, saved)
+        with patch.object(delivery, 'command', side_effect=self.command) as call:
+            self.run.rewrite_publish('Reconcile lost response')
+        self.assertFalse(any(c.args[0][:2] == ['git', 'push'] for c in call.call_args_list))
+        self.assertEqual(saved['stage'], 'ci')
+        self.assertEqual(self.creates, 1)
+
+    def test_revision_cross_pin_cli_keeps_pin_and_limits_other_actions(self):
+        self.revision_fixture()
+        pin = self.root / 'original-pin'
+        (pin / 'tracking').mkdir(parents=True)
+        (pin / 'tracking/delivery.py').write_text('# immutable original helper\n')
+        self.state['resource_root'] = str(pin)
+        self.run.save()
+        args = ['--key', 'fixture', '--state-dir', str(self.directory.parent)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(delivery.main(['authorize-revision', *args, '--plan', self.plan_url,
+                '--authorize-through-pr', '--allow-history-rewrite', '--reason', 'Approved revision']), 0)
+            self.assertEqual(delivery.main(['begin', *args]), 2)
+            self.assertEqual(delivery.main(['rewrite-publish', *args, '--reason', 'No fresh review yet']), 2)
+        saved = json.loads((self.directory / 'state.json').read_text())
+        self.assertEqual(saved['resource_root'], str(pin))
+        self.assertEqual((pin / 'tracking/delivery.py').read_text(), '# immutable original helper\n')
+
+    def test_revision_accepts_changed_contract_and_pins_exact_new_record(self):
+        self.revision_fixture()
+        self.issue['body'] = 'Return two with revised Live-only scope'
+        contract = self.record('contract', {'version': 2, 'outcome': 'Revised scope',
+            'requirements': [{'id': 'R1', 'expected': 'Return two', 'required': True}],
+            'constraints': [], 'exclusions': ['Historical fixture'], 'decisions': [], 'unresolved': [],
+            'checkpoint': packet.checkpoint(self.issue, self.comments)})
+        self.contract = contract['metadata']['record']
+        self.plan = {**self.plan, 'contract_revision': self.contract['revision']}
+        self.plan_url = self.record('plan', self.plan)['url']
+        self.authorize_revision()
+        self.assertNotEqual(self.state['contract_revision'], self.old['contract_revision'])
+        self.assertEqual(self.state['history_revision']['prior']['contract_revision'], self.old['contract_revision'])
+        self.assertEqual(self.state['history_revision']['plan_digest'], evidence.digest(self.plan))
+        self.run.plan()
+        self.plan['steps'] = ['Unauthorized later scope']
+        self.record('plan', self.plan)
+        with self.assertRaises(RuntimeError):
+            self.run.plan()
+
+    def test_rewrite_waits_for_matching_pr_after_push_and_rejects_changed_intent(self):
+        self.revision_fixture(); self.rewrite_fixture()
+        original = self.run.revision_pr
+        count = 0
+        def observe(head):
+            nonlocal count
+            count += 1
+            if count == 2:
+                raise RuntimeError('PR not yet updated')
+            return original(head)
+        with patch.object(self.run, 'revision_pr', side_effect=observe):
+            with self.assertRaisesRegex(RuntimeError, 'not yet updated'):
+                self.run.rewrite_publish('Approved rewrite')
+        self.assertEqual(self.state['stage'], 'publish')
+        self.assertEqual(self.state['published_head'], self.old['published_head'])
+        self.state['history_revision']['intent']['expected_head'] = 'different'
+        with self.assertRaisesRegex(RuntimeError, 'intent head changed'):
+            self.run.rewrite_publish('Reconcile')
+        self.state['history_revision']['intent']['expected_head'] = self.git(self.work, 'rev-parse', 'HEAD')
+        with patch.object(delivery, 'command', side_effect=self.command) as call:
+            self.run.rewrite_publish('Reconcile actual matching PR')
+        self.assertFalse(any(c.args[0][:2] == ['git', 'push'] for c in call.call_args_list))
+        self.assertEqual(self.state['stage'], 'ci')
+
+    def test_revision_rejects_unrelated_prepared_source_or_advanced_main(self):
+        self.revision_fixture()
+        self.state['source_head'] = self.old['published_head']
+        with self.assertRaisesRegex(RuntimeError, 'Prepared main revision'):
+            self.authorize_revision()
+        self.state['source_head'] = self.old['source_head']
+        (self.source / 'main-new.txt').write_text('main advanced\n')
+        self.git(self.source, 'add', 'main-new.txt')
+        self.git(self.source, 'commit', '-m', 'Advance main')
+        self.git(self.source, 'push', 'origin', 'main')
+        with self.assertRaisesRegex(RuntimeError, 'main advanced'):
+            self.authorize_revision()
+        self.assertNotIn('revisions', self.state)
+
+    def test_standard_publication_still_has_no_force_or_hook_bypass(self):
+        self.ready()
+        with patch.object(delivery, 'command', side_effect=self.command) as call:
+            self.publish()
+        pushes = [c.args[0] for c in call.call_args_list if c.args[0][:2] == ['git', 'push']]
+        self.assertEqual(len(pushes), 1)
+        self.assertEqual(pushes[0], ['git', 'push', '-u', 'origin', 'HEAD:refs/heads/feature'])
+
+    def additive_fixture(self):
+        self.ready(); self.publish(); self.run.ci()
+        self.state['repairs'] = 2
+        self.old = json.loads(json.dumps(self.state))
+        self.plan = {**self.plan, 'steps': ['Implement approved additive installer and preview release']}
+        self.plan_url = self.record('plan', self.plan)['url']
+        self.run.save()
+
+    def authorize_additive(self):
+        self.run.authorize_revision(self.plan_url, True, False, 'User approved exact additive plan through same PR')
+
+    def test_completed_additive_archives_completion_without_review_gate_or_rewrite_grant(self):
+        self.additive_fixture()
+        previous_rewrite = {'lease': 'original-lease', 'published_head': self.old['published_head'],
+                            'authorization': 'through-pr-and-branch-history-rewrite'}
+        self.state['history_revision'] = json.loads(json.dumps(previous_rewrite))
+        with patch.object(self.run, 'gate', side_effect=AssertionError('Superseded review must not gate new scope')):
+            with patch.object(delivery, 'command', side_effect=self.command) as call:
+                self.authorize_additive()
+        self.assertFalse(any(c.args[0][:2] in (['git', 'push'], ['git', 'commit'], ['git', 'merge'])
+                             for c in call.call_args_list))
+        self.assertEqual(self.state['stage'], 'execute')
+        for key in ('repairs', 'source_head', 'resource_root', 'pr', 'workers', 'worker_sessions',
+                    'published_head', 'owner_session', 'workspace', 'source', 'branch', 'origin'):
+            self.assertEqual(self.state[key], self.old[key])
+        self.assertEqual(self.state['repairs'], 2)
+        revision = self.state['revisions'][-1]
+        self.assertEqual(revision['authorization'], 'through-pr-additive-no-history-rewrite')
+        self.assertEqual(revision['prior']['stage'], 'complete')
+        for key in ('completed_at', 'plan', 'plan_digest', 'contract_revision', 'verification',
+                    'verification_run', 'review', 'ci', 'published_head'):
+            self.assertEqual(revision['prior'][key], self.old[key])
+        self.assertEqual(revision['lease'], self.old['published_head'])
+        self.assertEqual(self.state['history_revision'], previous_rewrite)
+        for key in ('verification', 'verification_run', 'review', 'ci', 'completed_at'):
+            self.assertNotIn(key, self.state)
+        self.run.plan()
+        with self.assertRaisesRegex(RuntimeError, 'authorization'):
+            self.run.rewrite_publish('Old rewrite grant cannot be reused')
+        with self.assertRaises(RuntimeError):
+            self.authorize_additive()
+        self.assertEqual(len(self.state['revisions']), 1)
+
+    def test_completed_additive_requires_exact_new_authorization_and_refuses_rewrite(self):
+        self.additive_fixture()
+        for plan, authorized, rewrite, reason in ((self.plan_url, False, False, 'Approved'),
+                (None, True, False, 'Approved'), (self.plan_url, True, False, ''),
+                (self.old['plan'], True, False, 'Approved'), (self.plan_url, True, True, 'Approved')):
+            with self.assertRaises(RuntimeError):
+                self.run.authorize_revision(plan, authorized, rewrite, reason)
+        self.assertEqual(self.state['stage'], 'complete')
+        self.assertEqual(self.state['completed_at'], self.old['completed_at'])
+        self.assertNotIn('revisions', self.state)
+
+    def test_completed_additive_rejects_pending_dirty_local_head_and_remote_drift(self):
+        self.additive_fixture()
+        self.state['attempt'] = {'id': 'pending'}
+        with self.assertRaisesRegex(RuntimeError, 'pending worker'):
+            self.authorize_additive()
+        self.state.pop('attempt')
+        (self.work / 'user-work.txt').write_text('Keep user work\n')
+        with self.assertRaisesRegex(RuntimeError, 'clean source'):
+            self.authorize_additive()
+        (self.work / 'user-work.txt').unlink()
+        self.state['published_head'] = self.state['source_head']
+        with self.assertRaisesRegex(RuntimeError, 'Original published head'):
+            self.authorize_additive()
+        self.state['published_head'] = self.old['published_head']
+        for heads in (['changed'], [self.old['published_head'], 'changed']):
+            with patch.object(self.run, 'remote_head', side_effect=heads):
+                with self.assertRaisesRegex(RuntimeError, 'Remote head changed'):
+                    self.authorize_additive()
+        self.assertEqual(self.state['stage'], 'complete')
+        self.assertNotIn('revisions', self.state)
+
+    def test_completed_additive_rejects_changed_or_closed_pr_including_final_observation(self):
+        self.additive_fixture()
+        original = self.run.view_pr()
+        for change in ({'state': 'MERGED'}, {'isDraft': True}, {'isCrossRepository': True},
+                       {'url': 'https://github.com/example/repo/pull/3'}, {'headRefName': 'other'},
+                       {'baseRefName': 'other'}, {'headRefOid': 'changed'}):
+            for views in ([{**original, **change}], [original, {**original, **change}]):
+                with patch.object(self.run, 'view_pr', side_effect=views):
+                    with self.assertRaises(RuntimeError):
+                        self.authorize_additive()
+        self.assertEqual(self.state['stage'], 'complete')
+        self.assertNotIn('revisions', self.state)
+
+    def test_completed_additive_retains_plan_and_current_contract_integrity_checks(self):
+        self.additive_fixture()
+        for index, old, new in ((-1, 'Implement approved', 'Tampered approved'),
+                                (1, 'Implement and verify', 'Tampered old plan')):
+            body = self.comments[index]['body']
+            self.comments[index]['body'] = body.replace(old, new)
+            with self.assertRaises(RuntimeError):
+                self.authorize_additive()
+            self.comments[index]['body'] = body
+        # A different URL alone is not a changed approved plan.
+        self.plan_url = self.record('plan', {**self.plan, 'steps': ['Implement and verify']})['url']
+        with self.assertRaisesRegex(RuntimeError, 'changed plan'):
+            self.authorize_additive()
+        self.plan_url = self.record('plan', self.plan)['url']
+        verify.approved_plan(self.issue, self.comments, self.plan_url)
+        self.issue['body'] += ' Unapproved contract change'
+        with self.assertRaises(RuntimeError):
+            self.authorize_additive()
+        self.assertEqual(self.state['stage'], 'complete')
+        self.assertNotIn('revisions', self.state)
+
+    def test_completed_additive_rejects_pending_rewrite_or_invalid_main_ancestry(self):
+        self.additive_fixture()
+        self.state['history_revision'] = {'lease': self.old['published_head']}
+        with self.assertRaisesRegex(RuntimeError, 'already pending'):
+            self.authorize_additive()
+        self.state.pop('history_revision')
+        self.state['source_head'] = self.old['published_head']
+        with self.assertRaisesRegex(RuntimeError, 'Prepared main revision'):
+            self.authorize_additive()
+        self.state['source_head'] = self.old['source_head']
+        (self.source / 'main-new.txt').write_text('main advanced\n')
+        self.git(self.source, 'add', 'main-new.txt')
+        self.git(self.source, 'commit', '-m', 'Advance main')
+        self.git(self.source, 'push', 'origin', 'main')
+        with self.assertRaisesRegex(RuntimeError, 'main advanced'):
+            self.authorize_additive()
+        self.assertNotIn('revisions', self.state)
+
+    def test_completed_additive_cross_pin_only_authorizes_then_uses_original_helper(self):
+        self.additive_fixture()
+        pin = self.root / 'original-pin'
+        (pin / 'tracking').mkdir(parents=True)
+        (pin / 'tracking/delivery.py').write_text('# immutable original helper\n')
+        self.state['resource_root'] = str(pin)
+        self.run.save()
+        args = ['--key', 'fixture', '--state-dir', str(self.directory.parent)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(delivery.main(['authorize-revision', *args, '--plan', self.plan_url,
+                '--authorize-through-pr', '--reason', 'Approved additive plan']), 0)
+            for action in ('begin', 'finish', 'commit', 'sync', 'publish', 'ci'):
+                self.assertEqual(delivery.main([action, *args]), 2)
+            self.assertEqual(delivery.main(['authorize-revision', *args, '--plan', self.plan_url,
+                '--authorize-through-pr', '--reason', 'Repeated request']), 2)
+        saved = json.loads((self.directory / 'state.json').read_text())
+        self.assertEqual(saved['stage'], 'execute')
+        self.assertEqual(saved['resource_root'], str(pin))
+        self.assertEqual(saved['repairs'], 2)
+        self.assertEqual(len(saved['revisions']), 1)
+        self.assertNotIn('history_revision', saved)
+        self.assertEqual((pin / 'tracking/delivery.py').read_text(), '# immutable original helper\n')
+
+    def test_completed_additive_full_lifecycle_updates_same_pr_without_force(self):
+        # Start from a real previously authorized and published rewrite, not a fresh run.
+        self.revision_fixture(); self.rewrite_fixture()
+        self.run.rewrite_publish('Publish previously approved rewrite')
+        self.run.ci()
+        old_rewrite = json.loads(json.dumps(self.state['history_revision']))
+        old_revisions = json.loads(json.dumps(self.state['revisions']))
+        self.old = json.loads(json.dumps(self.state))
+        self.plan = {**self.plan, 'steps': ['Add installer and preview release without rewriting history']}
+        self.plan_url = self.record('plan', self.plan)['url']
+        self.authorize_additive()
+        with self.assertRaisesRegex(RuntimeError, 'Passing review'):
+            self.run.publish(None, None)
+        with self.assertRaisesRegex(RuntimeError, 'authorization'):
+            self.run.rewrite_publish('No new force permission')
+        self.run.sync()
+        (self.work / 'installer.txt').write_text('Approved additive installer\n')
+        self.verification('writer-additive')
+        self.review(session='reviewer-additive')
+        self.run.commit('Add installer', ['installer.txt'])
+        with self.assertRaisesRegex(RuntimeError, 'authorization'):
+            self.run.rewrite_publish('Old grant still cannot force')
+        with patch.object(delivery, 'command', side_effect=self.command) as call:
+            self.run.publish(None, None)
+        pushes = [c.args[0] for c in call.call_args_list if c.args[0][:2] == ['git', 'push']]
+        self.assertEqual(pushes, [['git', 'push', '-u', 'origin', 'HEAD:refs/heads/feature']])
+        self.run.ci()
+        self.assertEqual(self.state['stage'], 'complete')
+        self.assertGreater(self.state['completed_at'], self.old['completed_at'])
+        self.assertEqual(self.state['pr'], self.old['pr'])
+        self.assertEqual(self.state['history_revision'], old_rewrite)
+        self.assertEqual(self.state['revisions'][:-1], old_revisions)
+        self.assertEqual(self.state['repairs'], 2)
+        self.assertEqual(self.creates, 1)
+        self.assertEqual(self.git(self.remote, 'rev-parse', 'main'), self.old['source_head'])
+        self.git(self.work, 'merge-base', '--is-ancestor', self.old['published_head'], 'HEAD')
 
     def test_ambiguous_pr_creation_reconciles_without_duplicate(self):
         self.ready()
