@@ -132,4 +132,4 @@ _ghp() {
   done < "$file"
   _arguments "1:profile:(list $profiles)"
 }
-(( $+functions[compdef] )) && compdef _ghp ghp
+if (( $+functions[compdef] )); then compdef _ghp ghp; fi
