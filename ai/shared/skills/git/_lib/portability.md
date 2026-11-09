@@ -1,10 +1,10 @@
 # Host tools and paths
 
 Use the current assistant's native tools. `AskUserQuestion` means its interactive
-question tool (OpenCode: `question`); if none exists, ask in chat and wait for the
+question tool; if none exists, ask in chat and wait for the
 answer. `Bash`, `Read`, `Edit`, and `Task` mean the corresponding available tools,
 not a requirement to install Claude. Only delegate to agents the host actually has.
-Model/effort frontmatter is a host hint; OpenCode routing belongs to its configuration.
+Model/effort frontmatter is a host hint.
 
 The examples use the canonical `~/dotfiles/ai/shared/skills/git` location. If the
 skill is loaded from another checkout or a pinned snapshot, substitute that

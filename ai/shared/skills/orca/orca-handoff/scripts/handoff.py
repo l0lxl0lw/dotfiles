@@ -16,6 +16,16 @@ class Blocked(Exception):
     pass
 
 
+# Empty-prompt screens observed per agent: (prompt line prefix, all of, any of, none of).
+# A folder-trust dialog must never receive the brief: Enter there can exit the agent
+# (Claude's default choice is "No, exit"), so its wording is forbidden explicitly.
+READY_SCREENS = {
+    'opencode': ('', ('Ask anything', 'ctrl+p commands', 'tab agents'), (), ()),
+    'claude': ('❯', (), ('? for shortcuts', 'shift+tab to cycle'), ('trust this folder', 'Enter to confirm')),
+    'codex': ('›', ('? for shortcuts',), (), ('trust this folder', 'enter continue')),
+}
+
+
 def require(condition, message):
     if not condition:
         raise Blocked(message)
@@ -104,6 +114,8 @@ class Handoff:
         require(all(flag in create for flag in ('--agent', '--repo', '--no-parent', '--setup'))
                 and all(flag in send for flag in ('--retry-request', '--wait-submit'))
                 and 'tui-idle' in guide, 'Installed contract is incompatible; inspect saved guide/help before proceeding.')
+        # Delivery needs a terminal handle; a per-agent "chat" setting would yield none.
+        self.state['terminal_surface'] = '--surface' in create
         self.state['runtime'] = runtime
         self.save()
 
@@ -215,12 +227,17 @@ class Handoff:
         if terminal.get('paneRuntimeId') == -1:
             return False
         tail = screen.get('tail', [])
-        text = '\n'.join(tail) if isinstance(tail, list) else ''
-        if self.state['agent'] == 'opencode':
+        lines = [line for line in tail if isinstance(line, str)] if isinstance(tail, list) else []
+        text = '\n'.join(lines)
+        markers = READY_SCREENS.get(self.state['agent'])
+        if markers:
             # Version-bounded screen fallback: unknown layouts fail closed.
+            prompt, required, any_of, forbidden = markers
             return (screen.get('source') == 'screen'
-                    and 'Ask anything' in text and 'ctrl+p commands' in text
-                    and 'tab agents' in text)
+                    and (not prompt or any(line.lstrip().startswith(prompt) for line in lines))
+                    and all(m in text for m in required)
+                    and (not any_of or any(m in text for m in any_of))
+                    and not any(m.lower() in text.lower() for m in forbidden))
         return bool(text.strip())
 
     def reconcile_accepted(self):
@@ -238,7 +255,8 @@ class Handoff:
                 'Inspect the terminal; unsupported providers cannot prove startup through this receipt.')
 
     def recover_undelivered(self):
-        require(self.state['agent'] == 'opencode', 'Explicit empty-prompt recovery currently supports OpenCode only.')
+        require(self.state['agent'] in READY_SCREENS,
+                'Explicit empty-prompt recovery requires a recognized prompt for: ' + ', '.join(READY_SCREENS))
         require(self.state['phase'] == 'accepted',
                 'Explicit recovery requires accepted-but-unconfirmed input.')
         require('turn_started' not in (self.state.get('receipt', {}).get('prompt') or {}).get('stages', []),
@@ -292,6 +310,8 @@ class Handoff:
             else:
                 args = ['worktree', 'create', '--repo', self.state['repo'], '--name', self.state['name'],
                         '--no-parent', '--agent', self.state['agent'], '--json']
+                if self.state.get('terminal_surface'):
+                    args += ['--surface', 'terminal']
                 if self.state.get('setup'):
                     args += ['--setup', self.state['setup']]
                 self.call(args, timeout=180, mutation='create')
@@ -336,7 +356,9 @@ class Handoff:
                     time.sleep(1)
                 if ready:
                     break
-        require(ready, 'Readiness not proven within two bounded waits; no prompt sent. Inspect terminal manually. Do not restart with a new key.')
+        require(ready, 'Readiness not proven within two bounded waits; no prompt sent. Inspect terminal manually '
+                '(a new worktree may show a folder-trust dialog: accept it there, then use retry-ready). '
+                'Do not restart with a new key.')
         args = ['terminal', 'send', '--terminal', self.state['handle'], '--text', self.state['brief'],
                 '--enter', '--wait-submit', '10', '--json']
         self.state['send_args'] = args
@@ -367,6 +389,13 @@ class Handoff:
                 'warnings': self.state.get('warnings', []), 'inspection_argv': inspections}
 
 
+def default_agent(environ=None):
+    """The CLI running this helper, unless DEVELOP_RECEIVER_AGENT names another."""
+    env = os.environ if environ is None else environ
+    return env.get('DEVELOP_RECEIVER_AGENT') or (
+        'claude' if env.get('CLAUDECODE') == '1' else 'codex' if env.get('CODEX_THREAD_ID') else 'opencode')
+
+
 def target_env():
     return {key: os.environ.get(key) for key in ('ORCA_ENVIRONMENT', 'ORCA_PAIRING_CODE')}
 
@@ -379,7 +408,7 @@ def main(argv=None):
     parser.add_argument('--repo')
     parser.add_argument('--name')
     parser.add_argument('--terminal')
-    parser.add_argument('--agent', default='opencode')
+    parser.add_argument('--agent', help='Orca agent id; defaults to the CLI running this helper')
     parser.add_argument('--setup', choices=['inherit', 'run', 'skip'])
     parser.add_argument('--brief-file', type=Path)
     parser.add_argument('--worktree-id', help='Explicit manual reconciliation of an uncertain create (adopt only)')
@@ -408,7 +437,7 @@ def main(argv=None):
                 require(brief.strip() and '\x00' not in brief, 'Brief must be nonempty text without NUL.')
                 state = {'version': 1, 'phase': 'new', 'cli': resolve_cli(), 'target_env': target_env(),
                          'repo': args.repo, 'name': args.name, 'handle': args.terminal,
-                         'agent': args.agent, 'setup': args.setup, 'brief': brief, 'calls': []}
+                         'agent': args.agent or default_agent(), 'setup': args.setup, 'brief': brief, 'calls': []}
                 atomic_json(path, state)
             else:
                 require(path.exists(), 'Unknown operation key; no saved state.')

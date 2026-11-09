@@ -10,6 +10,7 @@ the integration. Launch Codex afterwards to sign in.
 ```
 dotfiles/ai/codex/
 ├── AGENTS.md            -> ~/.codex/AGENTS.md     # global instructions, every session
+├── agents/*.toml        => ~/.codex/agents/       # generated agent roles, copied (see below)
 ├── config.toml.managed  -> spliced into ~/.codex/config.toml between markers
 └── skills/              -> ~/.codex/skills/<name> # Codex-local skills, flattened
 ```
@@ -20,6 +21,36 @@ same flattened Codex namespace. Codex-local skills win on name collisions.
 At launch the `codex()` wrapper also exposes repository-local `.claude/skills` through a
 temporary catalog under `~/.codex/skills`. The repository remains untouched, and the
 catalog is removed when that Codex process exits.
+
+`agents/` holds the agent roles that `develop-prepare` and `develop-deliver` spawn with
+`spawn_agent` (`agent_type`, always with `fork_turns: "none"`). They are generated from
+[`ai/shared/agents`](../shared/agents/README.md) together with the Claude
+versions; edit the source there and run `render.py`. These are copied, not linked:
+Codex 0.166 shows symlinked roles but fails to spawn them. Copies starting with the
+render.py notice are refreshed or pruned on sync; other files are left alone.
+Models come from tiers in `tiers.json`, and the sync warns when a mapped model is
+missing from Codex's model list.
+
+## Next prompts
+
+Global `AGENTS.md` instructions enable the Codex-local `next-steps` skill after
+substantive completed turns. It appends up to three contextual follow-up prompts;
+`$next-steps` also requests a list on demand. Reply with a listed number to receive
+a copyable draft, then edit and submit the prompt yourself. `0` dismisses the list.
+`next steps off` and `next steps on` toggle automatic suggestions for the current
+conversation. Suggestions never execute automatically.
+
+This adapts the behavior of Claude Code's
+[next-steps mod](https://github.com/anthropics/claude-plugins-community/tree/main/next-steps)
+using Codex instructions. Suggestions appear in the answer. The documented Codex
+[hook API](https://learn.chatgpt.com/docs/hooks) does not expose that mod's
+`AbovePrompt`, `prompt.fill`, or `prompt.suggest` UI interfaces, so this adaptation
+does not provide single-key selection, ghost text, or composer insertion. Number
+selection requires sending a message. No hook process, API key, or extra model
+request is needed; behavior depends on the model following the instructions.
+
+Launch a fresh Codex session through the shell wrapper to sync and load the skill.
+The global instruction file is already symlinked on configured machines.
 
 ## Settings (status line, etc.)
 
@@ -166,8 +197,8 @@ Codex imports shared skills from:
 
 - `ai/shared/skills`
 
-Shared skills currently include the git workflows, Impeccable design skills, OMC planning
-skills, integrations, community skills, and utilities.
+Shared skills currently include the develop, git, explain, learn, write, use, orca,
+remember, respond and sentry families; see `ai/shared/README.md` for the catalog.
 
 The same tree is imported by the Claude and Grok syncs, so a skill added there reaches
 all three tools.
@@ -179,7 +210,7 @@ skipped during sync.
 ### `model` and `effort` do not cross over
 
 Some shared skills carry `model:` and `effort:` frontmatter — `ai/shared/skills/git/*` ask
-for `sonnet`/`medium`, `ai/shared/skills/utilities/*` for `opus`/`high`. **Those two fields
+for `sonnet`/`medium`, `ai/shared/skills/write/write-html` for `opus`/`high`. **Those two fields
 are Claude-only.** Codex 0.149.1 reads exactly `name`, `description` and `metadata`
 (`metadata.short-description`) out of a `SKILL.md`; its own bundled `skill-creator` says the
 same, and its loader silently ignores everything else, so the fields cost nothing but buy

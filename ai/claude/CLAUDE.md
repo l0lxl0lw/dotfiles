@@ -36,7 +36,7 @@ dotfiles/ai/shared/
 
 Caveats worth knowing:
 
-- Run the function manually after adding or renaming a skill, agent, or hook. Editing the *contents* of an existing file needs no re-run at all — the symlinks make it live immediately.
+- The `claude()` shell wrapper runs it before every launch (the `cc*` aliases go through it), so adding or renaming a skill, agent, or hook takes effect in the next session. Editing the *contents* of an existing file needs no re-run at all — the symlinks make it live immediately. A declined `claude` component (disabled-sync marker) skips it.
 - It **converges rather than rebuilds**: a link that is already correct is not touched, so the steady state is zero writes and no window where a concurrent session sees a missing skill. It prints nothing when there was nothing to do.
 - Cleanup is surgical: the function only deletes symlinks that point back into this directory (or the legacy `~/workspace/claude-config` path). Real directories and symlinks owned by other installers are left alone.
 - `~/.claude/skills` is shared with gstack, which installs its skills as real directories. Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
@@ -78,7 +78,8 @@ category: engineering|analysis|quality|planning
 ---
 ```
 
-After adding either, run `claude_merge_config` to create the symlink.
+The next `claude` launch creates the symlink; run `claude_merge_config` to do it now.
+`agents/workflow/` is generated from `ai/shared/agents` by `render.py` — edit the source there, not these files.
 
 ## Conventions
 

@@ -37,7 +37,6 @@ Python and Node are not needed to start the wizard. Linux is not supported by it
 | `claude` | Offers Homebrew `claude-code` and jq; initializes status-line settings and links skills/agents/hooks |
 | `codex` | Offers Homebrew `codex`; initializes managed settings and links skills/instructions; respects `CODEX_HOME` |
 | `grok` | Configures an existing Grok CLI, respecting `GROK_HOME`; missing CLI is reported for manual installation because no verified package is registered |
-| `opencode` | Offers Homebrew `opencode`, Python and GitHub CLI; links its catalog and applies portable global settings under `XDG_CONFIG_HOME` |
 | `private-config` | Optionally clones a user-supplied private Git URL into `~/dotfiles-private` |
 | `life-memory` | Offers Python 3.12, isolated Basic Memory dependencies, vault/backup paths, selected-client hooks/MCP and optional launchd maintenance |
 
@@ -46,19 +45,17 @@ executables are reused. Declining a dependency skips the component. Ordinary
 setup does not upgrade installed applications.
 
 Setup does not transfer credentials. Launch selected assistants to sign in;
-use `gh auth login` for GitHub workflows. Configure OpenCode models through its
-native settings and the managed agent/command definitions. Quit and
-restart OpenCode after changing its catalog. Codex memory hooks require native
+use `gh auth login` for GitHub workflows. Codex memory hooks require native
 review/trust through `/hooks` in a fresh session.
 
 ## Select, inspect, update
 
 ```sh
-./deploy.sh --only codex,opencode
+./deploy.sh --only claude,codex
 ./deploy.sh --dry-run              # no downloads, writes, or prompts
 ./deploy.sh --doctor               # read-only executable/link inventory
 git pull --ff-only                 # explicit repository update; resolve local conflicts yourself
-./deploy.sh --update --only zsh,tmux,codex,opencode
+./deploy.sh --update --only zsh,tmux,claude,codex
 ```
 
 `--update` offers upgrades for selected Homebrew-managed applications and
@@ -71,24 +68,18 @@ Shell startup performs **no downloads, application installation, repository pull
 or AI synchronization**. It loads tracked `zsh/*.zsh` and optional private
 `~/dotfiles-private/zsh/*.zsh`. Missing autosuggestions and AWS completion are safe.
 
-Claude catalog synchronization is explicit (`claude_merge_config`). Codex, Grok
-and OpenCode synchronize managed resources when launched through their shell
-wrappers. Grok also has a SessionStart sync hook. Normal synchronization preserves
-foreign files; use the installer to review collisions. OpenCode's wrapper launches
-the snapshot-based workflow described in [ai/opencode/README.md](ai/opencode/README.md).
-
-OpenCode's portable settings live in `ai/opencode/settings/` and
-`ai/opencode/cli.json`. Use `opencode_settings status` and `opencode_settings apply`
-to review and propagate them. Application changes stay local until explicitly
-captured, for example `opencode_settings import --key /model`. Settings are writable
-copies, not repo symlinks; credentials and machine-specific integrations remain local.
-See [global settings](ai/opencode/README.md#global-settings) for migration and conflicts.
+Claude, Codex and Grok synchronize managed resources when launched
+through their shell wrappers (`claude_merge_config` and friends can also be run
+directly). Grok also has a SessionStart sync hook. Normal synchronization preserves
+foreign files; use the installer to review collisions.
 
 Development uses two public commands: `/develop-prepare` scopes features or bug
 fixes on `main`; an explicitly approved `/develop-deliver` transfers execution to
 an Orca feature workspace for independent review, bounded repairs, commits and a
-PR with required CI passing. See [the development workflow](ai/shared/skills/develop/README.md)
-for approval boundaries, main integration and recovery.
+PR with required CI passing. Both commands work the same from Claude Code
+or Codex, and a delivery can continue in another CLI when one runs out. See
+[the development workflow](ai/shared/skills/develop/README.md) for approval
+boundaries, main integration, recovery and switching CLIs.
 
 Declining an AI component disables its automatic catalog sync using a small marker
 under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A successful
@@ -145,8 +136,8 @@ Review the summary, fix a failed component, and rerun with `--only`.
 | `zsh/` | Shell startup, functions, aliases and optional completions |
 | `vim/`, `tmux/`, `emacs/` | Editor/multiplexer settings |
 | `ai/claude/`, `ai/codex/`, `ai/grok/` | Tool-specific resources and documentation |
-| `ai/shared/` | Canonical cross-tool skills, flattened by the sync helpers |
-| `ai/opencode/` | OpenCode agents, commands, TUI and workflow runtime |
+| `ai/shared/` | Canonical cross-tool skills, flattened by the sync helpers, and [workflow agents](ai/shared/agents/README.md) rendered per tool |
+| `ai/shared/workflow/` | Issue tracking, evidence records and delivery helpers used by the develop skills |
 | `ai/memory/` | Optional local Life vault integration; [setup and operations](ai/memory/README.md) |
 
 To add an application, add `install/modules/<name>.sh` implementing
@@ -164,8 +155,9 @@ service are optional separate installations.
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*test.py' -v
-zsh zsh/tests/opencode_config_test.zsh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ai/shared/workflow/tests -p '*_test.py'
 zsh zsh/tests/codex_repo_skills_test.zsh
+zsh zsh/tests/agent_catalog_test.zsh
 ```
 
 Installer tests use temporary homes, paths containing spaces and stubbed package

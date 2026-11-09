@@ -257,11 +257,14 @@ Specialized AI agent personas that provide focused expertise for different devel
 | `learning-guide` | Teaching programming concepts progressively |
 | `deep-research-agent` | Comprehensive research with adaptive strategies |
 
-### Integrations
+### Development workflow (`agents/workflow/`, generated)
 
-| Agent | Purpose |
-|-------|---------|
-| `notion` | Search and interact with Notion workspace via MCP |
+The workers `develop-prepare` and `develop-deliver` dispatch: `codebase-locator`,
+`codebase-analyzer`, `codebase-pattern-finder`, `thoughts-locator`,
+`thoughts-analyzer`, `web-search-researcher`, `develop-plan`, `develop-scope-review`,
+`develop-execute` and `develop-review`. They are rendered from
+[`ai/shared/agents`](../shared/agents/README.md), together with the matching
+Codex roles; edit the source there and run `render.py`.
 
 ## Global vs. Project-Specific
 
@@ -287,7 +290,7 @@ my-project/
 3. **Agents**: each `agents/**/*.md` is symlinked into a mirrored tree under `~/.claude/agents`, and invoked automatically by Claude Code when a task matches their descriptions
 4. **Hooks**: every top-level file in `hooks/` is symlinked into `~/.claude/hooks`, and `statusline.sh` is wired into `settings.json` as the statusline command. Adding another script to `hooks/` is never sufficient on its own — nothing runs it until something in `settings.json` names it
 
-Because it symlinks, editing a skill's contents takes effect immediately. Adding or renaming one requires re-running `claude_merge_config`.
+Because it symlinks, editing a skill's contents takes effect immediately. Adding or renaming one takes effect at the next `claude` launch, since the shell wrapper runs `claude_merge_config` first.
 
 ## Setup
 
@@ -295,9 +298,10 @@ Because it symlinks, editing a skill's contents takes effect immediately. Adding
 2. Accept installation if Claude/jq is missing; review backups/conflicts, then launch Claude to sign in.
    The installer performs the initial sync and initializes status-line settings.
 
-Run `claude_merge_config` again after adding or renaming a skill, agent, or hook. Editing an
-existing linked file takes effect immediately. The function does not install a `SessionStart`
-hook or otherwise run automatically.
+The `claude()` zsh wrapper runs `claude_merge_config` before each launch, so additions and
+renames reach the next session; run it directly to apply them sooner. Editing an existing
+linked file takes effect immediately. Declining the `claude` component in the installer
+disables the wrapper's sync. No `SessionStart` hook is installed.
 
 Safe to re-run at any time — it only removes symlinks it owns, and leaves gstack's skills alone.
 

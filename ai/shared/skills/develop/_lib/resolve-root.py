@@ -20,7 +20,7 @@ def resolve_root(library=None, environ=None):
             raise RuntimeError("Invalid inherited OPENCODE_WORKFLOW_ROOT: " + str(root))
         return root
     for parent in (library, *library.parents):
-        for root in (parent, parent / "opencode", parent / "ai/opencode"):
+        for root in (parent, parent / "workflow", parent / "ai/shared/workflow"):
             if valid(root):
                 return root.resolve()
     raise RuntimeError("Development evidence integration unavailable; supply a valid OPENCODE_WORKFLOW_ROOT")

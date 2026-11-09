@@ -17,8 +17,7 @@ context; the owner runs helpers and needed baseline checks.
    manual proof if automation is impractical.
 3. Specify exact affected components and 2–4 ordered implementation steps. Include
    targeted argv/cwd/check formats, prerequisites, environment assumptions,
-   required repository/CI checks and baseline exclusions. Read the existing
-   `.opencode/workflow/checks.json`; do not write it during preparation.
+   required repository/CI checks and baseline exclusions.
 4. Cover every required criterion with checks or a justified review_reason and
    concrete manual evidence expectations. Compilation is not behavioral proof.
    Required failures cannot be waived by labeling them baseline. Unresolved

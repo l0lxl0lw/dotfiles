@@ -1,7 +1,7 @@
 # Independent review — internal worker method
 
 Read sibling [workflow.md](workflow.md), resolve ROOT with resolve-root.py, and
-read ROOT/tracking/references/delivery.md. Be a fresh Task worker independent of
+read ROOT/tracking/references/delivery.md. Be a fresh worker (workflow.md Hosts) independent of
 the coordinator and every execution worker. If this context implemented the
 change or contains its reasoning, report blocked and ask the owner for a new
 worker. Never label self-review independent or edit application files.

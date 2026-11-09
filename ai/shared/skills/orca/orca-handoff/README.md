@@ -18,7 +18,10 @@ python3 ai/shared/skills/orca/orca-handoff/scripts/handoff.py resume --key fix-l
 ```
 
 `--terminal term_HANDLE` replaces `--repo`/`--name` for existing-terminal handoff.
-`--agent` defaults to `opencode`. `--setup run|skip|inherit` is optional for creation;
+`--agent opencode|claude|codex` defaults to the CLI running the helper
+(`DEVELOP_RECEIVER_AGENT` overrides). When Orca supports it, creation adds
+`--surface terminal` so a per-agent chat setting cannot remove the terminal handle.
+`--setup run|skip|inherit` is optional for creation;
 omission preserves Orca's inherited policy. Independent creation omits
 `--base-branch`; Orca chooses the configured repository default. No model flags,
 `--prompt`, fallback shell creation, or settings changes are used.
@@ -85,6 +88,10 @@ OpenCode readiness currently recognizes its rendered `Ask anything` prompt with
 `tab agents` and `ctrl+p commands` hints in a `source: screen` read. A missing
 renderer (`paneRuntimeId: -1`), blank terminal, startup output, or an unknown
 layout cannot pass. The helper revalidates process identity after waiting.
+Claude Code needs its `❯` prompt line plus its mode or shortcut hint; Codex needs
+its `›` prompt line plus `? for shortcuts`. A folder-trust dialog never passes:
+pressing Enter there would exit Claude (its default is "No, exit") or trust the
+folder in Codex. Accept the dialog in the Orca terminal, then use `retry-ready`.
 Other agents require nonempty terminal output in addition to the idle wait.
 
 Orca 1.4.206 can report OpenCode's delivery provider as `unsupported`. Even with
@@ -109,11 +116,9 @@ proof that a mutation failed.
 
 ```sh
 python3 -B -m unittest discover -s ai/shared/skills/orca/orca-handoff/tests -p '*_test.py'
-python3 -B -m unittest discover -s ai/opencode/tests -p 'skill_catalog_test.py'
 ```
 
 Tests use a separate fake executable, temporary state and argv logs; they never
-launch real agents or change Orca settings. The shared catalog installer and
-OpenCode snapshot loader include this skill's helper/resources. OpenCode's
-`/orca-handoff` command routes to the shared skill. Sync configuration through the
-normal launcher, then **quit and restart OpenCode** to discover the change.
+launch real agents or change Orca settings. The shared catalog installer includes
+this skill's helper/resources. Claude Code and Codex pick it up from their shell
+wrappers on the next launch.

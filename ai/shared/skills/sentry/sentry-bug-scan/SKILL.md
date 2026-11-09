@@ -2,7 +2,7 @@
 name: sentry-bug-scan
 description: Find one reliable, previously unreported bug in the current codebase and explain the concrete failure with source evidence. Use only when the user invokes /sentry-bug-scan or explicitly asks for a focused bug hunt.
 disable-model-invocation: true
-compatibility: OpenCode with the codebase-analyzer subagent
+compatibility: Claude Code or Codex with the codebase-analyzer subagent
 ---
 
 # Bug Sentry

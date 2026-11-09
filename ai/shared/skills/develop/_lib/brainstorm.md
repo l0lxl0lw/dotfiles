@@ -26,8 +26,7 @@ Split independent subsystems into deliverable slices when needed.
 Ask one focused question at a time via the host's question tool, then wait.
 Cover purpose/users, scope/exclusions, happy path, errors/permissions/retries,
 constraints, compatibility and observable acceptance where relevant. Ask about
-tracker destinations only when publication becomes relevant. Repository and
-Project board are independent destinations, not inferred from one another.
+the issue repository only when publication becomes relevant; never infer it.
 
 Discuss 2–3 approaches only when a real choice exists. For settled work, proceed
 directly. Review a larger design in coherent sections and preserve decisions and

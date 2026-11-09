@@ -29,7 +29,9 @@ class HandoffTest(unittest.TestCase):
         self.brief = self.root / 'task brief.txt'
         self.text = 'Implement "quoted task"; $(touch NEVER)\nDo not commit. Café 🚀'
         self.brief.write_text(self.text)
-        self.env = dict(os.environ, ORCA_CLI_COMMAND=str(self.fake), FAKE_ORCA_ROOT=str(self.root))
+        host = ('CLAUDECODE', 'CODEX_THREAD_ID', 'DEVELOP_RECEIVER_AGENT')
+        self.env = {k: v for k, v in os.environ.items() if k not in host}
+        self.env.update(ORCA_CLI_COMMAND=str(self.fake), FAKE_ORCA_ROOT=str(self.root))
         self.configure()
 
     def configure(self, **kwargs):
@@ -143,6 +145,40 @@ class HandoffTest(unittest.TestCase):
         handoff.state['terminal_read']['terminal']['source'] = 'screen'
         handoff.state['terminal']['paneRuntimeId'] = -1
         self.assertFalse(handoff.input_ready())
+
+    # Screens captured from Claude Code 2.1.311 and Codex 0.166.0 in a terminal.
+    CLAUDE_IDLE = ['❯ Try "how do I log an error?"', '─' * 20, '  ~/repo · repo · main · Opus 5.5 · medium',
+                   '  ⏵⏵ auto mode on (shift+tab to cycle)']
+    CLAUDE_TRUST = [' Quick safety check: Is this a project you created or one you trust?', ' ❯ No, exit',
+                    '   Yes, I trust this folder', ' Enter to confirm · Esc to cancel']
+    CODEX_IDLE = ['› Ask Codex to do anything', '  ~/repo · repo · main · Context 0% used',
+                  '  ← for agents · ? for shortcuts']
+    CODEX_TRUST = ['  Trust this folder? Codex can read, edit, and run files here.', '› 1. Trust and continue',
+                   '  2. Back to Agent Command Center', '  enter continue · esc back']
+
+    def test_claude_and_codex_ready_only_at_their_empty_prompt(self):
+        for agent, idle, blocked in (('claude', self.CLAUDE_IDLE, self.CLAUDE_TRUST),
+                                     ('codex', self.CODEX_IDLE, self.CODEX_TRUST)):
+            handoff = helper.Handoff(self.root, {'agent': agent, 'terminal': {},
+                                               'terminal_read': {'terminal': {'source': 'screen', 'tail': idle}}})
+            self.assertTrue(handoff.input_ready(), agent)
+            for tail in (blocked, ['Loading…'], self.CLAUDE_IDLE if agent == 'codex' else self.CODEX_IDLE):
+                handoff.state['terminal_read']['terminal']['tail'] = tail
+                self.assertFalse(handoff.input_ready(), (agent, tail))
+
+    def test_default_agent_is_the_running_cli(self):
+        self.assertEqual(helper.default_agent({}), 'opencode')
+        self.assertEqual(helper.default_agent({'CLAUDECODE': '1'}), 'claude')
+        self.assertEqual(helper.default_agent({'CODEX_THREAD_ID': 'thread'}), 'codex')
+        self.assertEqual(helper.default_agent({'CLAUDECODE': '1', 'DEVELOP_RECEIVER_AGENT': 'codex'}), 'codex')
+
+    def test_claude_receiver_gets_terminal_surface_and_brief(self):
+        self.configure(surface=True, tail=self.CLAUDE_IDLE, agent='claude')
+        self.run_helper(extra=['--agent', 'claude'])
+        create = self.calls(['worktree', 'create'])[0]
+        self.assertEqual(create[create.index('--agent') + 1], 'claude')
+        self.assertEqual(create[create.index('--surface') + 1], 'terminal')
+        self.assertEqual(self.runtime()['deliveries'], 1)
 
     def test_explicit_recovery_retains_receipt_and_reuses_workspace(self):
         self.configure(scenario='unsupported')

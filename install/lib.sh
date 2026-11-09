@@ -190,7 +190,7 @@ restore_backup() {
 doctor() {
   local exe pair
   say "Platform: $(uname -s) $(uname -m); repository: $ROOT"
-  for exe in git zsh vim tmux jq python3 claude codex grok opencode gh; do
+  for exe in git zsh vim tmux jq python3 claude codex grok gh; do
     if command -v "$exe" >/dev/null 2>&1; then say "$exe: $(command -v "$exe")"
     else say "$exe: missing (optional unless selected)"; fi
   done
@@ -201,18 +201,17 @@ doctor() {
     else say "$dst: not managed by this installer"; fi
   done
   say 'Authentication: run gh auth status; launch each selected assistant to verify provider access.'
-  say 'OpenCode workflow: opencode_workflow --doctor (writes temporary runtime state).'
   say 'Life memory: ~/.local/share/life-memory-venv/bin/python ~/dotfiles/ai/memory/memory.py doctor'
 }
 usage() {
-  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,grok,opencode,life-memory,private-config] [--dry-run] [--update]'
+  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,grok,private-config,life-memory] [--dry-run] [--update]'
   say '       ./deploy.sh --doctor | --restore BACKUP_ID | --help'
   say 'All install/overwrite choices are interactive. Dry-run and doctor make no changes.'
 }
 sync_selection() {
   # Remember declined AI integrations so shell wrappers cannot enable them later.
   local id="$1" enabled="$2" dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync"
-  case "$id" in claude|codex|grok|opencode) ;; *) return 0;; esac
+  case "$id" in claude|codex|grok) ;; *) return 0;; esac
   (( DRY_RUN )) && return 0
   if [[ "$enabled" == yes ]]; then
     if [[ -f "$dir/$id" ]]; then rm -f "$dir/$id"; fi
@@ -236,7 +235,7 @@ main() {
     shift
   done
   brew_path || true
-  export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"
+  export PATH="$HOME/.local/bin:$PATH"
   if [[ "$MODE" == doctor ]]; then doctor; return; fi
   [[ "$(uname -s)" == Darwin ]] || die 'This installer supports macOS only.'
   [[ "$ROOT" == "$(cd "$HOME" && pwd -P)/dotfiles" ]] || die 'Clone this repository at ~/dotfiles; runtime integrations currently require that location.'
@@ -254,7 +253,7 @@ main() {
   if [[ "$MODE" == update ]]; then
     say 'Update plugins and optionally selected Homebrew packages. Update dotfiles first with git pull --ff-only, then rerun this command.'
   fi
-  selected=(zsh vim tmux emacs claude codex grok opencode private-config life-memory)
+  selected=(zsh vim tmux emacs claude codex grok private-config life-memory)
   for module in "$ROOT"/install/modules/*.sh; do
     id="${module##*/}"; id="${id%.sh}"
     [[ " ${selected[*]} " == *" $id "* ]] || selected+=("$id")
@@ -280,6 +279,6 @@ main() {
   done
   say ''; say 'Summary:'; printf '  %s\n' "${RESULTS[@]}"
   say "Backups (when requested): $BACKUP_ROOT"
-  say 'Start a new terminal. Sign in to selected apps; restart OpenCode to reload its catalog.'
+  say 'Start a new terminal. Sign in to selected apps.'
   (( failures == 0 ))
 }

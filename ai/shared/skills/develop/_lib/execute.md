@@ -26,10 +26,10 @@ the delivery loop; return its evidence to the owner.
    budget. Record each finding as fixed/disputed/unresolved with source evidence.
    Unresolved/disputed required findings still block. No implicit reset or extra
    repair beyond the owner's persisted authorization.
-5. Reconcile the check manifest with `verify.py init ISSUE --plan PLAN_URL`.
-   Preserve an incompatible existing manifest and report a material change.
-   Finish edits then `verify.py run ISSUE --plan PLAN_URL`. Reuse only matching
-   source/environment evidence; check external state separately. Preserve exits,
+5. Finish edits then `verify.py run ISSUE --plan PLAN_URL`; checks come from the
+   approved plan's check_manifest and nothing is written into the repository.
+   Reuse only matching source/environment evidence; check external state
+   separately. Preserve exits,
    skipped/missing checks, baseline facts and actual private runner logs.
 6. Publish `handoff.py record ISSUE verification --run RUN_ID`, including the
    repair Review as --input and explicitly superseding prior Verification.

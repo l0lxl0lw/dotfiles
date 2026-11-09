@@ -18,8 +18,10 @@ the executable protocol; use its helper rather than inventing state commands.
 Require the exact issue/plan and explicit **deliver through PR** authorization.
 An approved preparation with **publish and deliver through PR** supplies it.
 Initialize one delivery journal, then dispatch through the physical `orca-handoff`
-helper using the delivery helper's `dispatch` action. Wait for the receiving
-workflow's acknowledgement using `wait-start`. The old Orca accepted receipt alone
+helper using the delivery helper's `dispatch` action. The receiver is the
+same CLI you dispatch from (Claude Code or Codex) unless the user asks
+for another via `dispatch --agent`. Wait for the receiving workflow's
+acknowledgement using `wait-start`. The old Orca accepted receipt alone
 does not prove startup. Report the workspace, key and startup status, then stop.
 The receiving workspace owns delivery; do not supervise its completion from main.
 
@@ -33,16 +35,17 @@ and must report that limitation before launching anything.
 The brief provides the exact pinned protocol/helper paths, key, state directory,
 approved plan and authorization. Read them even if the receiver launcher has an
 older catalog. Acknowledge the run from the exact created workspace using the
-actual receiving session ID. Inspect/resume its journal and reconcile current
-Git, artifact and PR state; never initialize or redispatch from the receiver.
+actual receiving session ID for your host (`_lib/workflow.md` Hosts). Inspect or
+resume its journal and reconcile current Git, artifact and PR state; never
+initialize or redispatch from the receiver.
 
 Own the full delivery loop:
 
-1. Sync main at entry. Begin an execution attempt and dispatch a NEW Task worker
+1. Sync main at entry. Begin an execution attempt and dispatch a NEW worker
    named develop-execute with the exact plan, key, helper path, acceptance scope,
    and repair findings when relevant. Include delivery authorization and budget.
    Record the real worker session ID and its published verification result.
-2. Begin review and dispatch a NEW Task worker named develop-review with the exact
+2. Begin review and dispatch a NEW worker named develop-review with the exact
    plan and verification plus the previous review for re-review. Do not pass the
    execution transcript/reasoning. Worker writes must have stopped. Reviewers do
    not change application code. Record their actual session ID and Review URL.
@@ -73,6 +76,22 @@ key or silently lower required coverage. Source/plan changes invalidate stale
 evidence. On interruption, inspect the same journal; reconcile a pending worker
 before starting a replacement. Missing worker identity is a blocker, not proof
 that no worker ran.
+
+## Continue in another tool
+
+A delivery belongs to its journal and workspace, not to one CLI. When the owning
+session runs out or stops, open the same Orca feature workspace in
+Claude Code or Codex and invoke develop-deliver there to resume:
+
+1. Run `python3 ROOT/tracking/delivery.py locate` from the workspace. It lists
+   the key, stage and the exact pinned helper to use for every following call.
+2. Confirm the previous coordinator has really stopped (its terminal is closed or
+   idle and is no longer running a turn). Two owners would race on the journal.
+3. Run `adopt --key KEY --session YOUR_SESSION_ID --confirm-previous-owner-stopped
+   --reason WHY` with the pinned helper, then `inspect`.
+4. Reconcile any pending worker attempt exactly as after an interruption, then
+   continue the loop from the recorded stage. The repair budget, evidence and
+   worker independence carry over; nothing is redispatched.
 
 This skill authorizes the coordinator to dispatch successive fresh execution and
 review workers within the recorded run. Individual workers read `_lib/execute.md`

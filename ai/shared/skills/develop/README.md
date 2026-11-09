@@ -42,8 +42,7 @@ checks, meaningful negatives, environment prerequisites and manual evidence are
 explicit. A prepared plan does not by itself authorize implementation.
 
 Approve the result to publish the issue/contract/research/plan. Existing issue URLs
-are preserved. Issue repository and Project board are separate destinations; no
-configuration field is invented to infer one from the other. Partial publication
+are preserved. The issue repository is confirmed, never inferred. Partial publication
 is reconciled without duplicating issues or losing human edits.
 
 When preparation is ready, a single-choice popup offers:
@@ -65,7 +64,7 @@ handoff helper. It waits only for the receiving workflow's acknowledgement, then
 releases ownership. The feature workspace owns the rest of the run. Local Orca
 and a shared local filesystem/state directory are currently required.
 
-The owner dispatches NEW internal `develop-execute` and `develop-review` Task
+The owner dispatches NEW internal `develop-execute` and `develop-review`
 workers. The reviewer must be independent of the writer and coordinator. Workers
 load the internal methods directly, return one evidence artifact and stop. They
 are not slash commands. Review reads actual code before author claims and uses
@@ -88,6 +87,32 @@ Completion requires current-head required CI, passing independent review and the
 latest observed main integrated. It returns the PR URL, head, observed main,
 checks and repair count. It does not merge the PR, close the issue or mark Done.
 
+## Claude Code and Codex
+
+Both commands run the same way from either CLI, so you can switch when
+one runs out:
+
+- **Workers.** The ten workers (research specialists, `develop-plan`,
+  `develop-scope-review`, `develop-execute`, `develop-review`) are defined once in
+  [`ai/shared/agents`](../../agents/README.md) and rendered to
+  Claude Code subagents and Codex agent roles. `_lib/workflow.md` lists how each
+  host spawns a fresh worker and reads its session IDs. Codex workers are always
+  spawned with `fork_turns: "none"` so they never see the parent's reasoning.
+- **Models** are chosen by tier (`fast`, `standard`, `strong`, `inherit`), not by
+  name. `ai/shared/agents/tiers.json` maps tiers to each host's models; the
+  `develop-*` workers inherit the session model.
+- **Receiver.** Deliver launches the CLI you dispatched from in the Orca feature
+  workspace; `dispatch --agent claude|codex` or `DEVELOP_RECEIVER_AGENT`
+  picks another.
+- **Switching mid-run.** Journals live in the shared state directory. To continue a
+  delivery in another CLI, open the same workspace there and run develop-deliver;
+  it uses `delivery.py locate` and `adopt` and keeps the stage, evidence and
+  repair budget. Prepare keeps a private checkpoint under
+  `$STATE/prepare/REPO/SLUG.md` that another CLI resumes from.
+- **Sync.** The `claude` and `codex` shell wrappers link skills and
+  workers before launching. A new Orca worktree may show a folder-trust dialog;
+  accept it in that terminal, then run `delivery.py recover-launch`.
+
 ## Internal layout and recovery
 
 - `develop-prepare/SKILL.md` and `develop-deliver/SKILL.md`: public commands.
@@ -96,17 +121,17 @@ checks and repair count. It does not merge the PR, close the issue or mark Done.
 - `_lib/plan.md`, `scope-review.md`: read-only methods for the two preparation workers.
 - `_lib/execute.md`, `review.md`: methods for the two internal workers.
 - `_lib/workflow.md`, `resolve-root.py`: shared contract and physical integration
-  resolution; pinned snapshots retain their exact resource revision.
+  resolution. The tracking, evidence and delivery helpers live in
+  [`ai/shared/workflow`](../../workflow/tracking/WORKFLOW.md).
 
-See the [delivery protocol](../../../opencode/tracking/references/delivery.md)
+See the [delivery protocol](../../workflow/tracking/references/delivery.md)
 for journal commands, receiver acknowledgement, worker identities, Git/CI gates
 and interruption recovery. Unknown send/worker/PR outcomes are reconciled using
 the existing key rather than duplicated. Existing standalone Git skills remain
 available outside a delivery run.
 
-OpenCode loads methods and sibling resources into immutable snapshots. Restart
-through the normal launcher to sync the new catalog and remove old managed links.
-The retired standalone development skills and `/brainstorm` alias are not needed.
+Restart through the normal launcher to sync the new catalog and remove old
+managed links. The retired standalone development skills and `/brainstorm` alias are not needed.
 
 ## Provenance
 

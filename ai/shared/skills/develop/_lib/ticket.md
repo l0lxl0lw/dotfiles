@@ -15,15 +15,14 @@ After approval of the full preparation result:
    --body-file FILE`, or update the explicitly selected existing issue. Preserve
    human text. Approval to publish the result authorizes this mutation; do not
    ask again. A bare existing issue URL or design discussion is not publication
-   authority. Confirm missing issue repository; Project configuration does not
-   select it. Similar issues are references, not permission to edit them.
+   authority. Confirm a missing issue repository; never guess it. Similar issues are references, not permission to edit them.
 2. Load `handoff.py packet ISSUE --stage ticket`. Reconcile issue/discussion and
    the current contract. Use schemas/contract.example.json and the actual
    checkpoint candidate, not invented digests. Publish `handoff.py record ISSUE
    contract --data FILE`, explicitly superseding a replaced contract.
-3. Follow ROOT/tracking/references/operations.md for Project setup, authenticated
-   assignee, Backlog and `track.py link-orca ISSUE`. Project/Orca updates are
-   independent outcomes; preserve conflicting links, active statuses and user
+3. Follow ROOT/tracking/references/operations.md for the authenticated assignee,
+   `track.py link-orca ISSUE` and `checkpoint-orca ISSUE Backlog`. Issue and Orca
+   updates are independent outcomes; preserve conflicting links, active statuses and user
    notes. Unmanaged cwd is normal. Report failures without duplicating an issue
    that already exists. Reconcile publication outcomes before retrying.
 

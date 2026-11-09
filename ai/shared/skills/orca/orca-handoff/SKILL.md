@@ -21,8 +21,8 @@ proof of completed work. Supervision requires the separate coordination workflow
    authorized edits/Git operations. Ask only about material missing scope.
    Handoff authorization does not authorize commits, pushes, PRs, issue creation,
    or transferring uncommitted patches. A new worktree does not contain those edits.
-2. Default to an independent worktree, configured repo base, and OpenCode's
-   configured launch defaults. No model/effort overrides. Use a different installed
+2. Default to an independent worktree, configured repo base, and the current
+   CLI's agent (OpenCode, Claude Code or Codex) with its configured launch defaults. No model/effort overrides. Use a different installed
    agent only when requested. Stacked/base-specific work is outside this helper's
    independent-create mode; consult the live contract rather than silently changing
    lineage. Preserve setup `inherit` unless explicitly overridden.
@@ -57,14 +57,16 @@ python3 /absolute/skill/directory/scripts/handoff.py start \
   --name login-fix --brief-file '/absolute/login brief.txt'
 ```
 
-The helper creates agent-first with `--no-parent --agent opencode`, without a
-prompt or base override. It extracts the complete worktree ID and one agent
+The helper creates agent-first with `--no-parent --agent AGENT` (the running CLI
+unless `--agent` says otherwise), plus `--surface terminal` when supported, without
+a prompt or base override. It extracts the complete worktree ID and one agent
 handle, inspects the terminal, waits for `tui-idle` with a 60-second readiness
 budget and at most one 120-second retry, then rechecks the same process and
 rendered prompt before sending text+Enter with `--wait-submit 10 --json`.
 If the existing terminal has no mounted renderer, the helper reveals it with
 `terminal switch` and rechecks the same process before waiting. For OpenCode,
-the screen must contain its empty prompt and command/agent hints;
+Claude Code and Codex the screen must show that agent's empty prompt and hints,
+and never a folder-trust dialog;
 blank output or a satisfied wait alone is insufficient. Unrecognized layouts
 block delivery rather than guessing readiness.
 
@@ -115,4 +117,5 @@ Accepted-but-unproven must be reported as startup unconfirmed, not a successful
 handoff. Stop after delivery verification; do not monitor task completion or
 promise exactly-once runtime execution.
 
-After installing this skill or changing its routing, quit and restart OpenCode.
+After installing this skill or changing its routing, Claude Code and Codex resync
+on their next wrapper launch.

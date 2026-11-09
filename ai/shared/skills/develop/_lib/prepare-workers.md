@@ -43,8 +43,8 @@ not freeze the design before investigating material constraints.
 
 ## Fresh planning worker
 
-Once the design is agreed and material questions are settled, dispatch a NEW Task
-with subagent_type **develop-plan**. Pass the complete agreed requirements/design,
+Once the design is agreed and material questions are settled, dispatch a NEW worker
+named **develop-plan** (workflow.md Hosts). Pass the complete agreed requirements/design,
 reconciled source-backed research, source revision, exclusions and acceptance
 expectations. The planner follows [plan.md](plan.md), independently spot-checks
 critical references and returns a draft implementation plan/check manifest.
@@ -59,8 +59,8 @@ do not restart all research or forward the planner's reasoning transcript.
 ## Conditional scoping review
 
 Assess risk after initial scope and revisit it when research/planning changes the
-picture. Record the reason in the preparation summary. Use a NEW Task with
-subagent_type **develop-scope-review** for a larger or riskier change, including:
+picture. Record the reason in the preparation summary. Use a NEW worker named
+**develop-scope-review** for a larger or riskier change, including:
 
 - Multiple interacting subsystems or public API/contract changes.
 - Authentication/authorization, sensitive data or financial behavior.
@@ -88,8 +88,8 @@ mandatory on every delivery**, regardless of preparation risk.
 
 ## Worker brief and fallback
 
-Use fresh Task sessions with the literal agent identifiers above, not snapshot
-skill aliases. Provide the exact pinned method/helper root, repository/checkout,
+Use fresh workers with the literal agent identifiers above (workflow.md Hosts),
+not snapshot skill aliases. Provide the exact pinned method/helper root, repository/checkout,
 main revision, task kind, agreed
 decisions, precise question, relevant file/artifact references and the desired
 output. Include draft-only boundaries: no edits, publication, Git mutations or

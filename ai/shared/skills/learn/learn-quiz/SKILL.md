@@ -109,7 +109,7 @@ full reasoning, so that reading the options is itself worth something.
 
 ## Step 5 — Ask
 
-Use the host's question dialog (`AskUserQuestion` in Claude, `question` in OpenCode;
+Use the host's question dialog (`AskUserQuestion` in Claude;
 ask in chat if no dialog exists). Ten questions in batches of **4, 3, 3** — one variation per concept, spread
 across the taxonomy so the quiz is not five definitions in a row.
 

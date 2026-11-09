@@ -9,6 +9,21 @@ to obtain ROOT, then invoke helpers as `python3 "ROOT/tracking/handoff.py" ...`
 with ROOT replaced by that exact output. Run helpers/checks from the target repository.
 Missing integration is a blocker, not permission to invent evidence or commands.
 
+### Hosts
+
+Claude Code and Codex run this workflow with the same named workers
+(rendered from `ai/shared/agents`). Use the row for the host you are running in:
+
+| Host | Fresh worker | Your session ID | Worker session ID | User question |
+|---|---|---|---|---|
+| Claude Code | Agent tool with `subagent_type: NAME` | `$CLAUDE_CODE_SESSION_ID` | agent ID returned by the Agent tool | AskUserQuestion |
+| Codex | `spawn_agent` with `agent_type: NAME` and `fork_turns: "none"` | `$CODEX_THREAD_ID` | agent ID returned by `spawn_agent` | ask in chat and wait |
+
+A fresh worker never inherits parent history. Codex forks the full parent history
+unless `fork_turns` is `"none"`, so always pass it. Read IDs from the real tool or
+environment; never invent, shorten or reuse one. If a named worker is missing, the
+host catalog is not synced: report it and ask rather than doing the work yourself.
+
 Read ROOT/tracking/WORKFLOW.md for the helper protocol and the relevant example in
 ROOT/schemas. Load ROOT/tracking/references/records.md for record fields/runner formats
 and references/operations.md only for tracking/identity operations. Do not copy

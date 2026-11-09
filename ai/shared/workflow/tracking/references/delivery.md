@@ -1,0 +1,389 @@
+# Prepare → Deliver protocol
+
+This is an explicitly authorized mode of the existing development workflow.
+Standalone Git behavior stays unchanged; stage methods are internal. Publication approval covers one
+prepared result. **Deliver through PR** covers that exact published plan's
+execution, independent review, three repair cycles, commits, pushes, ready PR,
+attributable CI repairs and merge-based integration of origin/main. It does not
+authorize PR merge, changed product scope, hook bypasses or force-pushes.
+An explicitly renewed scope/history authorization is available only through the
+guarded same-run actions below; ordinary publication remains nonforce.
+
+## Journal and dispatch
+
+Use the physical revision's ROOT/tracking/delivery.py, Python 3.9+. State defaults
+to `${OPENCODE_WORKFLOW_STATE:-~/.local/state/opencode-workflow}/deliveries/KEY`,
+outside Git. Keep this exact state root and key for the whole run. Commands emit
+JSON; exit 2 is a blocker, never success. Journal/brief files are private.
+
+From the clean main planning checkout, after explicit authorization:
+
+```sh
+python3 ROOT/tracking/delivery.py init --key TASK --issue ISSUE_URL --plan PLAN_URL --authorize-through-pr
+python3 ROOT/tracking/delivery.py dispatch --key TASK
+python3 ROOT/tracking/delivery.py wait-start --key TASK --timeout 120
+```
+
+Substitute the actual absolute ROOT; quote paths with spaces. `dispatch` generates
+the receiver brief and calls the pinned Orca helper using the same operation key.
+The receiver is the CLI running `dispatch` (Claude Code or Codex), or
+`--agent claude|codex` / `DEVELOP_RECEIVER_AGENT` when the user names
+another. The first dispatch records it as `receiver_agent`; a resumed launch keeps it.
+Its state includes full workspace/process identity. It does not wait for task
+completion. `wait-start` waits only for receiver acknowledgement and releases the
+journal lock between reads. If it times out, inspect both journals and the terminal;
+do not deliver again under another key. Keyed Orca receipt reconciliation cannot
+guarantee redelivery. Explicit operator-confirmed lost-input recovery stays in the
+Orca helper and preserves its original state; never invoke it automatically.
+
+### Pre-send launch recovery
+
+For an explicitly requested repair when a workspace was created but readiness
+failed before any send intent, run `delivery.py recover-launch --key TASK` from
+the original main checkout using the current repaired helper. This narrow action
+may repair an older pinned run: it records helper hashes but preserves that run's
+resource root, exact brief, approved plan, workspace and repair budget. It refuses
+an acknowledged run, pending worker, prior send intent or changed repository.
+The transport revalidates the original terminal/process and uses `retry-ready`;
+the receiver still runs the original pinned protocol and must acknowledge it.
+
+New edits in the planning checkout do not enter the already-created worktree, so
+this recovery does not require discarding/stashing them. Initial dispatch still
+requires clean main. After recovery, use the pinned `wait-start` action; an
+accepted receipt alone does not prove startup. Recovery never creates a new
+workspace or resends a previously attempted prompt.
+
+The receiving owner begins with:
+
+```sh
+python3 ROOT/tracking/delivery.py ack --key TASK --session ACTUAL_OWNER_SESSION_ID
+python3 ROOT/tracking/delivery.py sync --key TASK
+python3 ROOT/tracking/delivery.py inspect --key TASK
+```
+
+The acknowledgement proves that the receiving workflow executed from the bound
+feature checkout. It is separate from Orca's `turn_started` receipt and never
+rewrites that receipt. Use actual host session identifiers; don't invent them.
+The Hosts table in the develop workflow contract names each host's owner and
+worker IDs. Any host can use actual worker-result IDs.
+The receiver must have access to the exact journal/resource paths. Remote hosts
+without this local shared state are currently blocked before dispatch.
+
+## Workers and evidence
+
+`begin --key TASK` writes one worker intent and returns `attempt.id` and its stage.
+Dispatch one NEW worker for that stage through the host's subagent tool, without
+parent history. Pass the bounded inputs and this attempt ID. The worker can
+`claim`, or the coordinator can record the actual returned worker ID after it
+returns (never fabricate or reuse one):
+
+```sh
+python3 ROOT/tracking/delivery.py claim --key TASK --attempt ATTEMPT --session ACTUAL_WORKER_SESSION_ID
+python3 ROOT/tracking/delivery.py finish --key TASK --attempt ATTEMPT --artifact ARTIFACT_URL
+```
+
+Execution publishes the existing Verification; review publishes the existing
+Review. `finish` fetches and checks these records, the approved plan/contract,
+current source and runner evidence. It advances execute → review → publish or
+needs_repair/blocked. It records worker sessions so a reviewer cannot be a prior
+writer, coordinator or reused reviewer. Session identity recording is an agent
+protocol, not cryptographic attestation; the host subagent invocation must
+actually create the fresh child. Verification never substitutes for independent review.
+
+For required review findings:
+
+```sh
+python3 ROOT/tracking/delivery.py repair --key TASK --reason 'Review URL and required finding IDs'
+```
+
+For CI failures, first diagnose actual logs/diff and record attribution:
+
+```sh
+python3 ROOT/tracking/delivery.py repair --key TASK --attributable --reason 'Check URL, reproduction and why this change caused it'
+```
+
+Each successful repair transition consumes one of three persisted repair cycles.
+Then begin execute again with the prior review/CI context. Re-review keeps stable
+findings and supersedes the previous Review. Three exhausted repairs cannot be
+reset by resume. Unrelated infrastructure/baseline failures block instead.
+
+## Git publication and main integration
+
+At publish, inspect status, complete diff and recent log, confirm intended paths
+and absence of secrets, and run required repository pre-PR checks. Use the current
+verification/review gate; adding changes requires new verification and review.
+
+```sh
+python3 ROOT/tracking/delivery.py commit --key TASK --message 'Generated repo-style message' --file path/one --file path/two
+python3 ROOT/tracking/delivery.py sync --key TASK
+```
+
+Sync fetches origin/main, merges it without rewriting published history, and
+returns to execute for integration verification if content/history advanced.
+In this integration pass, verify the merged result before editing. Routine merge
+and re-verification use no repair cycle. If tests reveal an attributable defect
+requiring edits, report the failed evidence to the coordinator before repair;
+record it via `integration-failure` then `repair` before changing code.
+Use `integration-failure --key TASK --attempt ATTEMPT --artifact FAILED_VERIFICATION_URL`
+after the claimed integration worker publishes its failed runner evidence; then
+`repair --key TASK --attributable --reason EVIDENCE` authorizes the code correction.
+Resolve straightforward conflicts preserving both intended behaviors; product
+ambiguity requires a blocker. Resolve an interrupted Git merge before rerunning
+sync. Do not stash/drop user edits or use the scheduled checkout-refresh helper.
+
+After any integration pass has new verification and passing review:
+
+```sh
+python3 ROOT/tracking/delivery.py publish --key TASK --title 'PR title' --body-file /absolute/reviewed-body.md
+python3 ROOT/tracking/delivery.py ci --key TASK
+```
+
+Publication checks current review, clean source and main ancestry, pushes without
+force, reconciles an existing PR for the exact branch, then creates one only if
+no previous create intent is ambiguous. Commit retry inspects current source;
+unchanged committed bytes preserve the gate. Hooks run normally.
+
+CI observes all reported checks as well as the required-check policy: an empty
+policy cannot hide failing, pending or skipped repository/security checks.
+Poll `ci` every 15–30 seconds while pending, keeping the existing run. Each call
+is bounded; on session interruption continue from its journal. If GitHub awaits
+external permission, required-workflow rules need unsupported inspection, checks
+are unavailable, or unrelated failures prevent green, record a blocker rather
+than claiming completion. Skipped/neutral checks do not silently count as pass.
+An explicitly observed empty required-check policy can complete with no required
+CI; absence of reported jobs under a nonempty policy stays pending.
+
+`ci` binds observations to the current PR head, checks policy for missing required
+contexts, refetches main, and reruns the review gate before complete. If main
+advanced, run sync and the verification/review/publication loop again. No finite
+run can guarantee freshness after its final observation.
+
+## Recovery
+
+### Tooling-stale evidence before publication (reverify)
+
+An older verifier wrote its check definitions into the worktree, and a changed
+verifier invalidates receipts it did not produce. Either can leave a reviewed run
+unable to publish even though its source has not changed. Neither `resume`, `repair`
+nor `authorize-revision` fits: the code is not defective and the plan is unchanged.
+From the bound feature workspace, with the **run's own pinned helper**:
+
+```sh
+python3 ROOT/tracking/delivery.py reverify --key TASK --reason 'Why the evidence is stale for tooling reasons'
+```
+
+Preconditions (otherwise exit 2 with no journal, file or Git change):
+
+- stage `publish`, `publishing` or `ci`, or `blocked` resuming one of them; a
+  non-empty reason; no pending worker attempt; the bound workspace; the approved
+  plan/contract unchanged; no authorized history revision awaiting publication.
+- Tooling-only staleness: the current verification run's recorded verifier hash
+  differs from the pinned `verify.py` (a missing hash counts as stale), and/or a
+  qualifying leftover check-definition file from the retired verifier exists.
+  A leftover qualifies only as an untracked regular file under real (non-symlink)
+  directories inside the repository whose JSON exactly equals the plan's
+  `check_manifest`. It is found by path, so it qualifies even when excluded
+  through `.git/info/exclude`. A present file that does not qualify is refused and
+  left in place.
+- The verification run, its issue/plan/plan digest/contract revision and its local
+  source snapshot load and equal the journal; the current files equal that snapshot
+  apart from the leftover file. An unloadable run or snapshot refuses.
+- In `ci` (or blocked resuming it) HEAD equals `published_head`; in `publishing`
+  only when `published_head` is recorded.
+- `git status --porcelain --untracked-files=all` lists nothing or only the
+  qualifying leftover.
+
+Typical refusals: `No tooling staleness; use resume`, `Source changed since
+verification; use the normal loop`, a non-qualifying or tracked leftover, other
+uncommitted changes, or a published-head mismatch.
+
+Effects: a `reverify_pending` intent (prior stage, verification run, expected
+definition digest) is saved; the leftover file and its then-empty parent
+directories are removed and the worktree must be clean. Verification, verification
+run, review, CI, blocker, resume stage, the intent and (only when HEAD has moved
+past its recorded head) `commit_pending` are archived in a `tooling_reverifications`
+entry with the reason, timestamp, prior stage, old/new verifier hashes, removed
+path and helper hash, then removed. The stage becomes `execute` (history event
+`tooling_reverify`).
+
+Preserved: resource pin, plan, plan digest, contract revision, key, owner,
+workspace, branch, worker history, PR, `published_head`, observed main, integration
+and the repair count. Reverify never commits, pushes, calls GitHub or dispatches,
+and consumes no repair.
+
+Interruption: rerunning after the file was already removed honors only an intent
+that still matches the stage, verification run and expected digest. The intent is
+cleared when the run enters execute, so a later reverify without new staleness is
+refused. A leftover intent that no longer matches is refused and is harmless;
+other actions ignore it.
+
+Same-pin rule: `reverify` is not a cross-pin action. Staleness must be judged by the
+run's pinned `verify.py`; another helper revision gets the usual "recorded resource
+revision" refusal.
+
+Next: `sync`, then a fresh execute worker that only re-runs verification and
+publishes it, editing no source, then a fresh independent review, `commit`
+(reconciling any kept `commit_pending`), `publish` and `ci` as usual.
+
+### Explicit additive scope after completion, on the same PR
+
+After the user explicitly approves an exact **new, changed Plan** and renewed
+through-PR delivery for additive scope, reopen the completed run from its bound
+feature checkout using the current canonical helper and the **same key/state root**:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --reason 'Exact user approval for additive scope on the existing PR'
+```
+
+Do **not** pass `--allow-history-rewrite`: completed runs reject that flag. This
+mode grants no history rewrite, including reuse of an earlier rewrite grant.
+It requires a completed delivery, no pending worker or unpublished authorized
+rewrite, clean source at the exact published local head, and the original open,
+ready same-repository PR targeting main. It checks the exact remote head and PR
+again before recording authorization, fetches main, and requires main inclusion
+and prepared-source ancestry. The new exact plan and current contract must pass
+the existing approval/integrity checks, and the prior plan digest must still match.
+The superseded review need not pass the new-plan gate to authorize this transition.
+
+The revision archive records explicit additive-only authorization, prior completion
+timestamp, plan/contract records, verification/review/CI evidence, observed head
+and helper hashes. It removes current verification, review, CI and `completed_at`
+and enters execute. It preserves the original resource pin, source head, owner,
+workspace, branch, PR, worker history and repair count; it does not replace the
+prior `history_revision` record or lease. It neither redispatches nor resets repairs,
+edits application files, commits or pushes. Repeating authorization while execution
+is active rejects; continue the same run rather than authorizing it again.
+
+Use the **original pinned helper** for execution, fresh verification and independent
+review, commit, sync, normal `publish` and CI. Normal publication is nonforce and
+updates the same existing PR. `rewrite-publish` is not authorized by this mode.
+No fresh key, dispatch, budget reset or new force permission is implied.
+
+### Explicit feasibility correction before initial execution evidence
+
+If initial execution stops on a demonstrated plan-feasibility blocker, the user
+may approve an exact corrected Plan and renew through-PR delivery on the same key:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --reason 'Blocker artifact and exact user approval for initial-execution plan correction'
+```
+
+This narrow additive mode requires `blocked` with `resume_stage=execute`, a
+recorded blocker, no pending worker, fewer than three consumed repairs, and no
+current verification, verification-run, review or CI evidence. It
+cannot bypass review findings, attributable CI/integration repairs or an exhausted
+budget. Reconcile a stopped worker through `abandon-worker` first, with its actual
+identity and blocker evidence; do not discard an active worker or hand-edit state.
+
+All additive revision checks above remain: clean exact original published local
+head, original open ready PR, twice-observed remote/PR identity, fetched main and
+prepared-source ancestry, exact changed approved Plan/current contract and intact
+prior plan/contract records. No `--allow-history-rewrite` is allowed. The same
+additive revision archive records `kind=initial-execution-plan-correction`, the
+blocker/resume stage and worker/abandoned-worker identities. It invalidates current
+evidence and enters execute, preserving the pin, source, key, owner, PR, worker
+history, repair usage and any previously published `history_revision` unchanged.
+It performs no source edit, commit, push, redispatch or budget reset. Use the
+original pinned helper for fresh execution/independent review and ordinary
+nonforce publication/CI; this command is not a passing implementation verdict.
+
+### Explicit same-run scope revision and feature-history publication
+
+Only after the user approves the exact revised plan and rewriting this feature
+branch's history, use the current canonical helper from the bound feature checkout:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py authorize-revision --key TASK --plan EXACT_NEW_PLAN_URL --authorize-through-pr --allow-history-rewrite --reason 'Exact user approval and scope/history rationale'
+```
+
+The history-rewrite mode of this cross-pin action requires a **blocked run resuming CI**, no pending worker,
+clean source at the original published head, the same open ready same-repository
+PR targeting main, and its exact current remote branch head. It fetches main and
+checks both main inclusion and prepared-source ancestry. The exact newly approved
+plan must be current, valid, changed, and at a new URL; the prior plan's recorded
+digest must still match. It archives prior plan/contract records, artifact
+identities, CI/blocker evidence, the original observed branch lease, and old/new
+helper hashes. It preserves the resource pin, source head, PR, workers and repair
+budget, invalidates verification/review, and enters execute. It never redispatches
+or resets repairs. This action records explicit authorization; it cannot prove a
+human actually gave it, so the coordinator must obtain that approval first.
+
+Continue execution, verification, independent review, commit, sync and CI with the
+**original pinned helper**. The coordinator may separately perform the explicitly
+approved normal Git interactive rebase/squash on only the bound feature branch,
+preserving the intended final tree. The helper does not rebase, reset, amend,
+transform commits, alter Git configuration, or bypass hooks. After the rewrite,
+obtain fresh verification and passing independent review of the new scope and
+final source, commit any reviewed changes, then use:
+
+```sh
+python3 CURRENT_ROOT/tracking/delivery.py rewrite-publish --key TASK --reason 'Publish the explicitly approved feature-only history rewrite'
+```
+
+This second cross-pin action requires publish stage, clean current source, fresh
+passing evidence for the revised plan, the same branch/PR/repository, current main
+and prepared-source ancestry. It records the expected new SHA before pushing with
+`--force-with-lease=refs/heads/BRANCH:ORIGINALLY_AUTHORIZED_SHA`. A moved remote is
+a blocker, never a reason to refresh the lease. It only updates the existing PR;
+it cannot create or merge one. It records the new published head and enters CI
+only after observing the exact new remote head and matching original PR.
+
+If a push response is lost, rerun the same action/key with unchanged reviewed
+source. A persisted intent plus the expected new remote SHA reconciles the
+existing PR **without repeating the push**. An old remote SHA retries the same
+guarded lease; any other SHA or changed local intent head blocks. Never hand-edit
+the journal, pin, budget or lease. These explicit actions do not grant general
+cross-pin access to the other stages. `publish` remains the ordinary nonforce path.
+
+For an explicitly requested repair of an older pinned run whose helper ignored
+non-required failures, invoke the current source helper's `ci-failure --key TASK
+--reason DIAGNOSIS` from the bound feature workspace with the original state root.
+This narrow cross-revision operation accepts only a published CI-stage run (or a
+blocked run resuming CI), no pending worker, a clean reviewed source and the exact
+published/current PR head. It rechecks policy and all checks and requires an actual
+current-head failure before entering `needs_repair`. It records both helper hashes
+and evidence, preserves the original resource pin, artifacts, plan and repair count,
+and never completes a run or authorizes code edits itself. Continue using the
+original pinned helper's attributable `repair` action, then fresh execution/review.
+For completion with an older helper, independently wait for all reported checks to
+pass before invoking its required-only `ci` gate. Never change branch policy,
+hand-edit a journal or reset the budget as a workaround.
+
+```sh
+python3 ROOT/tracking/delivery.py block --key TASK --reason 'Evidence and specific unresolved question'
+python3 ROOT/tracking/delivery.py resume --key TASK
+```
+
+Resume displays the next persisted stage; the receiving `develop-deliver` owner
+continues the loop. It does not start another terminal. Revalidate blockers before
+resuming; changed plan/contract requires renewed user authorization, not silent
+hash refresh. A pending worker intent prevents another begin. Recover its actual
+session/result first. Only after confirming the worker stopped may the owner use
+`abandon-worker --confirm-worker-stopped --reason EVIDENCE`, then begin a fresh
+replacement for that same stage. Preserve the repair count.
+
+### Changing coordinator or CLI
+
+A run is bound to its journal and feature workspace, not to one CLI. When the
+owner session ends (for example a usage limit), another Claude Code or
+Codex session opened in the same workspace takes over:
+
+```sh
+python3 ROOT/tracking/delivery.py locate
+python3 PINNED_HELPER adopt --key TASK --session NEW_OWNER_SESSION_ID --confirm-previous-owner-stopped --reason 'Why the owner changed'
+python3 PINNED_HELPER inspect --key TASK
+```
+
+`locate` is read-only and lists runs bound to the current workspace with their
+stage, previous owner CLI and the pinned helper path (PINNED_HELPER) to use from
+then on. `adopt` requires the bound workspace, an acknowledged unfinished run and
+a session ID that never coordinated or worked on it. It records `owner_history`,
+then carries stage, repairs, evidence and any pending worker attempt over
+unchanged; earlier owners can never be claimed as workers. Confirm the previous
+owner has stopped first, since two coordinators would race. Then reconcile a
+pending worker exactly as above and continue from the recorded stage.
+
+An unknown PR-create outcome is reconciled by querying GitHub for the branch;
+if still absent, stop for manual reconciliation instead of duplicating creation.
+Completion returns the PR, head, final observed main, required checks and repair
+count. No automatic merge, issue close, workspace deletion or Done transition.

@@ -110,7 +110,7 @@ class InstallTest(unittest.TestCase):
 
     def test_dry_run_and_doctor_do_not_write(self):
         before = sorted(str(p) for p in self.home.rglob("*"))
-        self.deploy("--dry-run", "--only", "codex,opencode,vim")
+        self.deploy("--dry-run", "--only", "codex,vim")
         self.deploy("--doctor")
         self.assertEqual(sorted(str(p) for p in self.home.rglob("*")), before)
 
@@ -207,22 +207,6 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(data["env"], {"KEEP": "value"})
         self.assertEqual(data["statusLine"]["command"], "sh ~/.claude/hooks/statusline.sh")
         self.assertEqual(len(self.manifests()), 1)
-
-    def test_opencode_initial_config_custom_xdg_preserves_json(self):
-        self.stub("opencode", "exit 0")
-        self.stub("gh", "exit 0")
-        self.env["XDG_CONFIG_HOME"] = str(self.home / "custom config")
-        config = self.home / "custom config/opencode"
-        proc = self.deploy("--only", "opencode", answers="y\n")
-        self.assertTrue((config / "cli.json").is_file(), proc.stdout + proc.stderr)
-        self.assertFalse((config / "cli.json").is_symlink())
-        settings = config / "opencode.json"
-        settings.write_text('{"model":"keep/model"}')
-        self.deploy("--only", "opencode", answers="y\nb\n")
-        data = json.loads(settings.read_text())
-        self.assertEqual(data["model"], "keep/model")
-        self.assertFalse(data["websearch"])
-        self.assertFalse((self.home / ".config/opencode").exists())
 
     def test_memory_existing_vault_mismatch_fails_before_writing(self):
         cfg = self.home / ".config/life-memory/config.json"

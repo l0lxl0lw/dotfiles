@@ -18,7 +18,7 @@ public skills or approval gates. Ask only questions that need the user.
 ## Prepare before publication
 
 1. Verify the repository, branch, current changes, existing issue (if supplied),
-   relevant project instructions and issue/Project destinations. On a feature
+   relevant project instructions and the issue repository. On a feature
    branch, ask where to prepare; don't switch or discard work automatically.
    Exploration is read-only. Existing local changes are not part of a new Orca
    worktree; make this explicit in source context and resolve before delivery.
@@ -47,11 +47,27 @@ public skills or approval gates. Ask only questions that need the user.
    exact approved result. A source or scope change requiring a materially different
    plan returns to the user, not silent plan replacement.
 
+## Checkpoint for another tool
+
+Preparation can move between Claude Code and Codex mid-discussion. Keep
+one private checkpoint at
+`${OPENCODE_WORKFLOW_STATE:-~/.local/state/opencode-workflow}/prepare/REPO/SLUG.md`
+(REPO is the repository directory name, SLUG a short task name). Rewrite it after
+each agreed design section, research result and plan draft: the user's decisions
+in their words, open questions, evidence references with the main revision, the
+scoping-review decision and the current draft plan. It is a working note, not
+publication or approval, and never goes into the repository.
+
+When asked to continue a preparation, look for that checkpoint first. Read it,
+confirm with the user what still holds, recheck evidence against the current main
+revision and continue from there. A checkpoint never carries approval: offer the
+approval popup again for the exact current result.
+
 ## Approval popup
 
 Once the preparation is complete and material questions are resolved, summarize
 the exact scope, acceptance checks, plan and publication destination in chat.
-Then invoke the host's native question tool (OpenCode: `question`) with one
+Then invoke the host's native question tool (`_lib/workflow.md` Hosts) with one
 single-select question. Do not merely print a menu or require the user to remember
 a command or approval phrase.
 
@@ -84,18 +100,18 @@ and wait. Do not offer delivery while material product decisions remain open.
 
 Use ROOT/tracking/references/records.md and ROOT/schemas examples. Create a new
 issue only in the confirmed repository, assigned to the authenticated user; use
-the exact existing issue for an approved update. Preserve human text. Project
-setup and Orca linking remain independent outcomes; report partial failures.
+the exact existing issue for an approved update. Preserve human text. Orca
+linking remains an independent outcome; report partial failures.
 
 Publish the existing v2 artifact types in dependency order, without asking for
 four approvals: contract → research → plan. Reconcile the issue checkpoint before
 publishing the contract, use actual source hashes, and use returned revisions/URLs
 in dependent records. Supersede exact earlier artifacts when applicable. The plan
 must include acceptance_matrix and coverage/check_manifest per the existing plan
-method. Read-only preparation does not create `.opencode/workflow/checks.json`.
+method.
 
 On partial publication, inspect existing issue/comments and reuse matching
-records. Never create another issue because a comment or Project update failed.
+records. Never create another issue because a comment or Orca update failed.
 Return issue and exact plan URL, plus any unresolved publication outcome.
 
 ## Transition

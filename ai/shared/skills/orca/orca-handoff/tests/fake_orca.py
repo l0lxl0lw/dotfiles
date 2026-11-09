@@ -18,7 +18,7 @@ worktree = {'id': 'repo-full::/work tree/new agent', 'path': '/work tree/new age
 terminal = {'handle': config.get('handle', 'term_original'), 'ptyId': 'pty-original',
             'incarnationId': config.get('incarnation', 'process-original'),
             'worktreeId': worktree['id'], 'worktreePath': worktree['path'], 'branch': worktree['branch'],
-            'connected': True, 'writable': True, 'agentIdentity': 'opencode'}
+            'connected': True, 'writable': True, 'agentIdentity': config.get('agent', 'opencode')}
 
 
 def emit(result=None, error=None):
@@ -36,7 +36,7 @@ def crash_parent():
 
 
 if '--help' in args:
-    print('--agent --repo --no-parent --setup --retry-request --wait-submit')
+    print('--agent --repo --no-parent --setup --retry-request --wait-submit' + (' --surface' if config.get('surface') else ''))
 elif args[:2] == ['skills', 'get']:
     print('Installed guide: tui-idle --retry-request --wait-submit')
 elif args[0] == 'status':
@@ -83,7 +83,7 @@ elif args[:2] == ['terminal', 'switch']:
     save()
     emit({'terminal': terminal})
 elif args[:2] == ['terminal', 'read']:
-    tail = ['Ask anything… "Fix broken tests"', 'Build auto', 'tab agents  ctrl+p commands']
+    tail = config.get('tail', ['Ask anything… "Fix broken tests"', 'Build auto', 'tab agents  ctrl+p commands'])
     if scenario == 'startup_race' and db['waits'] == 0:
         tail = []
     if scenario == 'startup_race' and db['waits']:

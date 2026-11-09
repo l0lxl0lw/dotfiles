@@ -101,4 +101,33 @@ command git -C "$empty_repo" init -q
 [[ "$(<"$empty_report")" == *'project-skills=absent' ]] || \
   fail "empty repository unexpectedly staged project skills"
 
+# A .claude/skills symlink to .agents/skills must not be staged: Codex already
+# reads .agents/skills natively, so staging would list each skill twice.
+local native_repo="$test_tmp/native"
+local native_report="$test_tmp/native-report"
+mkdir -p "$native_repo/.agents/skills/alpha" "$native_repo/.claude"
+touch "$native_repo/.agents/skills/alpha/SKILL.md"
+ln -s ../.agents/skills "$native_repo/.claude/skills"
+command git -C "$native_repo" init -q
+
+local native_stage
+native_stage=$(
+  cd "$native_repo"
+  CODEX_HOME="$codex_home" _codex_stage_repo_claude_skills
+)
+[[ -z "$native_stage" ]] || \
+  fail "symlinked .agents/skills was staged at $native_stage"
+[[ -z "$(find "$codex_home/skills" -mindepth 1 -maxdepth 1 -print -quit)" ]] || \
+  fail "symlinked .agents/skills created a staging directory"
+
+(
+  cd "$native_repo"
+  CODEX_HOME="$codex_home" \
+    FAKE_CODEX_REPORT="$native_report" \
+    FAKE_CODEX_STATUS=0 \
+    codex
+)
+[[ "$(<"$native_report")" == *'project-skills=absent' ]] || \
+  fail "wrapper staged skills already exposed through .agents/skills"
+
 print -- "PASS: repository Claude skills are scoped to the Codex process"
