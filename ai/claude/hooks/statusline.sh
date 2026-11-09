@@ -2,7 +2,7 @@
 
 # Claude Code status line.
 #
-#   ~/dotfiles · dotfiles · main* · Opus 5 · high
+#   ~/dotfiles · dotfiles · main* · gh:personal · Opus 5 · high
 #   ctx ▰▰▰▱▱▱▱▱▱▱ 34%  ·  5h ▰▰▰▰▱▱▱▱▱▱ 38% ↻3.1h  ·  wk ▰▰▱▱▱▱▱▱▱▱ 19% ↻4.2d
 #
 # This USED to mirror the Codex CLI status line in ../../codex/config.toml.managed
@@ -223,9 +223,43 @@ if git rev-parse --git-dir &>/dev/null 2>&1; then
   fi
 fi
 
+# GitHub profile, mirroring github_profile_prompt in zsh/github-profile.zsh: the
+# profile owning the active gh account, from hosts.yml (running gh would add a
+# network round trip to every render). Red, with the git owner appended, when
+# this repo's effective git email belongs to another profile -- the commit
+# author and the pushing account would disagree. Purple is outside both the
+# location hues and the severity scale, so it reads as neither.
+profiles_file="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/github-profiles"
+gh_hosts="${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/gh}/hosts.yml"
+gh_profile=""
+if [ -r "$gh_hosts" ]; then
+  gh_user=$(awk '/^[^[:space:]]/ { host = ($1 == "github.com:") }
+                 host && /^    user: / { print $2; exit }' "$gh_hosts")
+  if [ -n "$gh_user" ]; then
+    # profile_field <match-column> <value> <output-column>, case-insensitive.
+    profile_field() {
+      [ -r "$profiles_file" ] || return 0
+      awk -v c="$1" -v v="$2" -v o="$3" \
+        '$1 !~ /^#/ && NF >= 4 && tolower($c) == tolower(v) { print $o; exit }' "$profiles_file"
+    }
+    profile=$(profile_field 2 "$gh_user" 1)
+    profile_email=$(profile_field 2 "$gh_user" 3)
+    gh_profile="\033[38;2;189;147;249mgh:${profile:-$gh_user}${reset}"
+    if git rev-parse --git-dir &>/dev/null; then
+      git_email=$(git config user.email 2>/dev/null)
+      lc() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+      if [ -n "$git_email" ] && [ "$(lc "$git_email")" != "$(lc "$profile_email")" ]; then
+        owner=$(profile_field 3 "$git_email" 1)
+        gh_profile="\033[38;2;224;108;108mgh:${profile:-$gh_user} git:${owner:-$git_email}${reset}"
+      fi
+    fi
+  fi
+fi
+
 line1="${loc_green}${dir_path}${reset}"
 [ -n "$repo_link" ] && line1="${line1}${sep}${repo_link}"
 [ -n "$git_info" ]  && line1="${line1}${sep}${git_info}"
+[ -n "$gh_profile" ] && line1="${line1}${sep}${gh_profile}"
 
 # Codex renders these as one item, "gpt-5.5 medium", because model-with-reasoning
 # is a single id and it has no choice. Here they are two, on the same separator

@@ -86,6 +86,16 @@ under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A success
 `--only TOOL` setup reenables it. Components excluded by `--only` are unchanged.
 Existing linked resources remain installed; skipping is not an uninstall.
 
+## GitHub profiles
+
+`ghp <profile>` switches the active `gh` account, the global git author and git's
+HTTPS credentials (routed through `gh`) together; `ghp` shows the active profile and
+`ghp list` the configured ones. Profiles are machine-local, outside the repo, in
+`~/.config/dotfiles/github-profiles` — see [zsh/github-profile.zsh](zsh/github-profile.zsh)
+for the format. Log in each account once with `gh auth login`. The shell prompt and
+the Claude status line show `gh:<profile>`, in red with the owning profile when the
+current repo's git email belongs to a different one.
+
 ## Conflicts and backups
 
 Already-correct links are left alone. Before a conflicting file, directory or

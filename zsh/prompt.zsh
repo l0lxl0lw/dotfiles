@@ -68,4 +68,5 @@ git_prompt_string() {
 RPS1='$(git_prompt_string)'
 
 autoload -U colors && colors
-PS1="%{$fg[yellow]%}[%D{%m/%f}%t]%{$fg[cyan]%}[%m]%{$fg[green]%}[%~]%{$reset_color%}\$ "
+# GitHub profile from github-profile.zsh; empty when gh is not logged in.
+PS1="%{$fg[yellow]%}[%D{%m/%f}%t]%{$fg[cyan]%}[%m]\$(github_profile_prompt 2>/dev/null)%{$fg[green]%}[%~]%{$reset_color%}\$ "
