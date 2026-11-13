@@ -53,7 +53,7 @@ Create one TodoWrite item per step.
 2. **Find the spine.** Decide the single mental model the reader must walk away with. Everything in
    the page serves that. Write the one-sentence "if you remember one thing" up top.
 3. **Pick a template from `examples/` — this is mandatory, not optional.** There is no generic
-   scaffold to fall back on; the 20 files in `examples/` *are* the templates. Read
+   scaffold to fall back on; the 21 files in `examples/` *are* the templates. Read
    `examples/README.md` (the gallery with a "use when" per file), choose the 1–2 whose shape fits
    what this content must *do* (teach a concept, map a codebase, compare options, report an incident,
    present as slides, …), then **actually open and read those files**. Don't write from memory of
@@ -65,6 +65,7 @@ Create one TodoWrite item per step.
    - visual-heavy, little prose → `10-svg-illustrations.html`
    - paced reveal / presentation → `09-slide-deck.html`
    - proposed work, phases, tasks → `16-implementation-plan.html`
+   - system design up for review/sign-off → `21-design-review-plan.html`
    - metrics / status snapshot → `11-status-report.html`
    - postmortem / timeline → `12-incident-report.html`
    - comparing approaches → `01-exploration-code-approaches.html`
@@ -116,5 +117,5 @@ Create one TodoWrite item per step.
   from, you skipped step 3.
 
 Files in this skill dir:
-- `examples/` — the 20 templates (whole-page formats) + `README.md` gallery for picking one. **Start here.**
+- `examples/` — the 21 templates (whole-page formats) + `README.md` gallery for picking one. **Start here.**
 - `floating-toc.html` — optional drop-in jump-menu sidebar for long pages.

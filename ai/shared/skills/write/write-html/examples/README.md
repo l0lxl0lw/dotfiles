@@ -1,7 +1,8 @@
 # Template gallery — pick one, read it, build on it
 
-These are the **templates** for write-html: the full set of self-contained examples from
-[ThariqS/html-effectiveness](https://github.com/ThariqS/html-effectiveness) (Apache-2.0). There is
+These are the **templates** for write-html: the self-contained examples from
+[ThariqS/html-effectiveness](https://github.com/ThariqS/html-effectiveness) (Apache-2.0), plus
+`21-design-review-plan.html`, a local addition with the same fictional-content rule. There is
 no generic house template — you pick the file whose shape fits the content, **read it**, and build
 your page on its layout, palette, and type. All open offline, zero deps; the "Acme" data is
 fictional placeholder — inherit the design, never the content.
@@ -24,6 +25,7 @@ throwaway UI than to teaching.
 | **SVG-illustrations** | `10-svg-illustrations.html` | Visuals carry most of the load; many hand-drawn diagrams, little prose. |
 | **Slide deck** | `09-slide-deck.html` | Sequential reveal / presentation pacing rather than one scroll. |
 | **Implementation plan** | `16-implementation-plan.html` | Laying out proposed work — phases, tasks, sequencing, tradeoffs. |
+| **Design review plan** | `21-design-review-plan.html` | A system design up for approval: TL;DR, stat cards, a request sequence diagram, an interactive "where can it stop" picker, PR timeline with size bars, gates, owners and decisions. Use for review-ready plans that need sign-off. |
 
 ## Code & review
 
@@ -61,7 +63,7 @@ throwaway UI than to teaching.
 ## How to choose
 
 1. **What must the reader walk away with?** A mental model → concept explainer. A map of code →
-   codebase understanding. A decision/flow → flowchart. A plan → implementation plan. A comparison
+   codebase understanding. A decision/flow → flowchart. A plan → implementation plan; a plan that needs sign-off → design review plan. A comparison
    → an exploration format.
 2. **Prose-heavy or visual-heavy?** Visual-heavy → svg-illustrations or flowchart. Balanced →
    concept explainer.
