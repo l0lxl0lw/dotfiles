@@ -2,7 +2,7 @@
 
 # Claude Code status line.
 #
-#   ~/dotfiles · dotfiles · main* · gh:personal · Opus 5 · high
+#   ~/dotfiles · dotfiles · main* · gh:personal · claude:work · Opus 5 · high
 #   ctx ▰▰▰▱▱▱▱▱▱▱ 34%  ·  5h ▰▰▰▰▱▱▱▱▱▱ 38% ↻3.1h  ·  wk ▰▰▱▱▱▱▱▱▱▱ 19% ↻4.2d
 #
 # This USED to mirror the Codex CLI status line in ../../codex/config.toml.managed
@@ -256,10 +256,34 @@ if [ -r "$gh_hosts" ]; then
   fi
 fi
 
+# Claude account, because two logins can be live at once (one per config dir) and
+# the 5h/wk meters on line 2 belong to whichever this session is using. Claude
+# Code records the login in .claude.json under the session's config dir; the
+# payload on stdin does not carry it. The email maps to a profile name through the
+# same github-profiles file, so the work login reads "claude:work" beside
+# "gh:work"; an email with no profile shows as itself. An API key overrides the
+# login, so it says so instead.
+claude_account=""
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+  claude_account="api-key"
+else
+  claude_json="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
+  if [ -r "$claude_json" ] && command -v jq &>/dev/null; then
+    claude_email=$(jq -r '.oauthAccount.emailAddress // empty' "$claude_json" 2>/dev/null)
+    if [ -n "$claude_email" ]; then
+      [ -r "$profiles_file" ] && claude_account=$(awk -v v="$claude_email" \
+        '$1 !~ /^#/ && NF >= 4 && tolower($3) == tolower(v) { print $1; exit }' "$profiles_file")
+      [ -z "$claude_account" ] && claude_account="$claude_email"
+    fi
+  fi
+fi
+[ -n "$claude_account" ] && claude_account="\033[38;2;189;147;249mclaude:${claude_account}${reset}"
+
 line1="${loc_green}${dir_path}${reset}"
 [ -n "$repo_link" ] && line1="${line1}${sep}${repo_link}"
 [ -n "$git_info" ]  && line1="${line1}${sep}${git_info}"
 [ -n "$gh_profile" ] && line1="${line1}${sep}${gh_profile}"
+[ -n "$claude_account" ] && line1="${line1}${sep}${claude_account}"
 
 # Codex renders these as one item, "gpt-5.5 medium", because model-with-reasoning
 # is a single id and it has no choice. Here they are two, on the same separator

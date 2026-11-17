@@ -48,7 +48,7 @@ separately into `~/.claude/skills` as real directories. They aren't tracked here
 `hooks/statusline.sh` renders two lines — where you are, then how much is left:
 
 ```
-~/dotfiles · dotfiles · main* · Opus 5 · xhigh
+~/dotfiles · dotfiles · main* · gh:personal · claude:work · Opus 5 · xhigh
 ctx ▰▰▰▱▱▱▱▱▱▱ 34%  ·  5h ▰▰▰▰▱▱▱▱▱▱ 38% ↻3.1h  ·  wk ▰▰▱▱▱▱▱▱▱▱ 19% ↻4.2d
 ```
 
