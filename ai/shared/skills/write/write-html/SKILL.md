@@ -53,7 +53,7 @@ Create one TodoWrite item per step.
 2. **Find the spine.** Decide the single mental model the reader must walk away with. Everything in
    the page serves that. Write the one-sentence "if you remember one thing" up top.
 3. **Pick a template from `examples/` — this is mandatory, not optional.** There is no generic
-   scaffold to fall back on; the 21 files in `examples/` *are* the templates. Read
+   scaffold to fall back on; the 32 files in `examples/` *are* the templates. Read
    `examples/README.md` (the gallery with a "use when" per file), choose the 1–2 whose shape fits
    what this content must *do* (teach a concept, map a codebase, compare options, report an incident,
    present as slides, …), then **actually open and read those files**. Don't write from memory of
@@ -69,6 +69,11 @@ Create one TodoWrite item per step.
    - metrics / status snapshot → `11-status-report.html`
    - postmortem / timeline → `12-incident-report.html`
    - comparing approaches → `01-exploration-code-approaches.html`
+   - concept taught with a live, playable control → `23-unknowns-color-grading-explainer.html`
+   - risks in unfamiliar code → `22-unknowns-blindspot-pass.html`
+   - a plan the reader will tweak → `29-unknowns-implementation-plan.html`
+   - asking the reader questions / getting a reply back → `27-unknowns-interview.html`, or see the
+     "Know your unknowns" section of the gallery
 
    If none fit cleanly, combine two — but still base the visual language on a real example, never on
    a from-scratch generic page.
@@ -117,5 +122,5 @@ Create one TodoWrite item per step.
   from, you skipped step 3.
 
 Files in this skill dir:
-- `examples/` — the 21 templates (whole-page formats) + `README.md` gallery for picking one. **Start here.**
+- `examples/` — the 32 templates (whole-page formats) + `README.md` gallery for picking one. **Start here.**
 - `floating-toc.html` — optional drop-in jump-menu sidebar for long pages.

@@ -4,20 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
   <title>PR #312 — Move notification delivery onto a queue</title>
   <style>
     :root {
-      --ivory:    #282a36;
-      --slate:    #f8f8f2;
-      --clay:     #bd93f9;
-      --oat:      #343746;
-      --olive:    #50fa7b;
-      --gray-150: #343746;
-      --gray-300: #44475a;
-      --gray-500: #6272a4;
-      --gray-700: #f8f8f2;
-      --white:    #343746;
+      --ivory:    #FAF9F5;
+      --slate:    #141413;
+      --clay:     #D97757;
+      --oat:      #E3DACC;
+      --olive:    #788C5D;
+      --gray-150: #F0EEE6;
+      --gray-300: #D1CFC5;
+      --gray-500: #87867F;
+      --gray-700: #3D3D3A;
+      --white:    #FFFFFF;
 
       --serif: ui-serif, Georgia, 'Times New Roman', serif;
       --sans:  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -67,7 +66,7 @@
     }
     .pr-meta .stat strong { color: var(--slate); font-weight: 600; }
     .pr-meta .add { color: var(--olive); }
-    .pr-meta .del { color: #ff5555; }
+    .pr-meta .del { color: var(--clay); }
 
     .prompt-box {
       background: var(--gray-150);
@@ -224,12 +223,12 @@
       border-radius: 6px;
       font-weight: 600;
     }
-    .badge.new { background: rgba(80,250,123,0.14); color: #50fa7b; }
-    .badge.mod { background: rgba(189,147,249,0.14); color: #bd93f9; }
-    .badge.del { background: rgba(255,85,85,0.14); color: #ff5555; }
+    .badge.new { background: #E4E9DC; color: #4B5C39; }
+    .badge.mod { background: var(--oat); color: var(--slate); }
+    .badge.del { background: #F3D9CC; color: #8A3B1E; }
     .file summary .stat { font-family: var(--mono); font-size: 12px; }
     .file summary .stat .add { color: var(--olive); }
-    .file summary .stat .del { color: #ff5555; }
+    .file summary .stat .del { color: var(--clay); }
     .file .file-body { padding: 18px 20px 22px; }
     .file .why {
       font-size: 14.5px;
@@ -241,7 +240,7 @@
     /* ---------- code ---------- */
 
     .code {
-      background: #21222c;
+      background: var(--slate);
       border-radius: 10px;
       padding: 16px 18px;
       overflow-x: auto;
@@ -250,15 +249,15 @@
       font-family: var(--mono);
       font-size: 12.5px;
       line-height: 1.65;
-      color: #f8f8f2;
+      color: #E8E6DE;
       white-space: pre;
     }
-    .code .kw  { color: #ff79c6; }
-    .code .str { color: #f1fa8c; }
-    .code .cm  { color: #6272a4; }
-    .code .fn  { color: #50fa7b; }
-    .code .add { background: rgba(80,250,123,0.12); display: inline-block; width: 100%; }
-    .code .del { background: rgba(255,85,85,0.12); display: inline-block; width: 100%; text-decoration: line-through; text-decoration-color: rgba(255,85,85,0.6); }
+    .code .kw  { color: var(--clay); }
+    .code .str { color: var(--olive); }
+    .code .cm  { color: var(--gray-500); }
+    .code .fn  { color: #C9B98A; }
+    .code .add { background: rgba(120,140,93,.22); display: inline-block; width: 100%; }
+    .code .del { background: rgba(217,119,87,.18); display: inline-block; width: 100%; text-decoration: line-through; text-decoration-color: rgba(217,119,87,.6); }
 
     /* ---------- review focus ---------- */
 
@@ -275,7 +274,7 @@
       font-family: var(--mono);
       font-size: 13px;
       font-weight: 600;
-      color: #f8f8f2;
+      color: var(--white);
       background: var(--clay);
       width: 26px; height: 26px;
       border-radius: 50%;
@@ -317,8 +316,8 @@
       position: absolute;
       left: 5px; top: 2px;
       width: 5px; height: 9px;
-      border-right: 2px solid #282a36;
-      border-bottom: 2px solid #282a36;
+      border-right: 2px solid var(--white);
+      border-bottom: 2px solid var(--white);
       transform: rotate(40deg);
     }
     .test .label { color: var(--slate); }

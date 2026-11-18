@@ -4,31 +4,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
 <title>How rate limiting works in acme/api</title>
 <style>
   :root {
-    --bg:        #282a36;
-    --bg-dark:   #21222c;
-    --surface:   #343746;
-    --border:    #44475a;
-    --fg:        #f8f8f2;
-    --muted:     #6272a4;
-    --cyan:      #8be9fd;
-    --green:     #50fa7b;
-    --orange:    #ffb86c;
-    --pink:      #ff79c6;
-    --purple:    #bd93f9;
-    --red:       #ff5555;
-    --yellow:    #f1fa8c;
+    --ivory:   #FAF9F5;
+    --slate:   #141413;
+    --clay:    #D97757;
+    --oat:     #E3DACC;
+    --olive:   #788C5D;
+    --gray-150:#F0EEE6;
+    --gray-300:#D1CFC5;
+    --gray-500:#87867F;
+    --gray-700:#3D3D3A;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--ivory);
+    color: var(--gray-700);
     font-family: var(--sans);
     font-size: 15px;
     line-height: 1.65;
@@ -56,28 +51,28 @@
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 12px;
   }
   nav a {
     display: block;
     padding: 5px 0 5px 12px;
-    border-left: 2px solid var(--border);
-    color: var(--fg);
+    border-left: 2px solid var(--gray-300);
+    color: var(--gray-700);
     text-decoration: none;
   }
-  nav a:hover { color: var(--fg); border-color: var(--purple); }
-  nav a.l2 { padding-left: 24px; font-size: 12.5px; color: var(--muted); }
+  nav a:hover { color: var(--slate); border-color: var(--slate); }
+  nav a.l2 { padding-left: 24px; font-size: 12.5px; color: var(--gray-500); }
   nav .files {
     margin-top: 28px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--gray-300);
     padding-top: 16px;
   }
   nav .files code {
     display: block;
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--muted);
+    color: var(--gray-500);
     padding: 3px 0;
   }
 
@@ -88,32 +83,32 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 10px;
   }
   h1 {
     font-family: var(--serif);
     font-weight: 500;
     font-size: 32px;
-    color: var(--fg);
+    color: var(--slate);
     letter-spacing: -0.01em;
     margin-bottom: 14px;
   }
   .tldr {
-    border: 1.5px solid var(--border);
-    border-left: 3px solid var(--purple);
+    border: 1.5px solid var(--gray-300);
+    border-left: 3px solid var(--clay);
     border-radius: 10px;
-    background: var(--surface);
+    background: #fff;
     padding: 16px 18px;
     margin-bottom: 8px;
   }
-  .tldr b { color: var(--fg); }
+  .tldr b { color: var(--slate); }
 
   h2 {
     font-family: var(--serif);
     font-weight: 500;
     font-size: 22px;
-    color: var(--fg);
+    color: var(--slate);
     margin: 40px 0 14px;
     scroll-margin-top: 24px;
   }
@@ -122,9 +117,9 @@
 
   /* ── collapsible ─────────────────────── */
   details {
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 10px;
-    background: var(--surface);
+    background: #fff;
     margin: 14px 0;
     overflow: hidden;
   }
@@ -134,7 +129,7 @@
     padding: 14px 16px;
     font-family: var(--serif);
     font-size: 16px;
-    color: var(--fg);
+    color: var(--slate);
     display: flex;
     align-items: baseline;
     gap: 10px;
@@ -142,7 +137,7 @@
   summary::-webkit-details-marker { display: none; }
   summary::before {
     content: "▸";
-    color: var(--purple);
+    color: var(--clay);
     font-family: var(--sans);
     font-size: 12px;
     transition: transform 120ms;
@@ -151,7 +146,7 @@
   summary .where {
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-left: auto;
   }
   details .body { padding: 0 16px 16px; }
@@ -159,16 +154,16 @@
 
   /* ── tabs ─────────────────────────────── */
   .tabs {
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 10px;
-    background: var(--surface);
+    background: #fff;
     margin: 16px 0 8px;
     overflow: hidden;
   }
   .tabbar {
     display: flex;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-dark);
+    border-bottom: 1px solid var(--gray-300);
+    background: var(--gray-150);
   }
   .tabbar button {
     appearance: none;
@@ -176,15 +171,15 @@
     background: none;
     font-family: var(--mono);
     font-size: 12px;
-    color: var(--muted);
+    color: var(--gray-500);
     padding: 10px 16px;
     cursor: pointer;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--gray-300);
   }
   .tabbar button.on {
-    background: var(--surface);
-    color: var(--fg);
-    border-bottom: 2px solid var(--purple);
+    background: #fff;
+    color: var(--slate);
+    border-bottom: 2px solid var(--clay);
     margin-bottom: -1px;
   }
   .tabs pre {
@@ -194,32 +189,32 @@
     font-family: var(--mono);
     font-size: 12.5px;
     line-height: 1.6;
-    color: var(--fg);
+    color: var(--slate);
     overflow-x: auto;
   }
   .tabs pre.on { display: block; }
-  .hl { color: var(--pink); }
-  .cm { color: var(--muted); }
+  .hl { color: var(--clay); }
+  .cm { color: var(--gray-500); }
 
   /* ── callout ──────────────────────────── */
   .callout {
     display: flex;
     gap: 12px;
-    border: 1.5px solid var(--border);
-    background: rgba(189,147,249,0.14);
+    border: 1.5px solid var(--oat);
+    background: rgba(227,218,204,0.35);
     border-radius: 10px;
     padding: 14px 16px;
     margin: 18px 0;
     font-size: 14px;
   }
-  .callout .ico { color: var(--purple); font-weight: 600; }
+  .callout .ico { color: var(--clay); font-weight: 600; }
 
   /* ── faq ──────────────────────────────── */
   dl.faq { margin-top: 8px; }
   dl.faq dt {
     font-family: var(--serif);
     font-size: 16px;
-    color: var(--fg);
+    color: var(--slate);
     margin-top: 18px;
   }
   dl.faq dd { font-size: 14px; margin: 4px 0 0; max-width: 640px; }

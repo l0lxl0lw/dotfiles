@@ -4,21 +4,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="dark">
 <title>Acme — flags.production.json</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --clay-d: #ff5555;
-    --oat: #44475a;
-    --olive: #50fa7b;
-    --gray-50: #343746;
-    --gray-200: #44475a;
-    --gray-500: #6272a4;
-    --gray-800: #f8f8f2;
-    --white: #343746;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --clay-d: #B85C3E;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --gray-50: #F0EEE6;
+    --gray-200: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-800: #3D3D3A;
+    --white: #ffffff;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -78,9 +77,9 @@
     align-items: baseline;
     gap: 8px;
     padding: 10px 14px;
-    border: 1.5px solid rgba(255,85,85,0.4);
-    background: rgba(255,85,85,0.12);
-    color: #ff5555;
+    border: 1.5px solid #E8C2AE;
+    background: #F8E9E0;
+    color: var(--clay-d);
     border-radius: 10px;
     font-size: 13px;
   }
@@ -122,8 +121,8 @@
   }
   .flag:last-child { border-bottom: none; }
   .flag.warn {
-    border-left-color: #ff5555;
-    background: rgba(255,85,85,0.08);
+    border-left-color: var(--clay);
+    background: #FBF3EE;
   }
 
   .flag-info { flex: 1; min-width: 0; }
@@ -175,9 +174,9 @@
   }
   .req-chip .warn-glyph { display: none; }
   .flag.warn .req-chip {
-    color: #ff5555;
-    background: rgba(255,85,85,0.12);
-    border-color: rgba(255,85,85,0.35);
+    color: var(--clay-d);
+    background: #F8E1D5;
+    border-color: #E8C2AE;
   }
   .flag.warn .req-chip .warn-glyph { display: inline; }
 
@@ -214,14 +213,14 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #f8f8f2;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    background: var(--white);
+    box-shadow: 0 1px 2px rgba(20,20,19,0.18);
     transition: transform 160ms ease;
   }
-  .toggle input:checked + .track { background: #50fa7b; }
+  .toggle input:checked + .track { background: var(--olive); }
   .toggle input:checked + .track::after { transform: translateX(16px); }
   .toggle input:focus-visible + .track {
-    outline: 2px solid var(--clay);
+    outline: 2px solid var(--slate);
     outline-offset: 2px;
   }
 
@@ -250,14 +249,14 @@
     font-size: 19px;
     letter-spacing: -0.01em;
   }
-  .side-count .warn-n { color: #ff5555; }
+  .side-count .warn-n { color: var(--clay-d); }
   .side-count .sep { color: var(--gray-200); margin: 0 4px; }
   .diff {
     margin: 0;
     font-family: var(--mono);
     font-size: 12px;
     line-height: 1.7;
-    background: #21222c;
+    background: var(--gray-50);
     border: 1px solid var(--gray-200);
     border-radius: 8px;
     padding: 12px 14px;
@@ -266,7 +265,7 @@
     overflow-y: auto;
     white-space: pre;
   }
-  .diff .minus { color: #ff5555; }
+  .diff .minus { color: var(--gray-500); }
   .diff .plus { color: var(--olive); }
   .diff .empty { color: var(--gray-500); }
 
@@ -283,16 +282,16 @@
     transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
   }
   .btn.primary {
-    background: var(--clay);
-    color: #282a36;
+    background: var(--slate);
+    color: var(--ivory);
   }
-  .btn.primary:hover:not(:disabled) { background: #ff79c6; }
+  .btn.primary:hover:not(:disabled) { background: var(--gray-800); }
   .btn.primary:disabled {
     background: var(--gray-200);
     color: var(--gray-500);
     cursor: not-allowed;
   }
-  .btn.primary.copied { background: var(--olive); color: #282a36; }
+  .btn.primary.copied { background: var(--olive); }
   .btn.ghost {
     background: transparent;
     color: var(--gray-800);

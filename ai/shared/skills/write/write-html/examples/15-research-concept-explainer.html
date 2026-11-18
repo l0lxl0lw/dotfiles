@@ -4,31 +4,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
 <title>Consistent hashing — an interactive explainer</title>
 <style>
   :root {
-    --bg:        #282a36;
-    --bg-dark:   #21222c;
-    --surface:   #343746;
-    --border:    #44475a;
-    --fg:        #f8f8f2;
-    --muted:     #6272a4;
-    --cyan:      #8be9fd;
-    --green:     #50fa7b;
-    --orange:    #ffb86c;
-    --pink:      #ff79c6;
-    --purple:    #bd93f9;
-    --red:       #ff5555;
-    --yellow:    #f1fa8c;
+    --ivory:   #FAF9F5;
+    --slate:   #141413;
+    --clay:    #D97757;
+    --oat:     #E3DACC;
+    --olive:   #788C5D;
+    --sky:     #6A8CAF;
+    --gray-150:#F0EEE6;
+    --gray-300:#D1CFC5;
+    --gray-500:#87867F;
+    --gray-700:#3D3D3A;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--ivory);
+    color: var(--gray-700);
     font-family: var(--sans);
     font-size: 15px;
     line-height: 1.65;
@@ -50,14 +46,14 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 10px;
   }
   h1 {
     font-family: var(--serif);
     font-weight: 500;
     font-size: 33px;
-    color: var(--fg);
+    color: var(--slate);
     letter-spacing: -0.01em;
     margin-bottom: 12px;
   }
@@ -66,22 +62,22 @@
     font-family: var(--serif);
     font-weight: 500;
     font-size: 22px;
-    color: var(--fg);
+    color: var(--slate);
     margin: 40px 0 12px;
   }
   p { margin-bottom: 12px; max-width: 680px; }
   code { font-family: var(--mono); font-size: 13px; }
   .term {
-    border-bottom: 1.5px dotted var(--purple);
+    border-bottom: 1.5px dotted var(--clay);
     cursor: help;
-    color: var(--fg);
+    color: var(--slate);
   }
 
   /* ── demo panel ───────────────────────── */
   .demo {
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 14px;
-    background: var(--surface);
+    background: #fff;
     padding: 24px;
     margin: 12px 0 8px;
   }
@@ -94,39 +90,38 @@
   @media (max-width: 760px) { .demo-grid { grid-template-columns: 1fr; } }
 
   svg.ring { display: block; width: 100%; max-width: 320px; }
-  .ring .track { fill: none; stroke: var(--border); stroke-width: 14; }
+  .ring .track { fill: none; stroke: var(--gray-300); stroke-width: 14; }
   .ring .arc   { fill: none; stroke-width: 14; transition: stroke-dasharray 300ms ease; }
-  .ring .node  { stroke: var(--bg-dark); stroke-width: 2; transition: cx 300ms, cy 300ms, opacity 200ms; }
-  .ring .key   { fill: var(--fg); transition: cx 300ms, cy 300ms; }
-  .ring .lbl   { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .ring .node  { stroke: #fff; stroke-width: 2; transition: cx 300ms, cy 300ms, opacity 200ms; }
+  .ring .key   { fill: var(--slate); transition: cx 300ms, cy 300ms; }
+  .ring .lbl   { font-family: var(--mono); font-size: 10px; fill: var(--gray-500); }
 
   .controls { font-size: 13px; }
   .controls .row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .controls label { width: 64px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
-  .controls .val { font-family: var(--mono); font-size: 12px; color: var(--fg); width: 28px; }
-  .controls input[type=range] { flex: 1; accent-color: var(--purple); }
+  .controls label { width: 64px; color: var(--gray-500); font-family: var(--mono); font-size: 11px; }
+  .controls .val { font-family: var(--mono); font-size: 12px; color: var(--slate); width: 28px; }
+  .controls input[type=range] { flex: 1; accent-color: var(--clay); }
   .controls button {
     appearance: none;
-    border: 1.5px solid var(--border);
-    background: var(--bg-dark);
+    border: 1.5px solid var(--gray-300);
+    background: var(--gray-150);
     border-radius: 6px;
     font-family: var(--mono);
     font-size: 11px;
     padding: 6px 10px;
     cursor: pointer;
     margin-right: 6px;
-    color: var(--fg);
   }
-  .controls button:hover { background: var(--border); }
+  .controls button:hover { background: var(--oat); }
 
   .readout {
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--gray-300);
     margin-top: 16px;
     padding-top: 14px;
     font-size: 13px;
   }
-  .readout b { color: var(--fg); }
-  .moved { color: var(--orange); font-family: var(--mono); }
+  .readout b { color: var(--slate); }
+  .moved { color: var(--clay); font-family: var(--mono); }
 
   /* ── compare table ────────────────────── */
   table {
@@ -136,19 +131,19 @@
     font-size: 13.5px;
     margin: 12px 0;
   }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 500; }
-  td.bad { color: var(--red); }
-  td.good { color: var(--green); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--gray-300); }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); font-weight: 500; }
+  td.bad { color: #B04A3F; }
+  td.good { color: var(--olive); }
 
   /* ── glossary ─────────────────────────── */
   aside {
     position: sticky;
     top: 32px;
     align-self: start;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 12px;
-    background: var(--surface);
+    background: #fff;
     padding: 18px 18px 8px;
   }
   aside .label {
@@ -156,22 +151,22 @@
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 12px;
   }
   aside dl dt {
     font-family: var(--serif);
     font-size: 15px;
-    color: var(--fg);
+    color: var(--slate);
     margin-top: 0;
   }
   aside dl dd {
     font-size: 12.5px;
     line-height: 1.5;
-    color: var(--fg);
+    color: var(--gray-700);
     margin: 2px 0 14px;
   }
-  aside dl dt.hl, aside dl dt.hl + dd { background: rgba(189,147,249,0.14); margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
+  aside dl dt.hl, aside dl dt.hl + dd { background: rgba(217,119,87,0.10); margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -220,7 +215,7 @@
         </div>
       </div>
     </div>
-    <p style="font-size:13px; color:var(--muted); max-width:640px;">
+    <p style="font-size:13px; color:var(--gray-500); max-width:640px;">
       Colored arcs show ownership. Removing a node hands its arc to its clockwise neighbor; every dot outside
       that arc keeps its color. That's the whole idea.
     </p>
@@ -272,7 +267,7 @@ function h(s) {
   for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = (x * 16777619) >>> 0; }
   return x / 4294967296;
 }
-const COLORS = ["#bd93f9", "#50fa7b", "#8be9fd", "#f1fa8c", "#ff5555", "#6272a4", "#ff79c6", "#ffb86c"];
+const COLORS = ["#D97757", "#788C5D", "#6A8CAF", "#C2A83E", "#B04A3F", "#87867F", "#3D6E6E", "#A67C52"];
 const CX = 130, CY = 130, R = 100, RKEY = 78;
 const TAU = Math.PI * 2;
 

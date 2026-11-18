@@ -4,31 +4,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
 <title>Deploy pipeline — annotated flowchart</title>
 <style>
   :root {
-    --bg:        #282a36;
-    --bg-dark:   #21222c;
-    --surface:   #343746;
-    --border:    #44475a;
-    --fg:        #f8f8f2;
-    --muted:     #6272a4;
-    --cyan:      #8be9fd;
-    --green:     #50fa7b;
-    --orange:    #ffb86c;
-    --pink:      #ff79c6;
-    --purple:    #bd93f9;
-    --red:       #ff5555;
-    --yellow:    #f1fa8c;
+    --ivory:   #FAF9F5;
+    --slate:   #141413;
+    --clay:    #D97757;
+    --oat:     #E3DACC;
+    --olive:   #788C5D;
+    --rust:    #B04A3F;
+    --gray-150:#F0EEE6;
+    --gray-300:#D1CFC5;
+    --gray-500:#87867F;
+    --gray-700:#3D3D3A;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--ivory);
+    color: var(--slate);
     font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
     padding: 56px 24px 96px;
@@ -41,7 +37,7 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 10px;
   }
   h1 {
@@ -54,7 +50,7 @@
   .lead {
     font-size: 14.5px;
     line-height: 1.6;
-    color: var(--fg);
+    color: var(--gray-700);
     max-width: 640px;
   }
   .lead code { font-family: var(--mono); font-size: 13px; }
@@ -70,9 +66,9 @@
 
   /* ── chart ────────────────────────────── */
   .canvas {
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 14px;
-    background: var(--surface);
+    background: #fff;
     padding: 28px;
     overflow-x: auto;
   }
@@ -81,39 +77,39 @@
   .flow text {
     font-family: var(--mono);
     font-size: 12px;
-    fill: var(--fg);
+    fill: var(--slate);
     pointer-events: none;
   }
-  .flow .sub { font-size: 10px; fill: var(--muted); }
-  .flow .lbl { font-size: 10px; fill: var(--muted); }
+  .flow .sub { font-size: 10px; fill: var(--gray-500); }
+  .flow .lbl { font-size: 10px; fill: var(--gray-500); }
 
-  .node rect       { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; rx: 8; }
-  .node.term rect  { fill: var(--bg-dark); rx: 22; }
-  .node.gate path  { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
-  .node.ok rect    { fill: rgba(80,250,123,0.12); stroke: var(--green); }
-  .node.bad rect   { fill: rgba(255,85,85,0.10); stroke: var(--red); }
+  .node rect       { fill: #fff; stroke: var(--gray-300); stroke-width: 1.5; rx: 8; }
+  .node.term rect  { fill: var(--gray-150); rx: 22; }
+  .node.gate path  { fill: #fff; stroke: var(--gray-300); stroke-width: 1.5; }
+  .node.ok rect    { fill: rgba(120,140,93,0.12); stroke: var(--olive); }
+  .node.bad rect   { fill: rgba(176,74,63,0.10); stroke: var(--rust); }
 
   .node { cursor: pointer; transition: transform 120ms ease; }
   .node:hover { transform: translateY(-1px); }
   .node.active rect,
-  .node.active path { stroke: var(--purple); stroke-width: 2; }
+  .node.active path { stroke: var(--clay); stroke-width: 2; }
 
-  .edge       { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
-  .edge.no    { stroke: var(--red); stroke-dasharray: 4 4; marker-end: url(#arrow-red); }
-  .edge.yes   { stroke: var(--green); marker-end: url(#arrow-green); }
+  .edge       { stroke: var(--gray-500); stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  .edge.no    { stroke: var(--rust); stroke-dasharray: 4 4; marker-end: url(#arrow-rust); }
+  .edge.yes   { stroke: var(--olive); marker-end: url(#arrow-olive); }
 
   /* ── side panel ───────────────────────── */
   aside {
     position: sticky;
     top: 24px;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--gray-300);
     border-radius: 14px;
-    background: var(--surface);
+    background: #fff;
     padding: 20px 20px 22px;
   }
   aside .hint {
     font-size: 12px;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 14px;
   }
   aside h3 {
@@ -125,25 +121,25 @@
   aside .meta {
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-bottom: 14px;
   }
   aside p {
     font-size: 13.5px;
     line-height: 1.6;
-    color: var(--fg);
+    color: var(--gray-700);
     margin-bottom: 12px;
   }
   aside pre {
     font-family: var(--mono);
     font-size: 11.5px;
     line-height: 1.55;
-    background: var(--bg-dark);
-    border: 1px solid var(--border);
+    background: var(--gray-150);
+    border: 1px solid var(--gray-300);
     border-radius: 8px;
     padding: 10px 12px;
     white-space: pre-wrap;
-    color: var(--fg);
+    color: var(--slate);
   }
 
   /* ── legend ───────────────────────────── */
@@ -153,13 +149,13 @@
     gap: 18px;
     margin-top: 18px;
     font-size: 12px;
-    color: var(--fg);
+    color: var(--gray-700);
   }
   .legend span { display: inline-flex; align-items: center; gap: 8px; }
-  .chip { width: 22px; height: 14px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--surface); }
+  .chip { width: 22px; height: 14px; border: 1.5px solid var(--gray-300); border-radius: 4px; background: #fff; }
   .chip.gate { transform: rotate(45deg); width: 12px; height: 12px; border-radius: 2px; }
-  .chip.ok   { background: rgba(80,250,123,0.12); border-color: var(--green); }
-  .chip.bad  { background: rgba(255,85,85,0.10); border-color: var(--red); }
+  .chip.ok   { background: rgba(120,140,93,0.12); border-color: var(--olive); }
+  .chip.bad  { background: rgba(176,74,63,0.10); border-color: var(--rust); }
 </style>
 </head>
 <body>
@@ -181,13 +177,13 @@
         <svg class="flow" viewBox="0 0 620 920">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#6272a4"/>
+              <path d="M0,0 L10,5 L0,10 z" fill="#87867F"/>
             </marker>
-            <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#ff5555"/>
+            <marker id="arrow-rust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#B04A3F"/>
             </marker>
-            <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M0,0 L10,5 L0,10 z" fill="#50fa7b"/>
+            <marker id="arrow-olive" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#788C5D"/>
             </marker>
           </defs>
 
@@ -198,13 +194,13 @@
           <path class="edge yes" d="M310,326 L310,368"/>
           <text class="lbl" x="320" y="350">pass</text>
           <path class="edge no" d="M268,294 C190,294 150,294 150,212 L150,212"/>
-          <text class="lbl" x="138" y="260" fill="#ff5555">fail → status</text>
+          <text class="lbl" x="138" y="260" fill="#B04A3F">fail → status</text>
           <path class="edge" d="M310,416 L310,452"/>
           <path class="edge" d="M310,500 L310,538"/>
           <path class="edge yes" d="M310,602 L310,644"/>
           <text class="lbl" x="320" y="626">healthy</text>
           <path class="edge no" d="M352,570 C470,570 470,690 392,720"/>
-          <text class="lbl" x="448" y="636" fill="#ff5555">canary fails</text>
+          <text class="lbl" x="448" y="636" fill="#B04A3F">canary fails</text>
           <path class="edge" d="M310,692 L310,730"/>
           <path class="edge" d="M310,778 L310,816"/>
 

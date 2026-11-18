@@ -4,20 +4,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="dark">
 <title>PR #247 — Review Summary</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --oat: #44475a;
-    --olive: #50fa7b;
-    --rust: #ff5555;
-    --gray-150: #343746;
-    --gray-300: #44475a;
-    --gray-500: #6272a4;
-    --gray-700: #f8f8f2;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --rust: #B04A3F;
+    --gray-150: #F0EEE6;
+    --gray-300: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-700: #3D3D3A;
     --serif: ui-serif, Georgia, 'Times New Roman', serif;
     --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --mono: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
@@ -46,7 +45,7 @@
     border: 1.5px solid var(--gray-300);
     border-radius: 12px;
     padding: 28px 32px;
-    background: #343746;
+    background: #fff;
     margin-bottom: 36px;
   }
 
@@ -113,8 +112,8 @@
     font-family: var(--mono);
     font-size: 13px;
   }
-  .stat .add { color: #50fa7b; font-weight: 600; }
-  .stat .del { color: #ff5555; font-weight: 600; }
+  .stat .add { color: var(--olive); font-weight: 600; }
+  .stat .del { color: var(--rust); font-weight: 600; }
   .stat .files { color: var(--gray-500); margin-left: 10px; }
 
   /* ---------- Section blocks ---------- */
@@ -166,7 +165,7 @@
     font-size: 12.5px;
     color: var(--slate);
     text-decoration: none;
-    background: #343746;
+    background: #fff;
     transition: transform 0.12s ease;
   }
   .chip:hover { transform: translateY(-1px); }
@@ -177,12 +176,12 @@
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .chip.safe { background: rgba(80,250,123,0.12); border-color: rgba(80,250,123,0.45); }
-  .chip.safe .dot { background: #50fa7b; }
-  .chip.medium { background: #44475a; }
-  .chip.medium .dot { background: #ffb86c; }
-  .chip.attention { background: rgba(189,147,249,0.14); border-color: rgba(189,147,249,0.55); }
-  .chip.attention .dot { background: #bd93f9; }
+  .chip.safe { background: rgba(120,140,93,0.10); border-color: rgba(120,140,93,0.45); }
+  .chip.safe .dot { background: var(--olive); }
+  .chip.medium { background: var(--oat); }
+  .chip.medium .dot { background: #B89B6E; }
+  .chip.attention { background: rgba(217,119,87,0.12); border-color: rgba(217,119,87,0.55); }
+  .chip.attention .dot { background: var(--clay); }
 
   .legend {
     margin-top: 12px;
@@ -198,7 +197,7 @@
   .file-card {
     border: 1.5px solid var(--gray-300);
     border-radius: 12px;
-    background: #343746;
+    background: #fff;
     margin-bottom: 24px;
     overflow: hidden;
     scroll-margin-top: 20px;
@@ -222,8 +221,8 @@
     font-size: 12px;
     color: var(--gray-500);
   }
-  .file-delta .add { color: #50fa7b; }
-  .file-delta .del { color: #ff5555; }
+  .file-delta .add { color: var(--olive); }
+  .file-delta .del { color: var(--rust); }
 
   .risk-tag {
     font-size: 11px;
@@ -233,13 +232,13 @@
     border-radius: 6px;
     font-weight: 600;
   }
-  .risk-tag.safe { background: rgba(80,250,123,0.15); color: #50fa7b; }
-  .risk-tag.medium { background: #44475a; color: #ffb86c; }
-  .risk-tag.attention { background: rgba(189,147,249,0.15); color: #bd93f9; }
+  .risk-tag.safe { background: rgba(120,140,93,0.15); color: var(--olive); }
+  .risk-tag.medium { background: var(--oat); color: #7A6A4F; }
+  .risk-tag.attention { background: rgba(217,119,87,0.15); color: var(--clay); }
 
   /* ---------- Diff block ---------- */
   .diff {
-    background: #21222c;
+    background: var(--slate);
     font-family: var(--mono);
     font-size: 12.5px;
     line-height: 1.7;
@@ -262,12 +261,12 @@
     text-align: center;
     color: var(--gray-500);
   }
-  .diff-row .code { color: #f8f8f2; }
-  .diff-row.ctx .code { color: #6272a4; }
-  .diff-row.add { background: rgba(80,250,123,0.12); }
-  .diff-row.add .mark { color: #50fa7b; }
-  .diff-row.del { background: rgba(255,85,85,0.12); }
-  .diff-row.del .mark { color: #ff5555; }
+  .diff-row .code { color: #E8E6DC; }
+  .diff-row.ctx .code { color: #B8B6AC; }
+  .diff-row.add { background: rgba(120,140,93,0.15); }
+  .diff-row.add .mark { color: var(--olive); }
+  .diff-row.del { background: rgba(176,74,63,0.15); }
+  .diff-row.del .mark { color: var(--rust); }
   .diff-row.hunk {
     background: rgba(255,255,255,0.04);
     color: var(--gray-500);
@@ -285,14 +284,14 @@
 
   .bubble {
     position: relative;
-    background: #343746;
+    background: #fff;
     border: 1.5px solid var(--gray-300);
     border-left-width: 4px;
     border-radius: 8px;
     padding: 12px 14px 12px 16px;
     max-width: 680px;
   }
-  .bubble.blocking { border-left-color: #bd93f9; }
+  .bubble.blocking { border-left-color: var(--clay); }
   .bubble.nit { border-left-color: var(--gray-300); }
 
   .bubble::before {
@@ -302,12 +301,12 @@
     top: 16px;
     width: 12px;
     height: 12px;
-    background: #343746;
+    background: #fff;
     border-left: 1.5px solid var(--gray-300);
     border-bottom: 1.5px solid var(--gray-300);
     transform: rotate(45deg);
   }
-  .bubble.blocking::before { border-left-color: #bd93f9; border-bottom-color: #bd93f9; }
+  .bubble.blocking::before { border-left-color: var(--clay); border-bottom-color: var(--clay); }
 
   .bubble .anchor {
     font-family: var(--mono);
@@ -323,7 +322,7 @@
     font-weight: 700;
     margin-right: 8px;
   }
-  .bubble.blocking .label { color: #bd93f9; }
+  .bubble.blocking .label { color: var(--clay); }
   .bubble.nit .label { color: var(--gray-500); }
   .bubble p { font-size: 13.5px; color: var(--gray-700); }
   .bubble code {
@@ -338,7 +337,7 @@
   details.file-collapsed {
     border: 1.5px solid var(--gray-300);
     border-radius: 12px;
-    background: #343746;
+    background: #fff;
     margin-bottom: 14px;
     scroll-margin-top: 20px;
   }
@@ -369,7 +368,7 @@
   footer.next-steps {
     border: 1.5px solid var(--gray-300);
     border-radius: 12px;
-    background: #343746;
+    background: #fff;
     padding: 24px 28px;
   }
   .checklist { list-style: none; padding: 0; }
@@ -383,7 +382,7 @@
     width: 17px;
     height: 17px;
     margin-top: 2px;
-    accent-color: #50fa7b;
+    accent-color: var(--olive);
     cursor: pointer;
   }
   .checklist label { cursor: pointer; flex: 1; }
@@ -440,9 +439,9 @@
       <a class="chip safe" href="#file-test"><span class="dot"></span>TaskList.test.tsx</a>
     </div>
     <div class="legend">
-      <span><span class="dot" style="background:#50fa7b"></span> safe</span>
-      <span><span class="dot" style="background:#ffb86c"></span> worth a look</span>
-      <span><span class="dot" style="background:#bd93f9"></span> needs attention</span>
+      <span><span class="dot" style="background:var(--olive)"></span> safe</span>
+      <span><span class="dot" style="background:#B89B6E"></span> worth a look</span>
+      <span><span class="dot" style="background:var(--clay)"></span> needs attention</span>
     </div>
   </section>
 
@@ -631,7 +630,7 @@
       var target = document.querySelector(a.getAttribute('href'));
       if (!target) return;
       target.style.transition = 'box-shadow 180ms ease';
-      target.style.boxShadow = '0 0 0 3px rgba(189,147,249,0.35)';
+      target.style.boxShadow = '0 0 0 3px rgba(217,119,87,0.35)';
       setTimeout(function () { target.style.boxShadow = 'none'; }, 1400);
     });
   });

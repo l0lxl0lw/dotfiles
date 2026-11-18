@@ -4,20 +4,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
   <title>Empty state — four visual directions</title>
   <style>
     :root {
-      --ivory:    #282a36;
-      --slate:    #f8f8f2;
-      --clay:     #bd93f9;
-      --oat:      #44475a;
-      --olive:    #50fa7b;
-      --gray-150: #343746;
-      --gray-300: #44475a;
-      --gray-500: #6272a4;
-      --gray-700: #f8f8f2;
-      --white:    #343746;
+      --ivory:    #FAF9F5;
+      --slate:    #141413;
+      --clay:     #D97757;
+      --oat:      #E3DACC;
+      --olive:    #788C5D;
+      --gray-150: #F0EEE6;
+      --gray-300: #D1CFC5;
+      --gray-500: #87867F;
+      --gray-700: #3D3D3A;
+      --white:    #FFFFFF;
 
       --serif: ui-serif, Georgia, 'Times New Roman', serif;
       --sans:  system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -197,8 +196,8 @@
     }
 
     .stage.dark {
-      background: #21222c;
-      border-color: #21222c;
+      background: var(--slate);
+      border-color: var(--slate);
     }
 
     .rationale {
@@ -214,7 +213,7 @@
        ========================================================= */
 
     .stage        { --fg: var(--slate); --muted: var(--gray-500); --line: var(--gray-300); --panel: var(--white); }
-    .stage.dark   { --fg: #f8f8f2;      --muted: #6272a4;         --line: #44475a;         --panel: #282a36;     }
+    .stage.dark   { --fg: #F0EEE6;      --muted: #9C9A93;         --line: #3D3D3A;         --panel: #1F1E1B;     }
 
     /* ---- A · Minimal ---- */
 
@@ -270,12 +269,12 @@
       display: inline-block;
       font-size: 13px;
       font-weight: 500;
-      color: #282a36;
-      background: #bd93f9;
+      color: var(--white);
+      background: var(--clay);
       border-radius: 8px;
       padding: 8px 16px;
     }
-    .stage.dark .es-b .btn { color: #282a36; background: #bd93f9; }
+    .stage.dark .es-b .btn { color: var(--slate); background: var(--oat); }
 
     /* ---- C · Playful ---- */
 
@@ -300,7 +299,7 @@
     .es-c .float .card:nth-child(1) { transform: rotate(-8deg) translate(-6px, 4px); opacity: 0.5; }
     .es-c .float .card:nth-child(2) { transform: rotate( 6deg) translate( 6px, 2px); opacity: 0.75; }
     .es-c .float .card:nth-child(3) { background: var(--oat); border-color: var(--oat); }
-    .stage.dark .es-c .float .card:nth-child(3) { background: #bd93f9; border-color: #bd93f9; }
+    .stage.dark .es-c .float .card:nth-child(3) { background: var(--clay); border-color: var(--clay); }
     .es-c .shadow {
       width: 44px;
       height: 8px;
@@ -398,7 +397,7 @@
 
     <header class="page-head">
       <div class="eyebrow">Exploration · Empty states</div>
-      <h1>Four visual directions for the "no tasks yet" state</h1>
+      <h1>Four visual directions for the “no tasks yet” state</h1>
       <div class="prompt-box">
         <span class="label">Prompt</span>
         Explore four visual directions for our empty-state component. Render each
@@ -439,9 +438,9 @@
                     stroke="var(--slate)" stroke-width="2" stroke-linecap="round"/>
               <line x1="46" y1="38" x2="80" y2="38"
                     stroke="var(--slate)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
-              <circle cx="98" cy="60" r="12" fill="#bd93f9"/>
+              <circle cx="98" cy="60" r="12" fill="var(--clay)"/>
               <path d="M98 55 v10 M93 60 h10"
-                    stroke="#282a36" stroke-width="2" stroke-linecap="round"/>
+                    stroke="white" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <h3>Start your first list</h3>
             <p>Group related work and watch progress roll up automatically.</p>

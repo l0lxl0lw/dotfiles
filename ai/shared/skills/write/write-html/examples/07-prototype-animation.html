@@ -4,20 +4,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="dark">
 <title>Acme — Task completed micro-interaction</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --oat: #343746;
-    --olive: #50fa7b;
-    --gray-50: #21222c;
-    --gray-200: #44475a;
-    --gray-500: #6272a4;
-    --gray-800: #f8f8f2;
-    --white: #343746;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --gray-50: #F0EEE6;
+    --gray-200: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-800: #3D3D3A;
+    --white: #ffffff;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -94,7 +93,7 @@
     padding: 14px 18px;
     border: 1.5px solid var(--gray-200);
     border-radius: 8px;
-    background: var(--gray-50);
+    background: var(--white);
     width: 360px;
     max-height: 64px;
     position: relative;
@@ -113,7 +112,7 @@
     height: 24px;
     border-radius: 50%;
     border: 1.5px solid var(--gray-500);
-    background: var(--gray-50);
+    background: var(--white);
     position: relative;
     transition: background 180ms var(--ease),
                 border-color 180ms var(--ease),
@@ -127,7 +126,7 @@
     height: 14px;
   }
   .check path {
-    stroke: #282a36;
+    stroke: var(--white);
     stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -159,7 +158,7 @@
     font-family: var(--mono);
     font-size: 11px;
     color: var(--gray-500);
-    background: var(--ivory);
+    background: var(--gray-50);
     border: 1.5px solid var(--gray-200);
     padding: 3px 8px;
     border-radius: 8px;
@@ -179,10 +178,10 @@
   }
   .confetti.c1 { background: var(--clay);  }
   .confetti.c2 { background: var(--olive); }
-  .confetti.c3 { background: #ff79c6;      }
+  .confetti.c3 { background: var(--oat);   }
   .confetti.c4 { background: var(--clay);  }
   .confetti.c5 { background: var(--olive); }
-  .confetti.c6 { background: #8be9fd;      }
+  .confetti.c6 { background: var(--gray-800); }
 
   /* ---------- done state ---------- */
   .task.done .check {
@@ -254,7 +253,7 @@
   .ease-btn:hover { border-color: var(--gray-500); }
   .ease-btn.active {
     border-color: var(--clay);
-    background: rgba(189, 147, 249, 0.12);
+    background: #FBF1EC;
   }
   .ease-btn code {
     display: block;
@@ -291,7 +290,7 @@
     height: 12px;
     border-radius: 50%;
     background: var(--clay);
-    border: 1.5px solid var(--ivory);
+    border: 1.5px solid var(--white);
     box-shadow: 0 0 0 1.5px var(--clay);
     transform: translateX(-50%);
   }
@@ -332,8 +331,8 @@
     margin: 0 0 10px;
   }
   pre {
-    background: #21222c;
-    color: #f8f8f2;
+    background: var(--gray-800);
+    color: var(--gray-50);
     border-radius: 12px;
     padding: 18px 20px;
     font-family: var(--mono);
@@ -342,9 +341,9 @@
     overflow-x: auto;
     margin: 0;
   }
-  pre .c { color: #6272a4; }
-  pre .k { color: #ff79c6; }
-  pre .v { color: #50fa7b; }
+  pre .c { color: var(--gray-500); }
+  pre .k { color: var(--clay); }
+  pre .v { color: #B8C99D; }
 </style>
 </head>
 <body>
@@ -411,14 +410,14 @@
 
   <section class="snippet">
     <h2>Copy-paste CSS</h2>
-<pre><span class="c">/* circle: purple flash, settle to green with spring overshoot */</span>
+<pre><span class="c">/* circle: clay flash, settle to olive with spring overshoot */</span>
 <span class="k">.task.done .check</span> {
   animation: settle 380ms <span class="v">cubic-bezier(.34,1.56,.64,1)</span> forwards;
 }
 <span class="k">@keyframes settle</span> {
-  0%   { transform: scale(.8);  background: <span class="v">#bd93f9</span>; }
+  0%   { transform: scale(.8);  background: <span class="v">#D97757</span>; }
   55%  { transform: scale(1.18); }
-  100% { transform: scale(1);   background: <span class="v">#50fa7b</span>; }
+  100% { transform: scale(1);   background: <span class="v">#788C5D</span>; }
 }
 
 <span class="c">/* checkmark draws via stroke-dashoffset, 80ms delay */</span>

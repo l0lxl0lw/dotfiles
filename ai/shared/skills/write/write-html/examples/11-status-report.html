@@ -4,23 +4,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
 <title>Acme — Engineering Status — Week 11</title>
 <style>
   :root {
-    --bg:      #282a36;
-    --bg-dark: #21222c;
-    --surface: #343746;
-    --border-color: #44475a;
-    --fg:      #f8f8f2;
-    --muted:   #6272a4;
-    --cyan:    #8be9fd;
-    --green:   #50fa7b;
-    --orange:  #ffb86c;
-    --pink:    #ff79c6;
-    --purple:  #bd93f9;
-    --red:     #ff5555;
-    --yellow:  #f1fa8c;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --rust: #B04A3F;
+    --gray-100: #F0EEE6;
+    --gray-300: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-700: #3D3D3A;
+    --white: #FFFFFF;
 
     --serif: ui-serif, Georgia, serif;
     --sans: system-ui, -apple-system, sans-serif;
@@ -28,7 +25,7 @@
 
     --radius-panel: 12px;
     --radius-row: 8px;
-    --border: 1.5px solid var(--border-color);
+    --border: 1.5px solid var(--gray-300);
   }
 
   * { box-sizing: border-box; }
@@ -36,8 +33,8 @@
   body {
     margin: 0;
     padding: 56px 24px 120px;
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--ivory);
+    color: var(--slate);
     font-family: var(--sans);
     font-size: 15px;
     line-height: 1.6;
@@ -73,21 +70,21 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted);
-    background: var(--bg-dark);
+    color: var(--gray-500);
+    background: var(--gray-100);
     border: var(--border);
     border-radius: 999px;
     padding: 5px 11px;
     white-space: nowrap;
   }
   .date-range {
-    color: var(--muted);
+    color: var(--gray-500);
     font-size: 14px;
   }
   .date-range .repo {
     font-family: var(--mono);
     font-size: 13px;
-    color: var(--fg);
+    color: var(--gray-700);
   }
 
   /* ---------- Sections ---------- */
@@ -103,7 +100,7 @@
   }
   hr.rule {
     border: none;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--gray-300);
     margin: 0 0 22px;
   }
 
@@ -117,13 +114,13 @@
     .summary-band { grid-template-columns: repeat(2, 1fr); }
   }
   .stat-card {
-    background: var(--surface);
+    background: var(--white);
     border: var(--border);
     border-radius: var(--radius-panel);
     padding: 20px 22px 18px;
   }
   .stat-card.warn {
-    border-left: 4px solid var(--orange);
+    border-left: 4px solid var(--clay);
     padding-left: 19px;
   }
   .stat-num {
@@ -131,7 +128,7 @@
     font-size: 44px;
     font-weight: 500;
     line-height: 1;
-    color: var(--fg);
+    color: var(--slate);
     margin-bottom: 8px;
   }
   .stat-label {
@@ -139,15 +136,15 @@
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--muted);
+    color: var(--gray-500);
   }
   .stat-delta {
     font-family: var(--mono);
     font-size: 11px;
     margin-top: 6px;
   }
-  .stat-delta.up { color: var(--green); }
-  .stat-delta.flat { color: var(--muted); }
+  .stat-delta.up { color: var(--olive); }
+  .stat-delta.flat { color: var(--gray-500); }
 
   /* ---------- Highlights ---------- */
   .highlights {
@@ -159,7 +156,7 @@
     position: relative;
     padding: 0 0 14px 26px;
     font-size: 15px;
-    color: var(--fg);
+    color: var(--gray-700);
   }
   .highlights li::before {
     content: "";
@@ -169,10 +166,10 @@
     width: 7px;
     height: 7px;
     border-radius: 2px;
-    background: var(--purple);
+    background: var(--clay);
   }
   .highlights li strong {
-    color: var(--fg);
+    color: var(--slate);
     font-weight: 600;
   }
 
@@ -181,7 +178,7 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    background: var(--surface);
+    background: var(--white);
     border: var(--border);
     border-radius: var(--radius-panel);
     overflow: hidden;
@@ -193,14 +190,14 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted);
-    background: var(--bg-dark);
+    color: var(--gray-500);
+    background: var(--gray-100);
     padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--gray-300);
   }
   table.shipped tbody td {
     padding: 13px 16px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--gray-100);
     font-size: 14px;
     vertical-align: middle;
   }
@@ -208,20 +205,20 @@
     border-bottom: none;
   }
   table.shipped tbody tr:hover {
-    background: var(--bg-dark);
+    background: var(--ivory);
   }
   .pr-link {
     font-family: var(--mono);
     font-size: 13px;
-    color: var(--purple);
+    color: var(--clay);
     text-decoration: none;
     border-bottom: 1px dotted transparent;
   }
   .pr-link:hover {
-    border-bottom-color: var(--purple);
+    border-bottom-color: var(--clay);
   }
   .author {
-    color: var(--fg);
+    color: var(--gray-700);
     font-size: 13px;
   }
   .risk {
@@ -229,7 +226,7 @@
     align-items: center;
     gap: 7px;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--gray-500);
   }
   .risk-dot {
     width: 9px;
@@ -237,13 +234,13 @@
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .risk-dot.low { background: var(--green); }
-  .risk-dot.med { background: var(--orange); }
-  .risk-dot.high { background: var(--red); }
+  .risk-dot.low { background: var(--olive); }
+  .risk-dot.med { background: var(--clay); }
+  .risk-dot.high { background: var(--rust); }
 
   /* ---------- Velocity chart ---------- */
   .chart-panel {
-    background: var(--surface);
+    background: var(--white);
     border: var(--border);
     border-radius: var(--radius-panel);
     padding: 24px 28px 18px;
@@ -255,16 +252,15 @@
   }
   .chart-caption {
     font-size: 12px;
-    color: var(--muted);
+    color: var(--gray-500);
     margin-top: 12px;
   }
 
   /* ---------- Carryover ---------- */
   .carryover {
-    background: var(--bg-dark);
+    background: var(--oat);
     border-radius: var(--radius-panel);
     padding: 20px 22px;
-    border: var(--border);
   }
   .carry-item {
     display: flex;
@@ -273,25 +269,25 @@
     padding: 8px 0;
   }
   .carry-item + .carry-item {
-    border-top: 1px solid rgba(68, 71, 90, 0.6);
+    border-top: 1px solid rgba(20, 20, 19, 0.08);
   }
   .carry-tag {
     font-family: var(--mono);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--fg);
-    background: var(--surface);
+    color: var(--gray-700);
+    background: var(--ivory);
     border-radius: 4px;
     padding: 3px 7px;
     flex-shrink: 0;
   }
   .carry-body {
     font-size: 14px;
-    color: var(--fg);
+    color: var(--gray-700);
   }
   .carry-body .who {
-    color: var(--muted);
+    color: var(--gray-500);
     font-size: 12px;
   }
 
@@ -299,10 +295,10 @@
   footer {
     margin-top: 64px;
     padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid var(--gray-300);
     font-family: var(--mono);
     font-size: 12px;
-    color: var(--muted);
+    color: var(--gray-500);
   }
 </style>
 </head>
@@ -442,51 +438,51 @@
       <div class="chart-panel">
         <svg viewBox="0 0 640 180" role="img" aria-label="PRs merged per day">
           <!-- gridlines -->
-          <line x1="48" y1="20"  x2="620" y2="20"  stroke="#44475a" stroke-width="1"/>
-          <line x1="48" y1="60"  x2="620" y2="60"  stroke="#44475a" stroke-width="1"/>
-          <line x1="48" y1="100" x2="620" y2="100" stroke="#44475a" stroke-width="1"/>
-          <line x1="48" y1="140" x2="620" y2="140" stroke="#6272a4" stroke-width="1.5"/>
+          <line x1="48" y1="20"  x2="620" y2="20"  stroke="#F0EEE6" stroke-width="1"/>
+          <line x1="48" y1="60"  x2="620" y2="60"  stroke="#F0EEE6" stroke-width="1"/>
+          <line x1="48" y1="100" x2="620" y2="100" stroke="#F0EEE6" stroke-width="1"/>
+          <line x1="48" y1="140" x2="620" y2="140" stroke="#D1CFC5" stroke-width="1.5"/>
 
           <!-- y-axis labels -->
-          <text x="40" y="144" text-anchor="end" font-family="system-ui" font-size="11" fill="#6272a4">0</text>
-          <text x="40" y="104" text-anchor="end" font-family="system-ui" font-size="11" fill="#6272a4">1</text>
-          <text x="40" y="64"  text-anchor="end" font-family="system-ui" font-size="11" fill="#6272a4">2</text>
-          <text x="40" y="24"  text-anchor="end" font-family="system-ui" font-size="11" fill="#6272a4">3</text>
+          <text x="40" y="144" text-anchor="end" font-family="system-ui" font-size="11" fill="#87867F">0</text>
+          <text x="40" y="104" text-anchor="end" font-family="system-ui" font-size="11" fill="#87867F">1</text>
+          <text x="40" y="64"  text-anchor="end" font-family="system-ui" font-size="11" fill="#87867F">2</text>
+          <text x="40" y="24"  text-anchor="end" font-family="system-ui" font-size="11" fill="#87867F">3</text>
 
           <!-- bars: 7 days, values 2,3,1,4,2,1,1 (sum 14)
                baseline y=140, unit=40px, bar width=56, gap=24, start x=64 -->
           <!-- Mon: 2 -->
-          <rect x="64"  y="60"  width="56" height="80"  rx="6" fill="#44475a"/>
+          <rect x="64"  y="60"  width="56" height="80"  rx="6" fill="#E3DACC"/>
           <!-- Tue: 3 -->
-          <rect x="144" y="20"  width="56" height="120" rx="6" fill="#44475a"/>
+          <rect x="144" y="20"  width="56" height="120" rx="6" fill="#E3DACC"/>
           <!-- Wed: 1 -->
-          <rect x="224" y="100" width="56" height="40"  rx="6" fill="#44475a"/>
+          <rect x="224" y="100" width="56" height="40"  rx="6" fill="#E3DACC"/>
           <!-- Thu: 4 (peak) -->
-          <rect x="304" y="0"   width="56" height="140" rx="6" fill="#bd93f9"/>
+          <rect x="304" y="0"   width="56" height="140" rx="6" fill="#D97757"/>
           <!-- Fri: 2 -->
-          <rect x="384" y="60"  width="56" height="80"  rx="6" fill="#44475a"/>
+          <rect x="384" y="60"  width="56" height="80"  rx="6" fill="#E3DACC"/>
           <!-- Sat: 1 -->
-          <rect x="464" y="100" width="56" height="40"  rx="6" fill="#44475a"/>
+          <rect x="464" y="100" width="56" height="40"  rx="6" fill="#E3DACC"/>
           <!-- Sun: 1 -->
-          <rect x="544" y="100" width="56" height="40"  rx="6" fill="#44475a"/>
+          <rect x="544" y="100" width="56" height="40"  rx="6" fill="#E3DACC"/>
 
           <!-- value labels -->
-          <text x="92"  y="54"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">2</text>
-          <text x="172" y="14"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">3</text>
-          <text x="252" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">1</text>
-          <text x="332" y="14"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#f8f8f2" font-weight="600">4</text>
-          <text x="412" y="54"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">2</text>
-          <text x="492" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">1</text>
-          <text x="572" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">1</text>
+          <text x="92"  y="54"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">2</text>
+          <text x="172" y="14"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">3</text>
+          <text x="252" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">1</text>
+          <text x="332" y="14"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#3D3D3A" font-weight="600">4</text>
+          <text x="412" y="54"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">2</text>
+          <text x="492" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">1</text>
+          <text x="572" y="94"  text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">1</text>
 
           <!-- x-axis labels -->
-          <text x="92"  y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Mon</text>
-          <text x="172" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Tue</text>
-          <text x="252" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Wed</text>
-          <text x="332" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Thu</text>
-          <text x="412" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Fri</text>
-          <text x="492" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Sat</text>
-          <text x="572" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#6272a4">Sun</text>
+          <text x="92"  y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Mon</text>
+          <text x="172" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Tue</text>
+          <text x="252" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Wed</text>
+          <text x="332" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Thu</text>
+          <text x="412" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Fri</text>
+          <text x="492" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Sat</text>
+          <text x="572" y="158" text-anchor="middle" font-family="system-ui" font-size="11" fill="#87867F">Sun</text>
         </svg>
         <div class="chart-caption">
           PRs merged per day. Thursday spike is the bulk-edit feature train (4 PRs landed together).

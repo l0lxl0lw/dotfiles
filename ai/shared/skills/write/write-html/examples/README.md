@@ -1,8 +1,11 @@
 # Template gallery — pick one, read it, build on it
 
 These are the **templates** for write-html: the self-contained examples from
-[ThariqS/html-effectiveness](https://github.com/ThariqS/html-effectiveness) (Apache-2.0), plus
-`21-design-review-plan.html`, a local addition with the same fictional-content rule. There is
+[ThariqS/html-effectiveness](https://github.com/ThariqS/html-effectiveness) (Apache-2.0) — `01`–`20`
+from the repo root and `22`–`32` from its `unknowns/` folder ("Know your unknowns") — plus
+`21-design-review-plan.html`, a local addition with the same fictional-content rule. The `unknowns`
+pages each open with the prompt that produced them; treat that block as part of the layout, not as
+content to keep. There is
 no generic house template — you pick the file whose shape fits the content, **read it**, and build
 your page on its layout, palette, and type. All open offline, zero deps; the "Acme" data is
 fictional placeholder — inherit the design, never the content.
@@ -60,6 +63,26 @@ throwaway UI than to teaching.
 | **Feature flags** | `19-editor-feature-flags.html` | A toggle/config panel mock. |
 | **Prompt tuner** | `20-editor-prompt-tuner.html` | An input-tweak-preview loop UI. |
 
+## Know your unknowns (collaborate before, during, after building)
+
+These pages exist to surface what you or the reader doesn't know yet, and most end in a reply the
+reader can copy back. Reach for them when the page is a step in a conversation, not a finished
+document.
+
+| Format | File | Use when the deliverable is… |
+|--------|------|------------------------------|
+| **Blindspot pass** | `22-unknowns-blindspot-pass.html` | Risks in unfamiliar code the reader didn't know to ask about, as cards with a fix each and a combined better prompt. |
+| **Interactive concept explainer** | `23-unknowns-color-grading-explainer.html` | Teaching a domain's vocabulary with a live control the reader can play with (sliders, presets, before/after). |
+| **Design directions** | `24-unknowns-design-directions.html` | One screen rendered in several very different styles, with steal/skip choices. |
+| **Clickable mock** | `25-unknowns-toolbar-mock.html` | A throwaway UI mock with toggleable placements and A/B questions before real code. |
+| **Brainstorm map** | `26-unknowns-churn-brainstorm.html` | Many options plotted by effort or size, with checkboxes that assemble a reply. |
+| **Interview** | `27-unknowns-interview.html` | Questions asked one at a time, ending in a decisions table and a ready-to-paste prompt. |
+| **Reference port** | `28-unknowns-reference-port.html` | Proving a reference implementation is understood: excerpts side by side, gotchas, edge-case tables. |
+| **Tweakable plan** | `29-unknowns-implementation-plan.html` | A plan ordered by what is most likely to change, with toggleable alternatives. |
+| **Implementation notes** | `30-unknowns-implementation-notes.html` | A log of every deviation from the plan during a build, and lessons for the next attempt. |
+| **Pitch doc** | `31-unknowns-pitch-doc.html` | Winning approval: a demo first, then reviewer objections answered with evidence. |
+| **Change quiz** | `32-unknowns-change-quiz.html` | Checking the reader understands a change before it merges. |
+
 ## How to choose
 
 1. **What must the reader walk away with?** A mental model → concept explainer. A map of code →
@@ -68,9 +91,11 @@ throwaway UI than to teaching.
 2. **Prose-heavy or visual-heavy?** Visual-heavy → svg-illustrations or flowchart. Balanced →
    concept explainer.
 3. **One scroll or paced reveal?** Paced → slide deck. Otherwise a scroll page.
-4. **Teach vs. interact?** If the reader needs to *do* something, an editor/prototype format; if
+4. **Need an answer back?** If the page should end with the reader replying — choosing, ranking,
+   answering questions — use an `unknowns` format (`22`–`32`).
+5. **Teach vs. interact?** If the reader needs to *do* something, an editor/prototype format; if
    they need to *understand*, an explainer.
-5. When unsure, default to `15-research-concept-explainer.html`.
+6. When unsure, default to `15-research-concept-explainer.html`.
 
 Keep the hard rules regardless of format: **one file, inline SVG, self-contained, zero prior
 knowledge.** Inherit the chosen example's layout/SVG/CSS — don't copy its fictional content or pull

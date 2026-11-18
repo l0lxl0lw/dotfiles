@@ -4,21 +4,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="dark">
 <title>Acme — Support reply prompt tuner</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --clay-d: #ff79c6;
-    --oat: #44475a;
-    --olive: #50fa7b;
-    --gray-50: #343746;
-    --gray-200: #44475a;
-    --gray-500: #6272a4;
-    --gray-800: #f8f8f2;
-    --white: #343746;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --clay-d: #B85C3E;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --gray-50: #F0EEE6;
+    --gray-200: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-800: #3D3D3A;
+    --white: #ffffff;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -87,16 +86,16 @@
     appearance: none;
   }
   .btn-primary {
-    background: var(--clay);
-    color: #282a36;
-    border: 1.5px solid var(--clay);
+    background: var(--slate);
+    color: var(--ivory);
+    border: 1.5px solid var(--slate);
     border-radius: 999px;
     padding: 9px 16px;
     transition: background 140ms ease, transform 80ms ease;
   }
-  .btn-primary:hover { background: #ff79c6; border-color: #ff79c6; }
+  .btn-primary:hover { background: var(--gray-800); }
   .btn-primary:active { transform: translateY(1px); }
-  .btn-primary.copied { background: var(--olive); border-color: var(--olive); color: #282a36; }
+  .btn-primary.copied { background: var(--olive); border-color: var(--olive); }
   .btn-ghost {
     background: transparent;
     color: var(--gray-800);
@@ -147,7 +146,7 @@
     font-family: var(--mono);
     font-size: 11px;
     color: var(--gray-800);
-    background: #21222c;
+    background: var(--white);
     border: 1.5px solid var(--gray-200);
     border-radius: 999px;
     padding: 3px 10px;
@@ -162,7 +161,7 @@
     min-height: 360px;
     white-space: pre-wrap;
     word-break: break-word;
-    background: #21222c;
+    background: var(--white);
     color: var(--slate);
     outline: none;
     caret-color: var(--clay);
@@ -170,16 +169,16 @@
   }
   .editor:focus-visible { outline: none; }
   .slot {
-    background: rgba(189,147,249,0.18);
-    color: #bd93f9;
+    background: var(--oat);
+    color: var(--clay-d);
     border-radius: 4px;
     padding: 0 3px;
     font-weight: 600;
   }
   .slot.warn {
-    background: rgba(255,184,108,0.14);
-    color: #ffb86c;
-    text-decoration: underline dashed #ffb86c 1.5px;
+    background: rgba(217, 119, 87, 0.14);
+    color: var(--clay-d);
+    text-decoration: underline dashed var(--clay) 1.5px;
     text-underline-offset: 3px;
   }
 
@@ -200,8 +199,8 @@
   .chip {
     font-family: var(--mono);
     font-size: 11px;
-    background: rgba(189,147,249,0.18);
-    color: #bd93f9;
+    background: var(--oat);
+    color: var(--clay-d);
     border-radius: 4px;
     padding: 2px 7px;
     font-weight: 600;
@@ -252,10 +251,10 @@
     padding: 2px 8px;
     border: 1.5px solid var(--gray-200);
     color: var(--gray-800);
-    background: #21222c;
+    background: var(--white);
   }
-  .plan.team   { background: rgba(189,147,249,0.18); border-color: rgba(189,147,249,0.35); color: #bd93f9; }
-  .plan.studio { background: rgba(80,250,123,0.18); border-color: rgba(80,250,123,0.35); color: #50fa7b; }
+  .plan.team   { background: var(--oat);   border-color: var(--oat);   color: var(--clay-d); }
+  .plan.studio { background: var(--olive); border-color: var(--olive); color: var(--ivory); }
   .rendered {
     font-family: var(--mono);
     font-size: 12.5px;
@@ -264,7 +263,6 @@
     white-space: pre-wrap;
     word-break: break-word;
     padding: 12px 13px 14px;
-    background: #21222c;
   }
   .filled {
     background: var(--gray-50);
@@ -273,8 +271,8 @@
     box-shadow: inset 0 0 0 1px var(--gray-200);
   }
   .missing {
-    background: rgba(255,85,85,0.12);
-    color: #ff5555;
+    background: rgba(217, 119, 87, 0.12);
+    color: var(--clay-d);
     border-radius: 3px;
     padding: 0 2px;
     font-weight: 600;
@@ -329,7 +327,7 @@
 
   </div>
 
-  <footer>Highlighted slots fill from each sample's ticket fields. Anything underlined in dashed orange isn't a known field and will pass through unfilled.</footer>
+  <footer>Highlighted slots fill from each sample's ticket fields. Anything underlined in dashed clay isn't a known field and will pass through unfilled.</footer>
 
 </div>
 
@@ -361,7 +359,7 @@
         customer_name: 'Priya N.',
         plan_tier: 'Free',
         ticket_subject: 'Where did my board go?',
-        ticket_body: 'Hi — I made a board yesterday called "Spring launch" with my coworker and today I can\'t find it anywhere. I\'m new to Acme and I\'m not sure if I deleted it by accident or if I\'m just looking in the wrong place. Can you help?',
+        ticket_body: 'Hi — I made a board yesterday called "Spring launch" with my coworker and today I can’t find it anywhere. I’m new to Acme and I’m not sure if I deleted it by accident or if I’m just looking in the wrong place. Can you help?',
         tone: 'warm and patient'
       }
     },
@@ -372,7 +370,7 @@
         customer_name: 'Marcus D.',
         plan_tier: 'Team',
         ticket_subject: 'Sync keeps dropping comments',
-        ticket_body: 'This is the third time this week. I leave comments on cards from my laptop, switch to my phone on the train, and they\'re gone. My team thinks I\'m ignoring them. We pay for 14 seats and this is genuinely making us look bad to a client.',
+        ticket_body: 'This is the third time this week. I leave comments on cards from my laptop, switch to my phone on the train, and they’re gone. My team thinks I’m ignoring them. We pay for 14 seats and this is genuinely making us look bad to a client.',
         tone: 'direct and apologetic'
       }
     },

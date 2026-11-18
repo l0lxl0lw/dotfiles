@@ -4,20 +4,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
 <title>Acme — Card Variant Matrix</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --oat: #343746;
-    --olive: #50fa7b;
-    --gray-100: #21222c;
-    --gray-300: #44475a;
-    --gray-500: #6272a4;
-    --gray-700: #f8f8f2;
-    --white: #343746;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --gray-100: #F0EEE6;
+    --gray-300: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-700: #3D3D3A;
+    --white: #FFFFFF;
 
     --serif: ui-serif, Georgia, serif;
     --sans: system-ui, -apple-system, sans-serif;
@@ -26,7 +25,7 @@
     /* live-controlled tokens */
     --card-pad: 20px;
     --card-border: 1.5px solid var(--gray-300);
-    --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.40);
+    --card-shadow: 0 4px 14px rgba(20, 20, 19, 0.08);
   }
 
   * { box-sizing: border-box; }
@@ -168,7 +167,7 @@
     position: absolute;
     left: 4px; top: 0;
     width: 4px; height: 9px;
-    border: solid #282a36;
+    border: solid var(--white);
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
   }
@@ -265,7 +264,7 @@
     background: var(--gray-100);
     color: var(--gray-700);
   }
-  .chip.olive { background: rgba(80,250,123,0.14); color: var(--olive); }
+  .chip.olive { background: rgba(120,140,93,0.16); color: var(--olive); }
   .ghost-btn {
     display: inline-flex;
     align-items: center;
@@ -316,9 +315,9 @@
     border: none;
     box-shadow: none;
   }
-  .v-inset .chip { background: rgba(68,71,90,0.6); }
-  .v-inset .ghost-btn { border-color: rgba(248,248,242,0.15); }
-  .v-inset .avatar { background: var(--gray-100); }
+  .v-inset .chip { background: rgba(255,255,255,0.6); }
+  .v-inset .ghost-btn { border-color: rgba(20,20,19,0.15); }
+  .v-inset .avatar { background: var(--white); }
 
   .v-horizontal {
     background: var(--white);
@@ -351,8 +350,8 @@
   pre#snippet {
     margin: 0;
     padding: 20px;
-    background: #21222c;
-    color: #f8f8f2;
+    background: var(--slate);
+    color: var(--ivory);
     font-family: var(--mono);
     font-size: 13px;
     line-height: 1.6;
@@ -476,7 +475,7 @@
     <div class="cell">
       <span class="variant-label">D &middot; Accent stripe</span>
       <div class="card v-stripe"
-           data-snippet='<Card variant="outlined" accent="purple" padding={PAD} border="BORDER">
+           data-snippet='<Card variant="outlined" accent="clay" padding={PAD} border="BORDER">
   <Card.Header avatar title="Weekly planning" subtitle="12 tasks &middot; due Friday" />
   <Card.Meta tags={["Q2", "Roadmap"]} />
   <Button variant="ghost">Open</Button>
@@ -501,7 +500,7 @@
     <div class="cell">
       <span class="variant-label">E &middot; Inset</span>
       <div class="card v-inset"
-           data-snippet='<Card variant="filled" tone="surface" padding={PAD}>
+           data-snippet='<Card variant="filled" tone="oat" padding={PAD}>
   <Card.Header avatar title="Weekly planning" subtitle="12 tasks &middot; due Friday" />
   <Card.Meta tags={["Q2", "Roadmap"]} />
   <Button variant="ghost">Open</Button>
@@ -582,7 +581,7 @@
     }
     function applyShadow() {
       root.style.setProperty('--card-shadow',
-        shadow.checked ? '0 4px 14px rgba(0,0,0,0.40)' : 'none');
+        shadow.checked ? '0 4px 14px rgba(20,20,19,0.08)' : 'none');
     }
 
     pad.addEventListener('input', applyPad);

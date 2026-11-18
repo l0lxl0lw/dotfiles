@@ -92,7 +92,7 @@ on main. Explicit through-PR approval invokes `develop-deliver` in an Orca featu
 workspace. The former standalone stages and `/brainstorm` alias are retired;
 their useful methods and the Superpowers source/MIT license live in `develop/_lib`.
 The former `make-html` skill was restored as `write/write-html`, including its
-21 HTML examples and floating table-of-contents helper.
+32 HTML examples and floating table-of-contents helper.
 `external/ayghri/respond-adhd` imports the upstream `i-have-adhd` response-formatting mode,
 with its source reference and MIT license preserved. Invoke `/respond-adhd` to enable
 it for the session; say "stop adhd mode" or "normal mode" to turn it off.

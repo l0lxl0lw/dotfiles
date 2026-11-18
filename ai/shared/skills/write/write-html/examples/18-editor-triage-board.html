@@ -4,21 +4,20 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="color-scheme" content="dark">
 <title>Acme — Cycle 14 triage</title>
 <style>
   :root {
-    --ivory: #282a36;
-    --slate: #f8f8f2;
-    --clay: #bd93f9;
-    --clay-d: #bd93f9;
-    --oat: #44475a;
-    --olive: #50fa7b;
-    --gray-50: #343746;
-    --gray-200: #44475a;
-    --gray-500: #6272a4;
-    --gray-800: #f8f8f2;
-    --white: #343746;
+    --ivory: #FAF9F5;
+    --slate: #141413;
+    --clay: #D97757;
+    --clay-d: #B85C3E;
+    --oat: #E3DACC;
+    --olive: #788C5D;
+    --gray-50: #F0EEE6;
+    --gray-200: #D1CFC5;
+    --gray-500: #87867F;
+    --gray-800: #3D3D3A;
+    --white: #ffffff;
     --serif: ui-serif, Georgia, "Times New Roman", serif;
     --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -96,20 +95,20 @@
   .filter-active {
     font-family: var(--mono);
     font-size: 11px;
-    color: #ffb86c;
-    background: rgba(255,184,108,0.14);
-    border: 1.5px solid rgba(255,184,108,0.4);
+    color: var(--clay-d);
+    background: #F5E6DE;
+    border: 1.5px solid #E8C9BA;
     border-radius: 999px;
     padding: 4px 10px;
     cursor: pointer;
     display: none;
   }
   .filter-active.on { display: inline-block; }
-  .filter-active:hover { border-color: #ffb86c; }
+  .filter-active:hover { border-color: var(--clay); }
   button.primary {
-    background: var(--clay);
-    color: #282a36;
-    border: 1.5px solid var(--clay);
+    background: var(--slate);
+    color: var(--ivory);
+    border: 1.5px solid var(--slate);
     border-radius: 999px;
     font-family: var(--mono);
     font-size: 12px;
@@ -117,8 +116,8 @@
     cursor: pointer;
     letter-spacing: 0.01em;
   }
-  button.primary:hover { background: #ff79c6; border-color: #ff79c6; }
-  button.primary.copied { background: var(--olive); border-color: var(--olive); color: #282a36; }
+  button.primary:hover { background: var(--gray-800); }
+  button.primary.copied { background: var(--olive); border-color: var(--olive); }
   button.ghost {
     background: transparent;
     color: var(--gray-800);
@@ -147,14 +146,14 @@
     flex-direction: column;
     min-height: 200px;
   }
-  .col[data-col="now"]   { border-top: 3px solid #ff5555; }
+  .col[data-col="now"]   { border-top: 3px solid var(--clay); }
   .col[data-col="next"]  { border-top: 3px solid var(--olive); }
-  .col[data-col="later"] { border-top: 3px solid var(--clay); }
+  .col[data-col="later"] { border-top: 3px solid var(--gray-500); }
   .col[data-col="cut"]   { border-top: 3px solid var(--gray-200); }
   .col.dragover {
     outline: 2px dashed var(--clay);
     outline-offset: -6px;
-    background: rgba(189,147,249,0.08);
+    background: #FBF6F2;
   }
   .col-head {
     position: sticky;
@@ -207,7 +206,7 @@
 
   /* ---------- ticket card ---------- */
   .ticket {
-    background: #21222c;
+    background: var(--white);
     border: 1.5px solid var(--gray-200);
     border-radius: 8px;
     padding: 10px 11px 9px;
@@ -215,7 +214,7 @@
     user-select: none;
     transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
   }
-  .ticket:hover { border-color: var(--clay); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .ticket:hover { border-color: var(--gray-500); box-shadow: 0 1px 3px rgba(20,20,19,0.06); }
   .ticket:active { cursor: grabbing; }
   .ticket.dragging { opacity: .4; }
   .ticket.dim { opacity: .25; }
@@ -241,11 +240,11 @@
     border: 1px solid transparent;
     cursor: pointer;
   }
-  .tag:hover { filter: brightness(1.1); }
-  .tag-bug   { background: rgba(255,85,85,0.18); color: #ff5555; border-color: rgba(255,85,85,0.35); }
-  .tag-feat  { background: rgba(80,250,123,0.14); color: #50fa7b; border-color: rgba(80,250,123,0.3); }
-  .tag-chore { background: var(--gray-50); color: var(--gray-500); border-color: var(--gray-200); }
-  .tag-debt  { background: rgba(255,184,108,0.14); color: #ffb86c; border-color: rgba(255,184,108,0.3); }
+  .tag:hover { filter: brightness(0.96); }
+  .tag-bug   { background: #F5E2D8; color: var(--clay-d); border-color: #E8C9BA; }
+  .tag-feat  { background: #E8EDE0; color: #5C6F44; border-color: #CFDAC0; }
+  .tag-chore { background: var(--gray-50); color: var(--gray-800); border-color: var(--gray-200); }
+  .tag-debt  { background: var(--gray-50); color: var(--gray-800); border-color: var(--gray-200); }
   .est {
     margin-left: auto;
     font-family: var(--mono);
@@ -283,8 +282,8 @@
     justify-content: center;
     letter-spacing: 0.02em;
   }
-  .owner.o2 { background: rgba(80,250,123,0.2); }
-  .owner.o3 { background: rgba(189,147,249,0.2); }
+  .owner.o2 { background: #DCE4D2; }
+  .owner.o3 { background: #ECD9CE; }
   .owner.o4 { background: var(--gray-50); }
 
   @media (max-width: 920px) {
