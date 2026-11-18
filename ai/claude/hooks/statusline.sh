@@ -235,13 +235,22 @@ gh_profile=""
 if [ -r "$gh_hosts" ]; then
   gh_user=$(awk '/^[^[:space:]]/ { host = ($1 == "github.com:") }
                  host && /^    user: / { print $2; exit }' "$gh_hosts")
+  # profile_field <match-column> <value> <output-column>, case-insensitive.
+  profile_field() {
+    [ -r "$profiles_file" ] || return 0
+    awk -v c="$1" -v v="$2" -v o="$3" \
+      '$1 !~ /^#/ && NF >= 4 && tolower($c) == tolower(v) { print $o; exit }' "$profiles_file"
+  }
+  # A repo bound to a profile by its GitHub owner (ghp sync) uses that profile's
+  # account whatever gh's active one is, so show the binding instead.
+  repo_profiles_file="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/github-repo-profiles"
+  if [ -n "$remote_url" ] && [ -r "$repo_profiles_file" ]; then
+    repo_owner=${remote_url#*github.com/}
+    repo_owner=${repo_owner%%/*}
+    bound=$(awk -v v="$repo_owner" '$1 !~ /^#/ && NF >= 2 && tolower($1) == tolower(v) { print $2; exit }' "$repo_profiles_file")
+    [ -n "$bound" ] && bound_user=$(profile_field 1 "$bound" 2) && [ -n "$bound_user" ] && gh_user=$bound_user
+  fi
   if [ -n "$gh_user" ]; then
-    # profile_field <match-column> <value> <output-column>, case-insensitive.
-    profile_field() {
-      [ -r "$profiles_file" ] || return 0
-      awk -v c="$1" -v v="$2" -v o="$3" \
-        '$1 !~ /^#/ && NF >= 4 && tolower($c) == tolower(v) { print $o; exit }' "$profiles_file"
-    }
     profile=$(profile_field 2 "$gh_user" 1)
     profile_email=$(profile_field 2 "$gh_user" 3)
     gh_profile="\033[38;2;189;147;249mgh:${profile:-$gh_user}${reset}"
