@@ -196,6 +196,35 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(dst.read_text(), "my rules")
         self.assertIn("action needed", proc.stdout)
 
+    def test_private_overlay_skills_and_agents_linked_and_pruned(self):
+        private = self.home / "dotfiles-private"
+        (private / ".agents/skills/overlay-skill").mkdir(parents=True)
+        (private / ".agents/skills/overlay-skill/SKILL.md").write_text("---\nname: overlay-skill\n---\n")
+        (private / ".claude").mkdir()
+        (private / ".claude/skills").symlink_to("../.agents/skills", target_is_directory=True)
+        (private / ".claude/agents").mkdir()
+        (private / ".claude/agents/overlay-agent.md").write_text("agent")
+        # A public agent name must not be shadowed by the overlay.
+        public_agent = next((ROOT / "ai/claude/agents").rglob("*.md")).relative_to(ROOT / "ai/claude/agents")
+        (private / ".claude/agents" / public_agent).parent.mkdir(parents=True, exist_ok=True)
+        (private / ".claude/agents" / public_agent).write_text("shadow")
+        (self.home / ".codex").mkdir()
+        (self.home / ".claude/skills").mkdir(parents=True)
+        stale = self.home / ".claude/skills/deleted-skill"
+        stale.symlink_to(private / ".claude/skills/deleted-skill")
+
+        sync = 'source "$HOME/dotfiles/zsh/functions.zsh"; claude_merge_config && codex_merge_config'
+        for _ in range(2):
+            proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+        self.assertEqual(os.readlink(self.home / ".claude/skills/overlay-skill"), str(private / ".claude/skills/overlay-skill"))
+        self.assertEqual(os.readlink(self.home / ".codex/skills/overlay-skill"), str(private / ".agents/skills/overlay-skill"))
+        self.assertEqual(os.readlink(self.home / ".claude/agents/overlay-agent.md"), str(private / ".claude/agents/overlay-agent.md"))
+        self.assertTrue(os.readlink(self.home / ".claude/agents" / public_agent).startswith(str(self.repo)))
+        self.assertFalse(stale.is_symlink())
+        self.assertEqual(proc.stdout, "", "second sync should converge silently")
+
     def test_claude_initial_settings_and_existing_settings_merge(self):
         self.stub("claude", "exit 0")
         self.deploy("--only", "claude", answers="y\n")

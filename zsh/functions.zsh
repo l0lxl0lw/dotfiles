@@ -143,10 +143,13 @@ _claude_agents() {
 # ---------------------------------------------------------------------------
 
 # Anything symlinked out of one of these was put there by us and is ours to
-# remove. The later entries are pre-migration homes (the personal ~/dotfiles
-# clone and the old Claude config repo), kept so a machine that still has those
-# links gets them re-pointed rather than orphaned.
-typeset -ga _AGENTCFG_ROOTS=("$HOME/dotfiles" "$HOME/dotfiles" "$HOME/workspace/claude-config")
+# remove. ~/dotfiles-private is the optional private overlay, whose skills and
+# agents are linked alongside the public ones. The later entries are
+# pre-migration homes (the personal ~/dotfiles clone and the old Claude config
+# repo), kept so a machine that still has those links gets them re-pointed
+# rather than orphaned.
+typeset -g _AGENTCFG_PRIVATE="$HOME/dotfiles-private"
+typeset -ga _AGENTCFG_ROOTS=("$HOME/dotfiles" "$_AGENTCFG_PRIVATE" "$HOME/dotfiles" "$HOME/workspace/claude-config")
 typeset -gi _AGENTCFG_LINKED=0 _AGENTCFG_REMOVED=0 _AGENTCFG_SKIPPED=0
 
 _agentcfg_reset() { _AGENTCFG_LINKED=0; _AGENTCFG_REMOVED=0; _AGENTCFG_SKIPPED=0 }
@@ -377,12 +380,21 @@ claude_merge_config() {
   # Claude-local skills win by name; ai/shared/skills holds cross-tool skills.
   _agentcfg_sync_skill_sources "$claude_dir/skills" \
     "$repo/skills" \
-    "$HOME/dotfiles/ai/shared/skills"
+    "$HOME/dotfiles/ai/shared/skills" \
+    "$_AGENTCFG_PRIVATE/.claude/skills"
 
-  # Agents: mirror the repo tree, symlinking each .md
+  # Agents: mirror each tree, symlinking each .md. The repo wins a name over
+  # the private overlay.
+  local adir
   if [[ -d "$repo/agents" ]]; then
     mkdir -p "$claude_dir/agents"
-    for f in "$repo"/agents/**/*.md(N-.); do want_a[${f#"$repo"/agents/}]="$f"; done
+    for adir in "$repo/agents" "$_AGENTCFG_PRIVATE/.claude/agents"; do
+      [[ -d "$adir" ]] || continue
+      for f in "$adir"/**/*.md(N-.); do
+        key="${f#"$adir"/}"
+        (( ${+want_a[$key]} )) || want_a[$key]="$f"
+      done
+    done
 
     for f in "$claude_dir"/agents/**/*(N@); do
       _agentcfg_is_managed "$f" || continue
@@ -481,7 +493,8 @@ codex_merge_config() {
   # Codex-local skills win by name; ai/shared/skills holds cross-tool skills.
   _agentcfg_sync_skill_sources "$codex_dir/skills" \
     "$repo/skills" \
-    "$HOME/dotfiles/ai/shared/skills"
+    "$HOME/dotfiles/ai/shared/skills" \
+    "$_AGENTCFG_PRIVATE/.agents/skills"
 
   # Global instructions: one file, Codex's equivalent of ~/.claude/CLAUDE.md.
   [[ -f "$repo/AGENTS.md" ]] && \

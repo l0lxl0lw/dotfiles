@@ -196,6 +196,7 @@ cleanup independent; strict cross-session isolation is deliberately out of scope
 Codex imports shared skills from:
 
 - `ai/shared/skills`
+- `~/dotfiles-private/.agents/skills`, when the private overlay exists
 
 Shared skills currently include the develop, git, explain, learn, write, use, orca,
 remember, respond and sentry families; see `ai/shared/README.md` for the catalog.

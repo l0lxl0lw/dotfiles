@@ -30,15 +30,15 @@ dotfiles/ai/shared/
 
 **Integration flow**: The `claude_merge_config()` zsh function (in `~/dotfiles/zsh/functions.zsh`) reads this directory and links it into `~/.claude/`:
 
-- **skills** — finds every `SKILL.md` in `ai/claude/skills` and `ai/shared/skills`, then symlinks its parent dir flat to `~/.claude/skills/<name>`; `ai/claude/skills` is only for Claude-specific overrides
-- **agents** — mirrors the dir tree, symlinks each `.md`
+- **skills** — finds every `SKILL.md` in `ai/claude/skills` and `ai/shared/skills`, then symlinks its parent dir flat to `~/.claude/skills/<name>`; `ai/claude/skills` is only for Claude-specific overrides. When the private overlay `~/dotfiles-private` exists, its `.claude/skills` is linked too; dotfiles skills win a name clash
+- **agents** — mirrors the dir tree, symlinks each `.md`; also mirrors `~/dotfiles-private/.claude/agents`, with this repo winning a name clash
 - **hooks** — symlinks top-level files from `hooks/` into `~/.claude/hooks`, then points `statusLine` at `statusline.sh` in `settings.json`. `statusLine` is the only entry it writes; any hook added here needs its own `settings.json` entry, so dropping a script into `hooks/` is never sufficient on its own
 
 Caveats worth knowing:
 
 - The `claude()` shell wrapper runs it before every launch (the `cc*` aliases go through it), so adding or renaming a skill, agent, or hook takes effect in the next session. Editing the *contents* of an existing file needs no re-run at all — the symlinks make it live immediately. A declined `claude` component (disabled-sync marker) skips it.
 - It **converges rather than rebuilds**: a link that is already correct is not touched, so the steady state is zero writes and no window where a concurrent session sees a missing skill. It prints nothing when there was nothing to do.
-- Cleanup is surgical: the function only deletes symlinks that point back into this directory (or the legacy `~/workspace/claude-config` path). Real directories and symlinks owned by other installers are left alone.
+- Cleanup is surgical: the function only deletes symlinks that point back into this directory, the private overlay `~/dotfiles-private`, or the legacy `~/workspace/claude-config` path. Real directories and symlinks owned by other installers are left alone.
 - `~/.claude/skills` is shared with gstack, which installs its skills as real directories. Because skills are flattened to their basename, a name here that collides with a gstack skill is skipped with a warning rather than clobbering it.
 - `deploy.sh --only claude` offers installation, config initialization, backups and initial synchronization. Shell startup does not install, update, or synchronize AI configuration.
 - The merge function only sets `statusLine` in `settings.json`, and only when the value differs. Everything else in `~/.claude/settings.json` is hand-maintained and untracked.

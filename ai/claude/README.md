@@ -39,7 +39,9 @@ read `explain/_lib/` relative to their physical directory, including across cate
 
 `claude_merge_config` imports both `ai/claude/skills` and `ai/shared/skills`, flattening each
 skill directory into `~/.claude/skills/<name>`. Put new portable skills in `ai/shared/skills`;
-use `ai/claude/skills` only for Claude-specific overrides. gstack installs its own skills
+use `ai/claude/skills` only for Claude-specific overrides. When `~/dotfiles-private`
+exists, its `.claude/skills` and `.claude/agents` are linked as well, so a private
+repository can add skills without touching this one. gstack installs its own skills
 separately into `~/.claude/skills` as real directories. They aren't tracked here;
 `claude_merge_config` leaves them alone.
 
