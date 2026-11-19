@@ -43,6 +43,11 @@ ln -s "$HOME/dotfiles/ai/codex/agents/retired-link.toml" "$agents/retired-link.t
 print -r -- "$generated" > "$agents/retired-copy.toml"
 print -r -- "$generated" > "$agents/codebase-analyzer.toml"
 print -r -- '{"models": [{"slug": "gpt-6-astra"}]}' > "$HOME/.codex/models_cache.json"
+# The private overlay adds its own roles; the repo still wins a shared name.
+local private="$HOME/dotfiles-private/.codex/agents"
+mkdir -p "$private"
+print -r -- 'name = "private-role"' > "$private/private-role.toml"
+print -r -- 'name = "private-shadow"' > "$private/codebase-locator.toml"
 
 local warnings role
 warnings=$(codex_merge_config 2>&1 >/dev/null)
@@ -58,9 +63,18 @@ done
 [[ "$warnings" == *"develop-plan.toml"*"not ours"* ]] || fail "foreign collision was not reported: $warnings"
 [[ "$warnings" == *"tier 'fast'"*"tiers.json"* ]] || fail "missing unknown-model warning: $warnings"
 [[ "$warnings" != *"tier 'standard'"* ]] || fail "known model was reported: $warnings"
+cmp -s "$private/private-role.toml" "$agents/private-role.toml" || fail "private overlay role was not copied"
+[[ ! -L "$agents/private-role.toml" ]] || fail "private overlay role is a symlink"
 local before=$(stat -f %i "$agents/codebase-locator.toml")
 codex_merge_config >/dev/null 2>&1
 [[ "$(stat -f %i "$agents/codebase-locator.toml")" == "$before" ]] || fail "unchanged role was rewritten"
+print -r -- 'name = "private-role-v2"' > "$private/private-role.toml"
+codex_merge_config >/dev/null 2>&1
+cmp -s "$private/private-role.toml" "$agents/private-role.toml" || fail "changed private role was not refreshed"
+command rm -- "$private/private-role.toml"
+codex_merge_config >/dev/null 2>&1
+[[ ! -e "$agents/private-role.toml" ]] || fail "removed private role was not pruned"
+[[ "$(<"$agents/vendor.toml")" == 'name = "vendor"' ]] || fail "foreign role was pruned with the private one"
 
 # Claude: the wrapper syncs the workflow agents, forwards arguments and keeps the
 # exit status of the real binary.
