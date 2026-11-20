@@ -237,6 +237,36 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(data["statusLine"]["command"], "sh ~/.claude/hooks/statusline.sh")
         self.assertEqual(len(self.manifests()), 1)
 
+    def test_claude_hooks_for_missing_scripts_removed(self):
+        self.stub("claude", "exit 0")
+        self.deploy("--only", "claude", answers="y\n")
+        settings = self.home / ".claude/settings.json"
+        dead = {"type": "command", "command": "sh ~/.claude/hooks/retired.sh"}
+        live = {"type": "command", "command": "sh ~/.claude/hooks/statusline.sh"}
+        foreign = {"type": "command", "command": "node /opt/other/hook.js"}
+        data = json.loads(settings.read_text())
+        data["hooks"] = {
+            "UserPromptSubmit": [{"hooks": [dead]}, {"hooks": [foreign, dead]}],
+            "PreToolUse": [{"matcher": "Bash", "hooks": [live]}],
+            "Stop": [{"hooks": [dead]}],
+        }
+        settings.write_text(json.dumps(data))
+
+        # The launch-time sync only reports; the installer asks first.
+        sync = 'source "$HOME/dotfiles/zsh/functions.zsh"; claude_merge_config'
+        proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
+        self.assertIn("removed hooks for missing retired.sh", proc.stderr)
+        self.assertEqual(json.loads(settings.read_text()), data)
+
+        self.deploy("--only", "claude", answers="y\nb\n")
+        self.assertEqual(json.loads(settings.read_text())["hooks"], {
+            "UserPromptSubmit": [{"hooks": [foreign]}],
+            "PreToolUse": [{"matcher": "Bash", "hooks": [live]}],
+        })
+        self.assertEqual(len(self.manifests()), 1)
+        proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
+        self.assertEqual(proc.stdout + proc.stderr, "", "second sync should converge silently")
+
     def test_memory_existing_vault_mismatch_fails_before_writing(self):
         cfg = self.home / ".config/life-memory/config.json"
         cfg.parent.mkdir(parents=True)

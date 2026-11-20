@@ -449,18 +449,44 @@ claude_merge_config() {
     done
   fi
 
-  # Point settings.json at the statusline hook. Only writes when the value
-  # actually differs, and stages through a temp file that is validated as JSON
-  # before the move, so a jq failure can never truncate settings.json.
+  # Point settings.json at the statusline hook, and drop hook entries whose
+  # script is gone. The hook links above are pruned when a script leaves the
+  # repo, but its settings.json entry is not, so Claude would report a missing
+  # file on every event. Only commands of the exact form
+  # `sh ~/.claude/hooks/<file>` (the form this repo writes) are considered, and
+  # only when <file> no longer exists, so working hooks and other tools'
+  # commands are never touched. Only writes when something actually differs,
+  # and stages through a temp file that is validated as JSON before the move,
+  # so a jq failure can never truncate settings.json.
   local settings="$claude_dir/settings.json"
   local want='sh ~/.claude/hooks/statusline.sh'
-  if [[ -e "$claude_dir/hooks/statusline.sh" && -f "$settings" && ! -L "$settings" ]] && (( $+commands[jq] )); then
-    local have tmp
+  local hookre='^(?:ba)?sh (?:~|\$HOME)/\.claude/hooks/(?<n>[^/ ]+)$'
+  if [[ -f "$settings" && ! -L "$settings" ]] && (( $+commands[jq] )); then
+    local have tmp name filter='.'
+    local -a dead changes
     have=$(jq -r '.statusLine.command // ""' "$settings" 2>/dev/null) || {
       echo "claude_merge_config: invalid settings.json; left untouched" >&2
       return 1
     }
-    if [[ "$have" != "$want" ]]; then
+    if [[ -e "$claude_dir/hooks/statusline.sh" && "$have" != "$want" ]]; then
+      filter+=' | .statusLine = {"type":"command","command":$cmd}'
+      changes+=("set statusLine")
+    fi
+    for name in ${(f)"$(jq -r --arg re "$hookre" '
+        [.hooks // {} | .[] | arrays | .[] | .hooks // [] | .[]
+         | .command // empty | strings | capture($re).n] | unique | .[]' "$settings")"}; do
+      [[ -e "$claude_dir/hooks/$name" ]] || dead+=("$name")
+    done
+    if (( $#dead )); then
+      filter+=' | .hooks |= with_entries(.value |= (map(.hooks |= map(select(
+                  ([.command // "" | strings | capture($re).n] | first) as $n
+                  | $n == null or ($n | IN($dead[]) | not))))
+                | map(select(.hooks | length > 0))))
+              | .hooks |= with_entries(select(.value | length > 0))
+              | if .hooks == {} then del(.hooks) else . end'
+      changes+=("removed hooks for missing ${(j:, :)dead}")
+    fi
+    if (( $#changes )); then
       if [[ "${DOTFILES_INSTALL:-}" == 1 ]]; then
         bash "$DOTFILES_INSTALL_ROOT/install/link.sh" approve "$settings"
         local approval=$?
@@ -470,15 +496,15 @@ claude_merge_config() {
           exit "$approval"
         fi
       else
-        echo "claude_merge_config: statusLine differs; run ~/dotfiles/deploy.sh --only claude to review" >&2
+        echo "claude_merge_config: settings.json needs: ${(j:; :)changes}; run ~/dotfiles/deploy.sh --only claude to review" >&2
         (( _AGENTCFG_SKIPPED++ )); _agentcfg_report claude_merge_config; return 0
       fi
       tmp=$(mktemp "${settings}.XXXXXX") || return 1
-      if jq --arg cmd "$want" \
-           '.statusLine = {"type":"command","command":$cmd}' "$settings" >"$tmp" \
+      if jq --arg cmd "$want" --arg re "$hookre" --argjson dead "$(jq -nc '$ARGS.positional' --args -- $dead)" \
+           "$filter" "$settings" >"$tmp" \
          && [[ -s "$tmp" ]] && jq -e . "$tmp" >/dev/null 2>&1; then
         mv -f "$tmp" "$settings"
-        echo "claude_merge_config: set statusLine in settings.json"
+        echo "claude_merge_config: ${(j:; :)changes} in settings.json"
       else
         rm -f -- "$tmp"
         echo "claude_merge_config: jq failed, settings.json left untouched" >&2
