@@ -43,8 +43,3 @@ status_line = [
   "model-with-reasoning",
 ]
 status_line_use_colors = true
-
-[[hooks.UserPromptSubmit]]
-[[hooks.UserPromptSubmit.hooks]]
-type = "command"
-command = '/bin/sh "$HOME/dotfiles/ai/claude/hooks/response-style.sh"'

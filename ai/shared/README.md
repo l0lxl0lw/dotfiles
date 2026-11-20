@@ -55,7 +55,7 @@ they do not become extra slash commands.
 | `use` | `use-notion`, `use-elevenlabs`, `use-remotion`, `use-excalidraw` |
 | `remember` | `remember-life` |
 | `sentry` | `sentry-bug-scan` |
-| `respond` | `respond-new-hire` |
+| `respond` | `respond-new-hire`, `respond-12yo` |
 | `orca` | `orca-handoff` |
 | `ghp` | `ghp-work`, `ghp-personal` |
 | `external/mattpocock` | `grill-me`, `grill-with-docs` |

@@ -2,17 +2,5 @@
   "statusLine": {
     "type": "command",
     "command": "sh ~/.claude/hooks/statusline.sh"
-  },
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh ~/.claude/hooks/response-style.sh"
-          }
-        ]
-      }
-    ]
   }
 }
