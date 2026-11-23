@@ -116,8 +116,13 @@ What the linker never touches: real directories (other installers' skills,
 Codex's `.system/`, Orca's `~/.agents/skills`), symlinks that do not point into a
 hub or a former root, Orca's hooks, and any instruction file with content but no
 hubs markers. A hub path that does not exist is skipped with a warning and its
-links are left alone. Hubs the linker has synced are remembered in
-`~/.local/state/dotfiles/hubs-seen` so a hub dropped from the list is cleaned up.
+links are left alone, even if the hub was synced before (a rename or a move in
+progress loses nothing). Hubs the linker has synced are remembered in
+`~/.local/state/dotfiles/hubs-seen` so a hub *removed from the list* is cleaned
+up. No hubs file at all means "not configured yet": nothing is linked or removed
+and the tool launches stay silent; an empty file means "no hubs" and removes
+every hub link. A hub whose agents fail to render keeps its previous generated
+agents and the failure is reported.
 
 `./deploy.sh --doctor` prints the hubs file, each hub as `ok`, `missing` or
 `render drift`, per-tool counts of hub links and generated agents, and Orca's hook

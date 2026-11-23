@@ -307,6 +307,74 @@ test_sync_disabled_tool_is_skipped() {
   [[ -L "$HOME/.claude/skills/honest-check" && -z "$(ls -A "$HOME/.codex")" ]] || fail "disabled codex was synced"
 }
 
+
+# Final-review fixes.
+test_fix_missing_hub_keeps_links_after_being_synced() {
+  local zubot="$HOME/f1/zubot" azubot="$HOME/f1/azubot"
+  make_full_hub "$zubot" honest-check locator; make_full_hub "$azubot" ds-develop ds-locator
+  reset_homes
+  print -rl -- "$zubot" "$azubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  mv "$azubot" "$azubot.moved"
+  hubs_sync --tool claude >/dev/null 2>&1
+  [[ -L "$HOME/.claude/skills/ds-develop" ]] || fail "links into a listed-but-missing hub were removed"
+  mv "$azubot.moved" "$azubot"
+}
+
+test_fix_dropped_hub_is_cleaned_up() {
+  local zubot="$HOME/f2/zubot" azubot="$HOME/f2/azubot"
+  make_full_hub "$zubot" honest-check locator; make_full_hub "$azubot" ds-develop ds-locator
+  reset_homes
+  print -rl -- "$zubot" "$azubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  print -rl -- "$zubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  [[ ! -L "$HOME/.claude/skills/ds-develop" && ! -e "$HOME/.codex/agents/ds-locator.toml" ]] || fail "dropped hub's links survived"
+  [[ -L "$HOME/.claude/skills/honest-check" ]] || fail "remaining hub lost its links"
+}
+
+test_fix_render_failure_keeps_previous_copies() {
+  local azubot="$HOME/f3/azubot" err
+  make_full_hub "$azubot" ds-develop ds-locator
+  reset_homes
+  print -rl -- "$azubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  print -- "---\nname: ds-locator\ndescription: x\ntier: bogus\naccess: research\n---\n\nB.\n" > "$azubot/agents/src/ds-locator.md"
+  err=$(hubs_sync 2>&1 >/dev/null)
+  [[ -f "$HOME/.codex/agents/ds-locator.toml" && -f "$XDG_CONFIG_HOME/opencode/agents/ds-locator.md" ]] || fail "render failure removed previous copies"
+  [[ "$err" == *"render failed"* ]] || fail "render failure not reported: $err"
+}
+
+test_fix_empty_persona_leaves_managed_symlink_alone() {
+  local zubot="$HOME/f4/zubot" out
+  make_hub "$zubot" honest-check          # no persona
+  reset_homes
+  mkdir -p "$HOME/dotfiles/ai/codex"
+  ln -s "$HOME/dotfiles/ai/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+  print -rl -- "$zubot" > "$hubs_file"
+  out=$(hubs_sync --dry-run 2>&1)
+  [[ "$out" != *"AGENTS.md"* ]] || fail "dry run promised to touch AGENTS.md: $out"
+  hubs_sync >/dev/null 2>&1
+  [[ -L "$HOME/.codex/AGENTS.md" ]] || fail "managed symlink removed although no persona exists"
+}
+
+test_fix_absent_hubs_file_removes_nothing() {
+  local zubot="$HOME/f5/zubot" err
+  make_full_hub "$zubot" honest-check locator
+  reset_homes
+  print -rl -- "$zubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  rm -f "$hubs_file"
+  err=$(hubs_sync 2>&1 >/dev/null)
+  [[ -L "$HOME/.claude/skills/honest-check" ]] || fail "absent hubs file removed links"
+  [[ -z "$err" ]] || fail "launch-time sync should stay silent without a hubs file: $err"
+  err=$(hubs_sync --dry-run 2>&1 >/dev/null)
+  [[ "$err" == *"no hubs file"* ]] || fail "absent hubs file not reported by --dry-run: $err"
+  : > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  [[ ! -L "$HOME/.claude/skills/honest-check" ]] || fail "empty hubs file did not remove links"
+}
+
 for t in ${(ok)functions[(I)test_*]}; do
   $t || exit 1
 done

@@ -200,7 +200,8 @@ class InstallTest(unittest.TestCase):
         self.assertFalse((self.home / ".codex/skills").exists())
         self.deploy("--only", "codex", answers="y\nn\n")
         self.assertFalse(marker.exists())
-        self.assertTrue((self.home / ".codex/skills").exists())
+        # No hubs file: nothing is linked, but the tool-specific extras still run.
+        self.assertIn("# >>> dotfiles managed >>>", (self.home / ".codex/config.toml").read_text())
 
     def test_invalid_codex_candidate_preserves_original(self):
         self.stub("codex", "exit 1")

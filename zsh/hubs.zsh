@@ -29,29 +29,45 @@ _hubs_tool_on() {
 
 _hubs_file() { print -r -- "${HUBS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/hubs}" }
 
-# Print each active hub as an absolute path, in file order, once. A listed
-# path that does not exist is reported and skipped; its links are left alone
-# by the sync, so a mistyped line never deletes anything.
-hubs_list() {
+# _hubs_listed [--missing]: every path in the hubs file, absolute, once, in
+# file order; with --missing only the ones that do not exist.
+_hubs_listed() {
   emulate -L zsh
-  local file line path
+  local file line path only_missing=0
   local -a seen
+  [[ "${1:-}" == --missing ]] && only_missing=1
   file=$(_hubs_file)
   [[ -f "$file" ]] || return 0
   while IFS= read -r line || [[ -n "$line" ]]; do
-    line="${line%%#*}"; line="${line## }"; line="${line%% }"
+    line="${line%%\#*}"; line="${line## }"; line="${line%% }"
     [[ -n "$line" ]] || continue
     path="$line"
     [[ "$path" == '~' || "$path" == '~/'* ]] && path="$HOME${path#\~}"
     path="${path:a}"                    # absolute, no trailing slash
     (( ${seen[(Ie)$path]} )) && continue
     seen+=("$path")
+    if (( only_missing )); then
+      [[ -d "$path" ]] || print -r -- "$path"
+    else
+      print -r -- "$path"
+    fi
+  done < "$file"
+}
+
+# Print each active hub as an absolute path, in file order, once. A listed
+# path that does not exist is reported and skipped; its links are left alone
+# by the sync, so a mistyped or mid-move line never deletes anything.
+hubs_list() {
+  emulate -L zsh
+  local path file
+  file=$(_hubs_file)
+  for path in ${(f)"$(_hubs_listed)"}; do
     if [[ -d "$path" ]]; then
       print -r -- "$path"
     else
       print -u2 -r -- "hubs: $path listed in $file does not exist, skipping"
     fi
-  done < "$file"
+  done
 }
 
 # Hubs this machine has ever linked, so a hub dropped from the list still has
@@ -68,13 +84,23 @@ _hubs_remember() {
   done
 }
 
-# Active hubs first, then hubs seen before, this checkout and the legacy
-# roots: everything a managed link may point into.
+# Active hubs first, then hubs seen before that are not listed-but-missing
+# now (those keep their links), this checkout and the legacy roots:
+# everything a managed link may point into. hubs_sync caches the result in
+# _HUBS_ROOTS for the run, since _agentcfg_is_managed asks per link.
+typeset -ga _HUBS_ROOTS=()
 _hubs_roots() {
-  local file
+  if (( ${#_HUBS_ROOTS} )); then print -rl -- "${_HUBS_ROOTS[@]}"; return 0; fi
+  local file hub
+  local -a missing
+  missing=(${(f)"$(_hubs_listed --missing)"})
   hubs_list 2>/dev/null
   file=$(_hubs_seen_file)
-  [[ -f "$file" ]] && cat "$file"
+  if [[ -f "$file" ]]; then
+    for hub in ${(f)"$(<"$file")"}; do
+      (( ${missing[(Ie)$hub]} )) || print -r -- "$hub"
+    done
+  fi
   print -rl -- "$_HUBS_DOTFILES" $_HUBS_LEGACY_ROOTS
 }
 
@@ -137,19 +163,27 @@ hubs_sync_agents() {
 
   stage=$(mktemp -d "${TMPDIR:-/tmp}/hubs-agents.XXXXXX") || return 1
   {
+    local failed=0 want_render=0
+    _hubs_tool_on codex "$codex_dir" && want_render=1
+    _hubs_tool_on opencode "$opencode_dir" && want_render=1
     for hub in "$@"; do
+      (( want_render )) || break
       [[ -d "$hub/agents/src" ]] || continue
       (( i++ ))
-      python3 -B "$_HUBS_DOTFILES/agents/render.py" --hub "$hub" "${tiers_args[@]}" \
-        --codex-out "$stage/codex/$i" --opencode-out "$stage/opencode/$i" >/dev/null || \
-        echo "hubs_sync: render failed for $hub" >&2
+      if ! python3 -B "$_HUBS_DOTFILES/agents/render.py" --hub "$hub" "${tiers_args[@]}" \
+          --codex-out "$stage/codex/$i" --opencode-out "$stage/opencode/$i" >/dev/null; then
+        echo "hubs_sync: render failed for $hub; its Codex and OpenCode agents are left as they were" >&2
+        failed=1
+      fi
       codex_srcs+=("$stage/codex/$i"); opencode_srcs+=("$stage/opencode/$i")
     done
-    if _hubs_tool_on codex "$codex_dir"; then
+    if (( failed )); then
+      (( _AGENTCFG_SKIPPED++ ))
+    elif _hubs_tool_on codex "$codex_dir"; then
       _hubs_copy_generated "$codex_dir/agents" '*.toml' "${codex_srcs[@]}"
       _hubs_warn_unknown_codex_models "$codex_dir" "$@"
     fi
-    _hubs_tool_on opencode "$opencode_dir" && _hubs_copy_generated "$opencode_dir/agents" '*.md' "${opencode_srcs[@]}"
+    (( failed )) || { _hubs_tool_on opencode "$opencode_dir" && _hubs_copy_generated "$opencode_dir/agents" '*.md' "${opencode_srcs[@]}" }
     true
   } always {
     command rm -rf -- "$stage"
@@ -216,7 +250,9 @@ hubs_sync_instructions() {
   _hubs_tool_on codex "${CODEX_HOME:-$HOME/.codex}" && files+=("${CODEX_HOME:-$HOME/.codex}/AGENTS.md")
   _hubs_tool_on opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" && files+=("${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md")
   for file in "${files[@]}"; do
-    (( create )) || [[ -e "$file" || -L "$file" ]] || continue
+    # Nothing to say: only empty an existing regular file's block; never
+    # create a file or replace a symlink for an empty block.
+    (( create )) || [[ -f "$file" && ! -L "$file" ]] || continue
     _hubs_splice_block "$file" "$beg" "$fin" "$body" || true
   done
   return 0
@@ -231,17 +267,14 @@ hubs_doctor() {
   file=$(_hubs_file)
   print -r -- "hubs file: $file$([[ -f "$file" ]] || print -r -- ' (absent)')"
   if [[ -f "$file" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      line="${line%%\#*}"; line="${line## }"; line="${line%% }"
-      [[ -n "$line" ]] || continue
-      hub="$line"; [[ "$hub" == '~' || "$hub" == '~/'* ]] && hub="$HOME${hub#\~}"; hub="${hub:a}"
+    for hub in ${(f)"$(_hubs_listed)"}; do
       if [[ ! -d "$hub" ]]; then print -r -- "  $hub: missing"; continue; fi
       if [[ -d "$hub/agents/src" ]] && ! python3 -B "$_HUBS_DOTFILES/agents/render.py" --hub "$hub" --check >/dev/null 2>&1; then
         print -r -- "  $hub: render drift (run agents/render.py --hub $hub)"
       else
         print -r -- "  $hub: ok"
       fi
-    done < "$file"
+    done
   fi
   for tool dir in claude "$HOME/.claude" codex "${CODEX_HOME:-$HOME/.codex}" opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode"; do
     [[ -d "$dir" ]] || { print -r -- "  $tool: not installed"; continue }
@@ -283,23 +316,40 @@ hubs_sync() {
          return 2;;
     esac
   done
-  (( ${#hubs} )) || hubs=(${(f)"$(hubs_list)"})
+  # No hubs file means not configured yet: link and remove nothing, keep the
+  # tool-specific extras (statusline, managed config block) in step, and say so.
+  local configured=1
+  if (( ! ${#hubs} )); then
+    if [[ ! -f "$(_hubs_file)" ]]; then
+      configured=0
+      # Say so from the installer and --dry-run; tool launches stay silent and
+      # `deploy.sh --doctor` reports the absent file.
+      if [[ "${DOTFILES_INSTALL:-}" == 1 ]] || (( dry )); then
+        echo "hubs_sync: no hubs file at $(_hubs_file); hub links left as they are. Create it with one hub path per line." >&2
+      fi
+    else
+      hubs=(${(f)"$(hubs_list)"})
+    fi
+  fi
   _HUBS_DRY=$dry; _HUBS_TOOLS=("${tools[@]}")
   (( dry )) || _hubs_remember "${hubs[@]}"
+  _HUBS_ROOTS=(); _HUBS_ROOTS=(${(f)"$(_hubs_roots)"})
   local -x CODEX_HOME="${codex_home:-${CODEX_HOME:-$HOME/.codex}}"
   [[ -n "$codex_home" && ! ${_HUBS_DRY:-0} -eq 1 ]] && mkdir -p "$codex_home"
   local claude_dir="$HOME/.claude" codex_dir="$CODEX_HOME"
   local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
   _agentcfg_reset
 
-  _hubs_tool_on claude "$claude_dir" && hubs_sync_skills "$claude_dir/skills" "${hubs[@]}"
-  _hubs_tool_on codex "$codex_dir" && hubs_sync_skills "$codex_dir/skills" "${hubs[@]}"
-  _hubs_tool_on opencode "$opencode_dir" && hubs_sync_skills "$opencode_dir/skills" "${hubs[@]}"
-  hubs_sync_agents "${hubs[@]}"
-  hubs_sync_instructions "${hubs[@]}"
+  if (( configured )); then
+    _hubs_tool_on claude "$claude_dir" && hubs_sync_skills "$claude_dir/skills" "${hubs[@]}"
+    _hubs_tool_on codex "$codex_dir" && hubs_sync_skills "$codex_dir/skills" "${hubs[@]}"
+    _hubs_tool_on opencode "$opencode_dir" && hubs_sync_skills "$opencode_dir/skills" "${hubs[@]}"
+    hubs_sync_agents "${hubs[@]}"
+    hubs_sync_instructions "${hubs[@]}"
+  fi
   _hubs_tool_on claude "$claude_dir" && _hubs_claude_settings "$claude_dir"
   _hubs_tool_on codex "$codex_dir" && _hubs_codex_config "$codex_dir"
 
-  _HUBS_DRY=0; _HUBS_TOOLS=()
+  _HUBS_DRY=0; _HUBS_TOOLS=(); _HUBS_ROOTS=()
   _agentcfg_report hubs_sync
 }
