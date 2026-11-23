@@ -350,44 +350,22 @@ class InstallTest(unittest.TestCase):
         proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
         self.assertEqual(proc.stdout + proc.stderr, "", "second sync should converge silently")
 
-    def test_memory_existing_vault_mismatch_fails_before_writing(self):
-        cfg = self.home / ".config/life-memory/config.json"
-        cfg.parent.mkdir(parents=True)
-        cfg.write_text(json.dumps({"vault": str(self.home / "original")}))
-        proc = self.memory_setup("--clients", "codex", "--vault", str(self.home / "other"))
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertFalse((self.home / "other").exists())
+    def test_life_memory_runs_setup_from_the_hub_that_has_it(self):
+        empty = self.home / "empty hub"
+        hub = self.home / "memory hub"
+        empty.mkdir()
+        (hub / "memory").mkdir(parents=True)
+        (hub / "memory/setup.py").write_text("")
+        (self.home / ".config/dotfiles").mkdir(parents=True)
+        (self.home / ".config/dotfiles/hubs").write_text(f"{empty}\n{hub}\n")
+        self.stub("python3.12", "exit 0")
+        proc = self.deploy("--dry-run", "--only", "life-memory")
+        self.assertIn(str(hub / "memory/setup.py"), proc.stdout + proc.stderr)
 
-    def memory_setup(self, *args):
-        python = self.home / ".local/share/life-memory-venv/bin/python"
-        python.parent.mkdir(parents=True, exist_ok=True)
-        python.write_text("#!/bin/sh\nexit 0\n")
-        python.chmod(0o755)
-        return subprocess.run([sys.executable, str(ROOT / "ai/memory/setup.py"), *args], env=self.env, text=True, capture_output=True)
-
-    def test_memory_only_configures_selected_client_and_paths(self):
-        self.env["CODEX_HOME"] = str(self.home / "account")
-        vault = self.home / "my vault"
-        backup = self.home / "my backups"
-        proc = self.memory_setup("--clients", "codex", "--vault", str(vault), "--backup", str(backup))
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertTrue((self.home / "account/hooks.json").is_file())
-        self.assertFalse((self.home / ".claude").exists())
-        self.assertFalse((self.home / ".config/opencode").exists())
-        cfg = json.loads((self.home / ".config/life-memory/config.json").read_text())
-        self.assertEqual(cfg["vault"], str(vault))
-        self.assertEqual(cfg["backup"], str(backup))
-
-    def test_memory_jsonc_conflict_fails_before_creating_vault(self):
-        config = self.home / "custom config/opencode"
-        config.mkdir(parents=True)
-        (config / "opencode.jsonc").write_text('{/* keep */ "model": "my/model"}')
-        self.env["XDG_CONFIG_HOME"] = str(config.parent)
-        proc = self.memory_setup("--clients", "opencode")
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertFalse((self.home / "Documents/Life").exists())
-        self.assertFalse((config / "opencode.json").exists())
-
+    def test_life_memory_without_a_hub_says_so(self):
+        self.stub("python3.12", "exit 0")
+        proc = self.deploy("--dry-run", "--only", "life-memory")
+        self.assertIn("No listed hub provides memory/setup.py", proc.stdout + proc.stderr)
 
 if __name__ == "__main__":
     unittest.main()

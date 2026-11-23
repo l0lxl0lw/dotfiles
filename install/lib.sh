@@ -190,6 +190,8 @@ orca_cli() {
 # Orca installs its own status hooks and bundled skills per agent it detects.
 # Run after the tools exist so OpenCode is detected too. Failures are reported,
 # never fatal: Orca is optional.
+# hub_file <path>: <hub>/<path> from the first listed hub that has it; status 1 if none.
+hub_file() { DOTFILES_INSTALL_ROOT="$ROOT" zsh -f "$ROOT/install/ai-sync.zsh" hub-file "$1"; }
 orca_integrate() {
   local orca
   orca=$(orca_cli) || return 0
@@ -233,7 +235,8 @@ doctor() {
     else say "$dst: not managed by this installer"; fi
   done
   say 'Authentication: run gh auth status; launch each selected assistant to verify provider access.'
-  say 'Life memory: ~/.local/share/life-memory-venv/bin/python ~/dotfiles/ai/memory/memory.py doctor'
+  local memory_dir; memory_dir=$(hub_file memory/memory.py) && memory_dir="${memory_dir%/memory.py}"
+  say "Life memory: ~/.local/share/life-memory-venv/bin/python ${memory_dir:-<hub>/memory}/memory.py doctor"
   say '--- hubs'
   DOTFILES_INSTALL_ROOT="$ROOT" zsh -f "$ROOT/install/ai-sync.zsh" doctor || true
 }

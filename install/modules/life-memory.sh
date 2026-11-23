@@ -1,9 +1,14 @@
 install_component() {
   local venv="$HOME/.local/share/life-memory-venv" vault clients backup_dir client missing=0
   ensure_tool python3.12 python@3.12
+  local setup
+  setup=$(hub_file memory/setup.py) || {
+    say 'No listed hub provides memory/setup.py; add the personal hub to ~/.config/dotfiles/hubs.'
+    return 2
+  }
   if (( DRY_RUN )); then
     say 'Would ask for vault path, selected clients, backups, and launchd registration.'
-    say 'Would install basic-memory==0.23.2 in an isolated venv and run ai/memory/setup.py.'
+    say "Would install basic-memory==0.23.2 in an isolated venv and run $setup."
     return
   fi
   if [[ ! -x "$venv/bin/basic-memory" ]]; then
@@ -30,7 +35,7 @@ install_component() {
   [[ -z "$backup_dir" ]] || args+=(--backup "$backup_dir")
   say 'Setup snapshots changed JSON settings and preserves existing notes. Review/trust Codex hooks in a fresh session.'
   ask 'Proceed with Life memory configuration (automatic config backups)?' || return 2
-  "$venv/bin/python" "$ROOT/ai/memory/setup.py" "${args[@]}"
+  "$venv/bin/python" "$setup" "${args[@]}"
   vault=$("$venv/bin/python" -c 'from pathlib import Path; import json,os; print(json.loads(Path(os.environ.get("LIFE_MEMORY_CONFIG", "~/.config/life-memory/config.json")).expanduser().read_text())["vault"])')
   export BASIC_MEMORY_NO_PROMOS=1 BASIC_MEMORY_FORCE_LOCAL=true
   say "Register the vault if not already registered: $venv/bin/basic-memory project add life \"$vault\" --local --default"
@@ -62,6 +67,6 @@ install_component() {
       launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/local.life-memory.maintenance.plist"
     fi
   fi
-  say 'Restart assistants. Review/trust Codex hooks with /hooks, then verify capture with ai/memory/README.md.'
+  say "Restart assistants. Review/trust Codex hooks with /hooks, then verify capture with ${setup%/setup.py}/README.md."
   (( missing == 0 )) || return 2
 }

@@ -200,7 +200,6 @@ Review the summary, fix a failed component, and rerun with `--only`.
 | `agents/` | The hub agent renderer and Codex model check; [agent format and tiers](agents/README.md) |
 | `ai/claude/hooks/`, `ai/codex/config.toml.managed` | Status line and the Codex settings block the linker applies |
 | `ai/grok/` | Grok resources (Grok support is slated for removal) |
-| `ai/memory/` | Optional local Life vault integration; [setup and operations](ai/memory/README.md) |
 
 To add an application, add `install/modules/<name>.sh` implementing
 `install_component`, store its configuration beside the other tools, and use the
@@ -208,7 +207,8 @@ shared dependency/link/backup helpers. The wizard discovers the module without
 dispatcher edits. Keep authentication and machine-specific data out of Git.
 
 The `private-config` component clones an optional private repository to
-`~/dotfiles-private`; list it in the hubs file to load it. Life memory defaults to `~/Documents/Life` on a new machine;
+`~/dotfiles-private`; list it in the hubs file to load it. Life memory's code lives in the personal hub (`memory/`); the `life-memory` component
+runs that hub's `memory/setup.py`. It defaults to `~/Documents/Life` on a new machine;
 existing configured vaults are reused. Dropbox, Obsidian and an off-device backup
 service are optional separate installations.
 
