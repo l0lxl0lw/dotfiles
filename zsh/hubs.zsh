@@ -15,6 +15,9 @@ typeset -ga _HUBS_LEGACY_ROOTS=(
   "$HOME/dotfiles" "$HOME/dotfiles-private" "$HOME/workspace/claude-config" "$HOME/workspace/azubot"
 )
 
+# The dotfiles checkout this file belongs to; the renderer lives beside it.
+typeset -g _HUBS_DOTFILES="${${(%):-%x}:A:h:h}"
+
 _hubs_file() { print -r -- "${HUBS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/hubs}" }
 
 # Print each active hub as an absolute path, in file order, once. A listed
@@ -57,4 +60,73 @@ hubs_sync_skills() {
   setopt extended_glob
   local dst="$1"; shift
   _agentcfg_sync_skill_sources "$dst" "${@/%//.agents/skills}"
+}
+
+# _hubs_link_tree <dest-dir> <subpath> <hub>...
+# Symlink every <hub>/<subpath>/**/*.md into <dest-dir>, keeping subfolders.
+# A later hub wins a relative name and the override is printed. Managed
+# links the hubs no longer provide are removed; empty category dirs pruned.
+_hubs_link_tree() {
+  local dst="$1" sub="$2" hub f key
+  shift 2
+  local -A want
+  local -a emptied
+  for hub in "$@"; do
+    [[ -d "$hub/$sub" ]] || continue
+    for f in "$hub/$sub"/**/*.md(N-.); do
+      key="${f#"$hub/$sub"/}"
+      (( ${+want[$key]} )) && echo "override agent '$key': $f over ${want[$key]}"
+      want[$key]="$f"
+    done
+  done
+  mkdir -p "$dst"
+  for f in "$dst"/**/*(N@); do
+    _agentcfg_is_managed "$f" || continue
+    (( ${+want[${f#"$dst"/}]} )) && continue
+    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+  done
+  for key in ${(ko)want}; do
+    mkdir -p "$dst/${key:h}"
+    _agentcfg_link "${want[$key]}" "$dst/$key" "agent '$key'"
+  done
+  emptied=( "$dst"/**/*(N/) )
+  for f in "${(Oa)emptied[@]}"; do rmdir "$f" 2>/dev/null; done
+}
+
+# hubs_sync_agents <hub>...
+# Claude: symlinks to each hub's committed .claude/agents (Claude-only agents
+# included). Codex and OpenCode: rendered per hub with the machine tiers
+# overlay, then copied in, later hub wins.
+hubs_sync_agents() {
+  emulate -L zsh
+  setopt extended_glob
+  local claude_dir="$HOME/.claude" codex_dir="${CODEX_HOME:-$HOME/.codex}"
+  local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+  local overlay="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/tiers.json"
+  local hub stage i=0
+  local -a codex_srcs opencode_srcs tiers_args
+  [[ -f "$overlay" ]] && tiers_args=(--tiers "$overlay")
+
+  [[ -d "$claude_dir" ]] && _hubs_link_tree "$claude_dir/agents" .claude/agents "$@"
+
+  stage=$(mktemp -d "${TMPDIR:-/tmp}/hubs-agents.XXXXXX") || return 1
+  {
+    for hub in "$@"; do
+      [[ -d "$hub/agents/src" ]] || continue
+      (( i++ ))
+      python3 -B "$_HUBS_DOTFILES/agents/render.py" --hub "$hub" "${tiers_args[@]}" \
+        --codex-out "$stage/codex/$i" --opencode-out "$stage/opencode/$i" >/dev/null || \
+        echo "hubs_sync: render failed for $hub" >&2
+      codex_srcs+=("$stage/codex/$i"); opencode_srcs+=("$stage/opencode/$i")
+    done
+    if [[ -d "$codex_dir" ]]; then
+      _hubs_copy_generated "$codex_dir/agents" '*.toml' "${codex_srcs[@]}"
+      _hubs_warn_unknown_codex_models "$codex_dir" "$@"
+    fi
+    [[ -d "$opencode_dir" ]] && _hubs_copy_generated "$opencode_dir/agents" '*.md' "${opencode_srcs[@]}"
+    true
+  } always {
+    command rm -rf -- "$stage"
+  }
+  return 0
 }
