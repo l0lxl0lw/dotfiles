@@ -1,5 +1,7 @@
 #!/usr/bin/env zsh
-# Load synchronization without interactive startup files or completion setup.
+# Sync one tool from the active hubs, without interactive startup files or
+# completion setup. Exit 2 when a collision was skipped so the installer can say so.
 source "$DOTFILES_INSTALL_ROOT/zsh/functions.zsh"
-"${1}_merge_config" || exit $?
+source "$DOTFILES_INSTALL_ROOT/zsh/hubs.zsh"
+hubs_sync --tool "$1" || exit $?
 (( _AGENTCFG_SKIPPED == 0 )) || exit 2

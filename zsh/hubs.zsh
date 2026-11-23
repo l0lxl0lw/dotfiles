@@ -17,6 +17,15 @@ typeset -ga _HUBS_LEGACY_ROOTS=(
 
 # The dotfiles checkout this file belongs to; the renderer lives beside it.
 typeset -g _HUBS_DOTFILES="${${(%):-%x}:A:h:h}"
+typeset -gi _HUBS_DRY=0            # set by hubs_sync --dry-run
+typeset -ga _HUBS_TOOLS=()         # set by hubs_sync --tool; empty means every tool present
+
+# _hubs_tool_on <tool> <dir>: selected (or no selection), enabled, and installed.
+_hubs_tool_on() {
+  (( ${#_HUBS_TOOLS} == 0 || ${_HUBS_TOOLS[(Ie)$1]} )) || return 1
+  _agentcfg_enabled "$1" || return 1
+  [[ -d "$2" ]]
+}
 
 _hubs_file() { print -r -- "${HUBS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/hubs}" }
 
@@ -49,7 +58,7 @@ hubs_list() {
 # point into.
 _hubs_roots() {
   hubs_list 2>/dev/null
-  print -rl -- $_HUBS_LEGACY_ROOTS
+  print -rl -- "$_HUBS_DOTFILES" $_HUBS_LEGACY_ROOTS
 }
 
 # hubs_sync_skills <dest-skills-dir> <hub>...
@@ -79,14 +88,14 @@ _hubs_link_tree() {
       want[$key]="$f"
     done
   done
-  mkdir -p "$dst"
+  (( ${_HUBS_DRY:-0} )) || mkdir -p "$dst"
   for f in "$dst"/**/*(N@); do
     _agentcfg_is_managed "$f" || continue
     (( ${+want[${f#"$dst"/}]} )) && continue
-    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+    _hubs_rm "$f"
   done
   for key in ${(ko)want}; do
-    mkdir -p "$dst/${key:h}"
+    (( ${_HUBS_DRY:-0} )) || mkdir -p "$dst/${key:h}"
     _agentcfg_link "${want[$key]}" "$dst/$key" "agent '$key'"
   done
   emptied=( "$dst"/**/*(N/) )
@@ -107,7 +116,7 @@ hubs_sync_agents() {
   local -a codex_srcs opencode_srcs tiers_args
   [[ -f "$overlay" ]] && tiers_args=(--tiers "$overlay")
 
-  [[ -d "$claude_dir" ]] && _hubs_link_tree "$claude_dir/agents" .claude/agents "$@"
+  _hubs_tool_on claude "$claude_dir" && _hubs_link_tree "$claude_dir/agents" .claude/agents "$@"
 
   stage=$(mktemp -d "${TMPDIR:-/tmp}/hubs-agents.XXXXXX") || return 1
   {
@@ -119,11 +128,11 @@ hubs_sync_agents() {
         echo "hubs_sync: render failed for $hub" >&2
       codex_srcs+=("$stage/codex/$i"); opencode_srcs+=("$stage/opencode/$i")
     done
-    if [[ -d "$codex_dir" ]]; then
+    if _hubs_tool_on codex "$codex_dir"; then
       _hubs_copy_generated "$codex_dir/agents" '*.toml' "${codex_srcs[@]}"
       _hubs_warn_unknown_codex_models "$codex_dir" "$@"
     fi
-    [[ -d "$opencode_dir" ]] && _hubs_copy_generated "$opencode_dir/agents" '*.md' "${opencode_srcs[@]}"
+    _hubs_tool_on opencode "$opencode_dir" && _hubs_copy_generated "$opencode_dir/agents" '*.md' "${opencode_srcs[@]}"
     true
   } always {
     command rm -rf -- "$stage"
@@ -139,6 +148,7 @@ _hubs_splice_block() {
   local file="$1" beg="$2" fin="$3" body="$4" current tmp
   if [[ -L "$file" ]]; then
     if _agentcfg_is_managed "$file"; then
+      if (( _HUBS_DRY )); then echo "would replace managed symlink $file with a file"; (( _AGENTCFG_LINKED++ )); return 0; fi
       rm -f -- "$file"
     else
       echo "hubs_sync: $file is a symlink owned by something else, leaving it" >&2
@@ -151,6 +161,7 @@ _hubs_splice_block() {
   fi
   current=$([[ -f "$file" ]] && awk -v b="$beg" -v e="$fin" 'index($0,b){f=1;next} index($0,e){f=0;next} f' "$file")
   [[ "$current" == "$body" ]] && return 0
+  if (( _HUBS_DRY )); then echo "would write the hubs block in $file"; (( _AGENTCFG_LINKED++ )); return 0; fi
   mkdir -p "${file:h}"
   local pre="" post=""
   if [[ -f "$file" ]]; then
@@ -181,11 +192,53 @@ hubs_sync_instructions() {
     body+="## ${hub:t}"$'\n\n'"$(<"$hub/persona/global.md")"$'\n\n'
   done
   body="${body%%$'\n'##}"
-  [[ -d "$HOME/.claude" ]] && files+=("$HOME/.claude/CLAUDE.md")
-  [[ -d "${CODEX_HOME:-$HOME/.codex}" ]] && files+=("${CODEX_HOME:-$HOME/.codex}/AGENTS.md")
-  [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" ]] && files+=("${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md")
+  _hubs_tool_on claude "$HOME/.claude" && files+=("$HOME/.claude/CLAUDE.md")
+  _hubs_tool_on codex "${CODEX_HOME:-$HOME/.codex}" && files+=("${CODEX_HOME:-$HOME/.codex}/AGENTS.md")
+  _hubs_tool_on opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" && files+=("${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md")
   for file in "${files[@]}"; do
     _hubs_splice_block "$file" "$beg" "$fin" "$body" || true
   done
   return 0
+}
+
+# hubs_sync [--dry-run] [--hubs PATH,PATH] [--codex-home DIR] [--tool claude|codex|opencode]...
+# Give every selected tool the active hubs' skills, agents and persona block,
+# plus the tool-specific extras. Silent when nothing changes.
+hubs_sync() {
+  emulate -L zsh
+  setopt extended_glob
+  local -a hubs tools
+  local arg dry=0 codex_home=""
+  while (( $# )); do
+    arg="$1"; shift
+    case "$arg" in
+      --dry-run) dry=1;;
+      --hubs) for arg in ${(s:,:)1}; do
+                [[ "$arg" == '~' || "$arg" == '~/'* ]] && arg="$HOME${arg#\~}"
+                hubs+=("${arg:a}")
+              done; shift;;
+      --codex-home) codex_home="$1"; shift;;
+      --tool) tools+=("$1"); shift;;
+      *) echo "usage: hubs_sync [--dry-run] [--hubs PATH,PATH] [--codex-home DIR] [--tool claude|codex|opencode]..." >&2
+         return 2;;
+    esac
+  done
+  (( ${#hubs} )) || hubs=(${(f)"$(hubs_list)"})
+  _HUBS_DRY=$dry; _HUBS_TOOLS=("${tools[@]}")
+  local -x CODEX_HOME="${codex_home:-${CODEX_HOME:-$HOME/.codex}}"
+  [[ -n "$codex_home" && ! ${_HUBS_DRY:-0} -eq 1 ]] && mkdir -p "$codex_home"
+  local claude_dir="$HOME/.claude" codex_dir="$CODEX_HOME"
+  local opencode_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+  _agentcfg_reset
+
+  _hubs_tool_on claude "$claude_dir" && hubs_sync_skills "$claude_dir/skills" "${hubs[@]}"
+  _hubs_tool_on codex "$codex_dir" && hubs_sync_skills "$codex_dir/skills" "${hubs[@]}"
+  _hubs_tool_on opencode "$opencode_dir" && hubs_sync_skills "$opencode_dir/skills" "${hubs[@]}"
+  hubs_sync_agents "${hubs[@]}"
+  hubs_sync_instructions "${hubs[@]}"
+  _hubs_tool_on claude "$claude_dir" && _hubs_claude_settings "$claude_dir"
+  _hubs_tool_on codex "$codex_dir" && _hubs_codex_config "$codex_dir"
+
+  _HUBS_DRY=0; _HUBS_TOOLS=()
+  _agentcfg_report hubs_sync
 }

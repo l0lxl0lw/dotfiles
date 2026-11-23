@@ -239,6 +239,74 @@ test_instructions_hub_without_persona_is_skipped() {
   [[ "$(<"$HOME/.claude/CLAUDE.md")" != *"## bare"* ]] || fail "hub without persona produced a heading"
 }
 
+
+# A full hub with one skill, one rendered agent and a persona.
+make_full_hub() {
+  make_hub "$1" "$2"; make_hub_agents "$1" "$3"; make_persona "$1" "Persona of ${1:t}."
+}
+
+test_sync_dry_run_writes_nothing_and_lists_plan() {
+  local zubot="$HOME/s1/zubot" out
+  make_full_hub "$zubot" honest-check locator
+  reset_homes
+  print -rl -- "$zubot" > "$hubs_file"
+  out=$(hubs_sync --dry-run 2>&1)
+  [[ -z "$(ls -A "$HOME/.claude")" && -z "$(ls -A "$HOME/.codex")" ]] || fail "dry run wrote: $(ls -A "$HOME/.claude" "$HOME/.codex")"
+  [[ "$out" == *"link"*"honest-check"* && "$out" == *"copy"*"locator.toml"* && "$out" == *"CLAUDE.md"* ]] \
+    || fail "dry run plan incomplete: $out"
+}
+
+test_sync_hubs_flag_limits_to_named_hubs() {
+  local zubot="$HOME/s2/zubot" azubot="$HOME/s2/azubot"
+  make_full_hub "$zubot" honest-check locator; make_full_hub "$azubot" ds-develop ds-locator
+  reset_homes
+  print -rl -- "$zubot" "$azubot" > "$hubs_file"
+  hubs_sync --hubs "$azubot" >/dev/null 2>&1
+  [[ -L "$HOME/.claude/skills/ds-develop" && ! -e "$HOME/.claude/skills/honest-check" ]] || fail "--hubs did not limit hubs"
+  [[ "$(<"$HOME/.claude/CLAUDE.md")" != *"## zubot"* ]] || fail "--hubs leaked zubot persona"
+}
+
+test_sync_codex_home_flag_targets_other_home() {
+  local azubot="$HOME/s3/azubot" other="$HOME/s3/codex-home"
+  make_full_hub "$azubot" ds-develop ds-locator
+  reset_homes
+  print -rl -- "$azubot" > "$hubs_file"
+  hubs_sync --tool codex --codex-home "$other" >/dev/null 2>&1
+  [[ -L "$other/skills/ds-develop" && -f "$other/agents/ds-locator.toml" && -f "$other/AGENTS.md" ]] || fail "codex home not populated: $(ls -R "$other" 2>&1)"
+  [[ -z "$(ls -A "$HOME/.codex")" ]] || fail "~/.codex was touched: $(ls -A "$HOME/.codex")"
+}
+
+test_sync_tool_flag_limits_tools() {
+  local zubot="$HOME/s4/zubot"
+  make_full_hub "$zubot" honest-check locator
+  reset_homes
+  print -rl -- "$zubot" > "$hubs_file"
+  hubs_sync --tool opencode >/dev/null 2>&1
+  [[ -L "$XDG_CONFIG_HOME/opencode/skills/honest-check" && -f "$XDG_CONFIG_HOME/opencode/agents/locator.md" ]] || fail "opencode not synced"
+  [[ -z "$(ls -A "$HOME/.claude")" && -z "$(ls -A "$HOME/.codex")" ]] || fail "other tools were touched"
+}
+
+test_sync_silent_on_second_run() {
+  local zubot="$HOME/s5/zubot" out
+  make_full_hub "$zubot" honest-check locator
+  reset_homes
+  print -rl -- "$zubot" > "$hubs_file"
+  hubs_sync >/dev/null 2>&1
+  out=$(hubs_sync 2>&1)
+  [[ -z "$out" ]] || fail "second run was not silent: $out"
+}
+
+test_sync_disabled_tool_is_skipped() {
+  local zubot="$HOME/s6/zubot"
+  make_full_hub "$zubot" honest-check locator
+  reset_homes
+  print -rl -- "$zubot" > "$hubs_file"
+  mkdir -p "$XDG_STATE_HOME/dotfiles/disabled-sync"; touch "$XDG_STATE_HOME/dotfiles/disabled-sync/codex"
+  hubs_sync >/dev/null 2>&1
+  rm -f "$XDG_STATE_HOME/dotfiles/disabled-sync/codex"
+  [[ -L "$HOME/.claude/skills/honest-check" && -z "$(ls -A "$HOME/.codex")" ]] || fail "disabled codex was synced"
+}
+
 for t in ${(ok)functions[(I)test_*]}; do
   $t || exit 1
 done

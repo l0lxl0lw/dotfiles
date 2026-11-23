@@ -206,7 +206,20 @@ _agentcfg_link() {
     echo "  $what: $dst already exists and is not a symlink, leaving it" >&2
     (( _AGENTCFG_SKIPPED++ )); return 1
   fi
+  if (( ${_HUBS_DRY:-0} )); then
+    echo "would link $dst -> $target"; (( _AGENTCFG_LINKED++ )); return 0
+  fi
   ln -sfn "$target" "$dst" && (( _AGENTCFG_LINKED++ ))
+}
+
+# Removal and copy go through these so --dry-run can narrate instead of act.
+_hubs_rm() {
+  if (( ${_HUBS_DRY:-0} )); then echo "would remove $1"; else rm -f -- "$1"; fi
+  (( _AGENTCFG_REMOVED++ ))
+}
+_hubs_cp() {
+  if (( ${_HUBS_DRY:-0} )); then echo "would copy $2 <- $1"; return 0; fi
+  cp -- "$1" "$2"
 }
 
 # _agentcfg_sync_skill_sources <dest-skills-dir> <src-skills-dir>...
@@ -220,7 +233,7 @@ _agentcfg_sync_skill_sources() {
   local dst="$1" src f key parent nested
   local -A want
   shift
-  mkdir -p "$dst"
+  (( ${_HUBS_DRY:-0} )) || mkdir -p "$dst"
 
   for src in "$@"; do
     [[ -d "$src" ]] || continue
@@ -242,7 +255,7 @@ _agentcfg_sync_skill_sources() {
   for f in "$dst"/*(N@); do
     _agentcfg_is_managed "$f" || continue
     (( ${+want[${f:t}]} )) && continue
-    rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+    _hubs_rm "$f"
   done
   for key in ${(ko)want}; do
     _agentcfg_link "${want[$key]}" "$dst/$key" "skill '$key'"
@@ -323,11 +336,11 @@ _hubs_copy_generated() {
   done
   local -a copied=()
   [[ -f "$ledger" ]] && copied=("${(@f)$(<"$ledger")}")
-  mkdir -p "$dst"
+  (( ${_HUBS_DRY:-0} )) || mkdir -p "$dst"
   for f in "$dst"/${~glob}(N); do
     (( ${+want[${f:t}]} )) && continue
     if _agentcfg_is_managed "$f" || { [[ ! -L "$f" ]] && { _hubs_is_generated "$f" || (( ${copied[(Ie)${f:t}]} > 0 )) } }; then
-      rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
+      _hubs_rm "$f"
     fi
   done
   local -a now=()
@@ -341,11 +354,11 @@ _hubs_copy_generated() {
         echo "  agent '$f': $out is not ours, leaving it" >&2
         (( _AGENTCFG_SKIPPED++ )); continue
       fi
-      rm -f -- "$out"
+      (( ${_HUBS_DRY:-0} )) || rm -f -- "$out"
     fi
-    cp -- "$role" "$out" && now+=("$f") && (( _AGENTCFG_LINKED++ ))
+    _hubs_cp "$role" "$out" && now+=("$f") && (( _AGENTCFG_LINKED++ ))
   done
-  print -rl -- $now > "$ledger"
+  (( ${_HUBS_DRY:-0} )) || print -rl -- $now > "$ledger"
 }
 
 # True when the file opens with a render notice (old or new renderer), as the
@@ -394,63 +407,16 @@ _agentcfg_report() {
   return 0
 }
 
-# Link ~/dotfiles/ai/claude into ~/.claude (skills, agents, hooks, statusline).
-# Runs from the claude() wrapper below; existing linked files update immediately
-# because they are symlinks.
-claude_merge_config() {
-  _agentcfg_enabled claude || return 0
-  emulate -L zsh          # glob qualifiers work regardless of caller's options
+# Claude-side extras that are not hub content: the statusline hook script and
+# the settings.json repair that points at it. Hooks still live under
+# ai/claude/hooks until plan 4 relocates them.
+#   _hubs_claude_settings <claude-dir>
+_hubs_claude_settings() {
+  emulate -L zsh
   setopt extended_glob
-
-  local claude_dir="$HOME/.claude"
-  local repo="$HOME/dotfiles/ai/claude"
-  if [[ ! -d "$repo" ]]; then
-    echo "claude_merge_config: $repo not found" >&2
-    return 1
-  fi
-
-  local f key dest
-  local -A want_a want_h
-  local -a emptied
-  _agentcfg_reset
-
-  # Skills. ~/.claude/skills is shared with gstack, which installs real dirs.
-  # Claude-local skills win by name; ai/shared/skills holds cross-tool skills.
-  _agentcfg_sync_skill_sources "$claude_dir/skills" \
-    "$repo/skills" \
-    "$HOME/dotfiles/ai/shared/skills" \
-    "$_AGENTCFG_PRIVATE/.claude/skills"
-
-  # Agents: mirror each tree, symlinking each .md. The repo wins a name over
-  # the private overlay.
-  local adir
-  if [[ -d "$repo/agents" ]]; then
-    mkdir -p "$claude_dir/agents"
-    for adir in "$repo/agents" "$_AGENTCFG_PRIVATE/.claude/agents"; do
-      [[ -d "$adir" ]] || continue
-      for f in "$adir"/**/*.md(N-.); do
-        key="${f#"$adir"/}"
-        (( ${+want_a[$key]} )) || want_a[$key]="$f"
-      done
-    done
-
-    for f in "$claude_dir"/agents/**/*(N@); do
-      _agentcfg_is_managed "$f" || continue
-      (( ${+want_a[${f#"$claude_dir"/agents/}]} )) && continue
-      rm -f -- "$f"; (( _AGENTCFG_REMOVED++ ))
-    done
-    for key in ${(ko)want_a}; do
-      dest="$claude_dir/agents/$key"
-      mkdir -p "${dest:h}"
-      _agentcfg_link "${want_a[$key]}" "$dest" "agent '$key'"
-    done
-    # Drop category dirs left empty by a rename, deepest first. rmdir refuses
-    # non-empty dirs, and (N/) never matches a symlink, so this cannot descend
-    # into the repo.
-    emptied=( "$claude_dir"/agents/**/*(N/) )
-    for f in "${(Oa)emptied[@]}"; do rmdir "$f" 2>/dev/null; done
-  fi
-
+  local claude_dir="$1" repo="${_HUBS_DOTFILES:-$HOME/dotfiles}/ai/claude" f key
+  local -A want_h
+  (( ${_HUBS_DRY:-0} )) && { echo "would check hooks and settings.json in $claude_dir"; return 0 }
   # Hooks: top-level files only. ~/.claude/hooks can also hold real,
   # plugin-owned scripts that settings.json depends on -- never overwrite one.
   if [[ -d "$repo/hooks" ]]; then
@@ -510,13 +476,13 @@ claude_merge_config() {
         bash "$DOTFILES_INSTALL_ROOT/install/link.sh" approve "$settings"
         local approval=$?
         if (( approval == 2 )); then
-          (( _AGENTCFG_SKIPPED++ )); _agentcfg_report claude_merge_config; return 0
+          (( _AGENTCFG_SKIPPED++ )); return 0
         elif (( approval != 0 )); then
           exit "$approval"
         fi
       else
         echo "claude_merge_config: settings.json needs: ${(j:; :)changes}; run ~/dotfiles/deploy.sh --only claude to review" >&2
-        (( _AGENTCFG_SKIPPED++ )); _agentcfg_report claude_merge_config; return 0
+        (( _AGENTCFG_SKIPPED++ )); return 0
       fi
       tmp=$(mktemp "${settings}.XXXXXX") || return 1
       if jq --arg cmd "$want" --arg re "$hookre" --argjson dead "$(jq -nc '$ARGS.positional' --args -- $dead)" \
@@ -531,46 +497,17 @@ claude_merge_config() {
     fi
   fi
 
-  _agentcfg_report claude_merge_config
+  return 0
 }
 
-# Link ~/dotfiles/ai/codex into ~/.codex (skills, AGENTS.md).
-#
-# Sync runs just before the binary launches, which costs nothing on shells that
-# never invoke codex.
-codex_merge_config() {
-  _agentcfg_enabled codex || return 0
+# Codex-side extra: the managed block spliced into config.toml. The fragment
+# still lives under ai/codex until plan 4 relocates it.
+#   _hubs_codex_config <codex-dir>
+_hubs_codex_config() {
   emulate -L zsh
   setopt extended_glob
-
-  local codex_dir="${CODEX_HOME:-$HOME/.codex}"
-  local repo="$HOME/dotfiles/ai/codex"
-  [[ -d "$repo" ]] || { echo "codex_merge_config: $repo not found" >&2; return 1 }
-  # Don't create ~/.codex; its absence means Codex isn't installed here.
-  [[ -d "$codex_dir" ]] || return 0
-
-  _agentcfg_reset
-
-  # Skills. ~/.codex/skills also holds Codex's own .system/ and any bundled
-  # runtime dirs as real directories -- same situation as gstack, left alone.
-  #
-  # Codex-local skills win by name; ai/shared/skills holds cross-tool skills.
-  _agentcfg_sync_skill_sources "$codex_dir/skills" \
-    "$repo/skills" \
-    "$HOME/dotfiles/ai/shared/skills" \
-    "$_AGENTCFG_PRIVATE/.agents/skills"
-
-  # Global instructions: one file, Codex's equivalent of ~/.claude/CLAUDE.md.
-  [[ -f "$repo/AGENTS.md" ]] && \
-    _agentcfg_link "$repo/AGENTS.md" "$codex_dir/AGENTS.md" "AGENTS.md"
-
-  # Agent roles for spawn_agent, rendered from ai/shared/agents, then the
-  # private overlay's. The repo wins a name over the overlay.
-  if [[ -d "$repo/agents" ]]; then
-    _codex_sync_agent_roles "$codex_dir/agents" "$repo/agents" "$_AGENTCFG_PRIVATE/.codex/agents"
-    _codex_warn_unknown_tier_models "$codex_dir"
-  fi
-
+  local codex_dir="$1" repo="${_HUBS_DOTFILES:-$HOME/dotfiles}/ai/codex"
+  (( ${_HUBS_DRY:-0} )) && { echo "would check the managed block in $codex_dir/config.toml"; return 0 }
   # Settings that have to live inside config.toml (status_line and friends).
   #
   # config.toml can't be a symlink to the repo: it also carries machine-local
@@ -593,13 +530,13 @@ codex_merge_config() {
         bash "$DOTFILES_INSTALL_ROOT/install/link.sh" approve "$cfg"
         local approval=$?
         if (( approval == 2 )); then
-          (( _AGENTCFG_SKIPPED++ )); _agentcfg_report codex_merge_config; return 0
+          (( _AGENTCFG_SKIPPED++ )); return 0
         elif (( approval != 0 )); then
           exit "$approval"
         fi
       elif ! command grep -q '^# >>> dotfiles managed >>>$' "$cfg"; then
         echo "codex_merge_config: run ~/dotfiles/deploy.sh --only codex to approve managed settings" >&2
-        (( _AGENTCFG_SKIPPED++ )); _agentcfg_report codex_merge_config; return 0
+        (( _AGENTCFG_SKIPPED++ )); return 0
       fi
       tmp=$(mktemp "${cfg}.XXXXXX") || return 1
       {
@@ -636,14 +573,18 @@ codex_merge_config() {
     fi
   fi
 
-  _agentcfg_report codex_merge_config
+  return 0
 }
 
-# Sync tracked Codex config, expose this repository's Claude skills only while
-# the process is alive, then hand off to the real binary.
+# Legacy names: the per-tool merge functions are now hubs_sync for one tool.
+claude_merge_config() { hubs_sync --tool claude "$@" }
+codex_merge_config() { hubs_sync --tool codex "$@" }
+
+# Sync the active hubs into Codex, expose this repository's Claude skills only
+# while the process is alive, then hand off to the real binary.
 codex() {
   if ! _agentcfg_enabled codex; then command codex "$@"; return $?; fi
-  codex_merge_config || return
+  hubs_sync --tool codex || return
 
   local stage="" exit_code=1
   stage=$(_codex_stage_repo_claude_skills) || return
@@ -659,12 +600,19 @@ codex() {
   return $exit_code
 }
 
-# Sync tracked Claude config, then hand off to the real binary. Claude reads a
-# repository's own .claude/ natively, so unlike codex() nothing is staged.
+# Sync the active hubs into Claude, then hand off to the real binary. Claude
+# reads a repository's own .claude/ natively, so nothing is staged.
 claude() {
   if ! _agentcfg_enabled claude; then command claude "$@"; return $?; fi
-  claude_merge_config || return
+  hubs_sync --tool claude || return
   command claude "$@"
+}
+
+# Same for OpenCode, which reads ~/.config/opencode.
+opencode() {
+  if ! _agentcfg_enabled opencode; then command opencode "$@"; return $?; fi
+  hubs_sync --tool opencode || return
+  command opencode "$@"
 }
 
 # Link ~/dotfiles/ai/grok into ~/.grok (skills, agents, hooks, AGENTS.md, settings).
@@ -752,3 +700,7 @@ grok() {
   grok_merge_config
   command grok "$@"
 }
+
+# hubs.zsh defines hubs_sync, which the wrappers above call; load it when this
+# file is sourced on its own (tests, install/ai-sync.zsh).
+(( $+functions[hubs_sync] )) || source "${${(%):-%x}:A:h}/hubs.zsh"
