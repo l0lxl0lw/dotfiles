@@ -130,3 +130,62 @@ hubs_sync_agents() {
   }
   return 0
 }
+
+# _hubs_splice_block <file> <begin-marker> <end-marker> <body>
+# Replace (or append) the marked block, keeping everything around it. Only
+# writes when the block differs. A managed symlink becomes a regular file; a
+# foreign regular file without markers is left alone with a warning.
+_hubs_splice_block() {
+  local file="$1" beg="$2" fin="$3" body="$4" current tmp
+  if [[ -L "$file" ]]; then
+    if _agentcfg_is_managed "$file"; then
+      rm -f -- "$file"
+    else
+      echo "hubs_sync: $file is a symlink owned by something else, leaving it" >&2
+      (( _AGENTCFG_SKIPPED++ )); return 1
+    fi
+  fi
+  if [[ -s "$file" ]] && ! command grep -qF -- "$beg" "$file"; then
+    echo "hubs_sync: $file has content but no hubs markers, leaving it" >&2
+    (( _AGENTCFG_SKIPPED++ )); return 1
+  fi
+  current=$([[ -f "$file" ]] && awk -v b="$beg" -v e="$fin" 'index($0,b){f=1;next} index($0,e){f=0;next} f' "$file")
+  [[ "$current" == "$body" ]] && return 0
+  mkdir -p "${file:h}"
+  local pre="" post=""
+  if [[ -f "$file" ]]; then
+    pre=$(awk -v b="$beg" 'index($0,b){exit} {print}' "$file")
+    post=$(awk -v e="$fin" 'f{print} index($0,e){f=1}' "$file")
+  fi
+  tmp=$(mktemp "${file}.XXXXXX") || return 1
+  {
+    [[ -n "$pre" ]] && print -r -- "$pre"
+    print -r -- "$beg"; print -r -- "$body"; print -r -- "$fin"
+    [[ -n "$post" ]] && print -r -- "$post"
+    true
+  } > "$tmp" && mv -f "$tmp" "$file" && (( _AGENTCFG_LINKED++ )) || { rm -f -- "$tmp"; return 1 }
+  return 0
+}
+
+# hubs_sync_instructions <hub>...
+# One managed block in each tool's global instruction file, built from every
+# hub's persona/global.md in hub order under a "## <hub>" heading.
+hubs_sync_instructions() {
+  emulate -L zsh
+  setopt extended_glob
+  local beg='<!-- >>> dotfiles hubs >>> -->' fin='<!-- <<< dotfiles hubs <<< -->'
+  local hub body="" file
+  local -a files
+  for hub in "$@"; do
+    [[ -f "$hub/persona/global.md" ]] || continue
+    body+="## ${hub:t}"$'\n\n'"$(<"$hub/persona/global.md")"$'\n\n'
+  done
+  body="${body%%$'\n'##}"
+  [[ -d "$HOME/.claude" ]] && files+=("$HOME/.claude/CLAUDE.md")
+  [[ -d "${CODEX_HOME:-$HOME/.codex}" ]] && files+=("${CODEX_HOME:-$HOME/.codex}/AGENTS.md")
+  [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" ]] && files+=("${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md")
+  for file in "${files[@]}"; do
+    _hubs_splice_block "$file" "$beg" "$fin" "$body" || true
+  done
+  return 0
+}

@@ -177,6 +177,68 @@ test_agents_unknown_codex_tier_model_warns() {
   rm -f "$HOME/.codex/models_cache.json"
 }
 
+
+BEG='<!-- >>> dotfiles hubs >>> -->'
+FIN='<!-- <<< dotfiles hubs <<< -->'
+make_persona() { mkdir -p "$1/persona"; print -- "$2" > "$1/persona/global.md" }
+reset_homes() {
+  rm -rf "$HOME/.claude" "$HOME/.codex" "$XDG_CONFIG_HOME/opencode"
+  mkdir -p "$HOME/.claude" "$HOME/.codex" "$XDG_CONFIG_HOME/opencode"
+}
+
+test_instructions_writes_block_in_hub_order() {
+  local zubot="$HOME/i1/zubot" azubot="$HOME/i1/azubot" f
+  make_persona "$zubot" "Be warm."; make_persona "$azubot" "Inside defensestorm-eng repos, be strict."
+  reset_homes
+  hubs_sync_instructions "$zubot" "$azubot" >/dev/null
+  for f in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "$XDG_CONFIG_HOME/opencode/AGENTS.md"; do
+    [[ -f "$f" ]] || fail "$f missing"
+    [[ "$(<"$f")" == *"$BEG"*"## zubot"*"Be warm."*"## azubot"*"be strict."*"$FIN"* ]] || fail "$f block wrong: $(<"$f")"
+  done
+}
+
+test_instructions_preserves_text_outside_markers() {
+  local zubot="$HOME/i2/zubot" f="$HOME/.claude/CLAUDE.md"
+  make_persona "$zubot" "Be warm."
+  reset_homes
+  print -- "above\n$BEG\nold\n$FIN\nbelow" > "$f"
+  hubs_sync_instructions "$zubot" >/dev/null
+  [[ "$(<"$f")" == "above"*"$BEG"*"Be warm."*"$FIN"*"below" ]] || fail "surrounding text lost: $(<"$f")"
+  [[ "$(<"$f")" != *"old"* ]] || fail "old block content survived"
+}
+
+test_instructions_replaces_managed_symlink_keeps_foreign_file() {
+  local zubot="$HOME/i3/zubot" err
+  make_persona "$zubot" "Be warm."
+  reset_homes
+  ln -s "$HOME/dotfiles/ai/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+  print -r -- "hand written, no markers" > "$HOME/.claude/CLAUDE.md"
+  err=$(hubs_sync_instructions "$zubot" 2>&1 >/dev/null)
+  [[ -f "$HOME/.codex/AGENTS.md" && ! -L "$HOME/.codex/AGENTS.md" ]] || fail "managed symlink not replaced by a file"
+  [[ "$(<"$HOME/.codex/AGENTS.md")" == *"Be warm."* ]] || fail "codex AGENTS.md lacks the block"
+  [[ "$(<"$HOME/.claude/CLAUDE.md")" == "hand written, no markers" ]] || fail "foreign CLAUDE.md was changed"
+  [[ "$err" == *CLAUDE.md* ]] || fail "expected a warning naming CLAUDE.md, got: $err"
+}
+
+test_instructions_no_write_when_unchanged() {
+  local zubot="$HOME/i4/zubot" f="$HOME/.claude/CLAUDE.md" before after
+  make_persona "$zubot" "Be warm."
+  reset_homes
+  hubs_sync_instructions "$zubot" >/dev/null
+  before=$(stat -f %m "$f"); sleep 1
+  hubs_sync_instructions "$zubot" >/dev/null
+  after=$(stat -f %m "$f")
+  [[ "$before" == "$after" ]] || fail "file rewritten although unchanged"
+}
+
+test_instructions_hub_without_persona_is_skipped() {
+  local zubot="$HOME/i5/zubot" bare="$HOME/i5/bare"
+  make_persona "$zubot" "Be warm."; mkdir -p "$bare"
+  reset_homes
+  hubs_sync_instructions "$zubot" "$bare" >/dev/null
+  [[ "$(<"$HOME/.claude/CLAUDE.md")" != *"## bare"* ]] || fail "hub without persona produced a heading"
+}
+
 for t in ${(ok)functions[(I)test_*]}; do
   $t || exit 1
 done
