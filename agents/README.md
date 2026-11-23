@@ -5,8 +5,8 @@ render for every host so a session started inside the hub finds them with no
 linker. Edit only the sources, then:
 
 ```sh
-python3 ~/dotfiles/agents/render.py --hub ~/zubot          # rewrite the committed renders
-python3 ~/dotfiles/agents/render.py --hub ~/zubot --check  # fail on drift (run in the hub's tests)
+python3 ~/dotfiles/agents/render.py --hub ~/personal/zubot          # rewrite the committed renders
+python3 ~/dotfiles/agents/render.py --hub ~/personal/zubot --check  # fail on drift (run in the hub's tests)
 ```
 
 | Generated file | Read by | Synced by `hubs_sync` as |

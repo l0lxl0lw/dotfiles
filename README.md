@@ -84,8 +84,8 @@ that follow one layout and are listed, per machine, in
 personal machine lists one:
 
 ```
-~/zubot
-~/azubot
+~/personal/zubot
+~/work/azubot
 ```
 
 A hub provides:
