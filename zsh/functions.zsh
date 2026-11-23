@@ -168,7 +168,10 @@ _agentcfg_is_managed() {
   target=$(readlink "$1")
   [[ "$target" == /* ]] || target="${1:h}/$target"
   target="${target:a}"
-  for root in $_AGENTCFG_ROOTS; do
+  # Active hubs plus legacy roots when zsh/hubs.zsh is loaded; legacy only otherwise.
+  local -a roots=($_AGENTCFG_ROOTS)
+  (( $+functions[_hubs_roots] )) && roots=(${(f)"$(_hubs_roots)"})
+  for root in $roots; do
     [[ "$target" == "$root"/* ]] && return 0
   done
   return 1
@@ -209,13 +212,14 @@ _agentcfg_link() {
 # _agentcfg_sync_skill_sources <dest-skills-dir> <src-skills-dir>...
 # Agent tools discover skills as <dir>/<name>/SKILL.md, so each source
 # tree may nest them under categories and they get flattened to their basename.
-# Missing sources are skipped -- otherwise an absent source would prune every link
-# and put nothing back, which is the data loss this design exists to prevent.
+# A later source wins a name and the override is printed, so a work hub can
+# shadow a personal copy on purpose and the drift stays visible. Missing
+# sources are skipped; links into them are not managed, so an absent source
+# never prunes its own links -- the data loss this design exists to prevent.
 _agentcfg_sync_skill_sources() {
   local dst="$1" src f key parent nested
   local -A want
   shift
-  (( $# )) || return 0
   mkdir -p "$dst"
 
   for src in "$@"; do
@@ -230,10 +234,7 @@ _agentcfg_sync_skill_sources() {
       (( nested )) && continue
 
       key="${f:h:t}"
-      if (( ${+want[$key]} )); then
-        echo "  duplicate skill '$key': keeping ${want[$key]}, ignoring ${f:h}" >&2
-        (( _AGENTCFG_SKIPPED++ )); continue
-      fi
+      (( ${+want[$key]} )) && echo "override skill '$key': ${f:h} over ${want[$key]}"
       want[$key]="${f:h}"
     done
   done

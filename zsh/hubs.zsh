@@ -48,3 +48,13 @@ _hubs_roots() {
   hubs_list 2>/dev/null
   print -rl -- $_HUBS_LEGACY_ROOTS
 }
+
+# hubs_sync_skills <dest-skills-dir> <hub>...
+# Link each hub's .agents/skills/<name> into the destination. Only
+# .agents/skills is scanned: a hub's .claude/skills is a symlink to it.
+hubs_sync_skills() {
+  emulate -L zsh
+  setopt extended_glob
+  local dst="$1"; shift
+  _agentcfg_sync_skill_sources "$dst" "${@/%//.agents/skills}"
+}
