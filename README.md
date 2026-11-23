@@ -34,8 +34,10 @@ Python and Node are not needed to start the wizard. Linux is not supported by it
 | `vim` | Links `.vimrc`; uses built-in features, without unused Pathogen downloads |
 | `tmux` | Offers tmux; links config and installs TPM, sensible and yank |
 | `emacs` | Offers Emacs and Spacemacs; copies a writable starter `.spacemacs`; first launch downloads Spacemacs packages |
-| `claude` | Offers Homebrew `claude-code` and jq; initializes status-line settings and links skills/agents/hooks |
-| `codex` | Offers Homebrew `codex`; initializes managed settings and links skills/instructions; respects `CODEX_HOME` |
+| `claude` | Offers Homebrew `claude-code` and jq; initializes status-line settings and links the active hubs into `~/.claude` |
+| `codex` | Offers Homebrew `codex`; initializes managed settings and links the active hubs into `~/.codex`; respects `CODEX_HOME` |
+| `opencode` | Offers Homebrew `opencode`; links the active hubs into `~/.config/opencode` |
+| `hubs` | Links every active hub into every installed tool at once, then lets Orca install its hooks and bundled skills for the agents it detects |
 | `grok` | Configures an existing Grok CLI, respecting `GROK_HOME`; missing CLI is reported for manual installation because no verified package is registered |
 | `private-config` | Optionally clones a user-supplied private Git URL into `~/dotfiles-private` |
 | `life-memory` | Offers Python 3.12, isolated Basic Memory dependencies, vault/backup paths, selected-client hooks/MCP and optional launchd maintenance |
@@ -51,7 +53,7 @@ review/trust through `/hooks` in a fresh session.
 ## Select, inspect, update
 
 ```sh
-./deploy.sh --only claude,codex
+./deploy.sh --only claude,codex,opencode,hubs
 ./deploy.sh --dry-run              # no downloads, writes, or prompts
 ./deploy.sh --doctor               # read-only executable/link inventory
 git pull --ff-only                 # explicit repository update; resolve local conflicts yourself
@@ -65,13 +67,62 @@ Non-Homebrew application installations keep their native update mechanism.
 Private repositories and dotfiles itself are not pulled by this command.
 
 Shell startup performs **no downloads, application installation, repository pulls,
-or AI synchronization**. It loads tracked `zsh/*.zsh` and optional private
-`~/dotfiles-private/zsh/*.zsh`. Missing autosuggestions and AWS completion are safe.
+or AI synchronization**. It loads tracked `zsh/*.zsh` and then `zsh/*.zsh` from each
+active hub (see [Hubs](#hubs)). Missing autosuggestions and AWS completion are safe.
 
-Claude, Codex and Grok synchronize managed resources when launched
-through their shell wrappers (`claude_merge_config` and friends can also be run
-directly). Grok also has a SessionStart sync hook. Normal synchronization preserves
-foreign files; use the installer to review collisions.
+Claude Code, Codex and OpenCode synchronize the active hubs when launched through
+their shell wrappers; `hubs_sync` can also be run directly. Grok keeps its own
+sync and SessionStart hook. Synchronization preserves foreign files; use the
+installer to review collisions.
+
+## Hubs
+
+AI content does not live in this repository. It lives in *hubs*: repositories
+that follow one layout and are listed, per machine, in
+`${XDG_CONFIG_HOME:-~/.config}/dotfiles/hubs`, one path per line, `~` allowed,
+`#` comments ignored. A work machine lists a personal hub and a work hub; a
+personal machine lists one:
+
+```
+~/zubot
+~/azubot
+```
+
+A hub provides:
+
+```
+<hub>/
+  AGENTS.md, CLAUDE.md     entry points when a session starts inside the hub
+  persona/global.md        what every tool should know about this hub everywhere
+  .agents/skills/<name>/   the skills; .claude/skills is a symlink to it
+  agents/src/<name>.md     one worker definition (name, description, tier, access)
+  .claude/agents/          committed render for Claude Code, plus Claude-only agents
+  .codex/agents/           committed render for Codex
+  .opencode/agents/        committed render for OpenCode
+  tiers.json               default tier -> model map; see agents/README.md
+  zsh/*.zsh                optional shell config
+```
+
+`hubs_sync [--dry-run] [--hubs PATH,PATH] [--codex-home DIR] [--tool claude|codex|opencode]...`
+links each hub's skills into each tool, symlinks Claude agents, renders Codex and
+OpenCode agents with the machine's `~/.config/dotfiles/tiers.json` overlay and
+copies them in, and writes one managed block of every hub's `persona/global.md`
+into `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` and `~/.config/opencode/AGENTS.md`.
+A hub listed later wins a name collision, and every override is printed.
+`--dry-run` narrates instead of acting; `--hubs` and `--codex-home` serve a single
+hub into a private Codex home (an unattended bot, say); `--tool` limits the run.
+
+What the linker never touches: real directories (other installers' skills,
+Codex's `.system/`, Orca's `~/.agents/skills`), symlinks that do not point into a
+hub or a former root, Orca's hooks, and any instruction file with content but no
+hubs markers. A hub path that does not exist is skipped with a warning and its
+links are left alone. Hubs the linker has synced are remembered in
+`~/.local/state/dotfiles/hubs-seen` so a hub dropped from the list is cleaned up.
+
+`./deploy.sh --doctor` prints the hubs file, each hub as `ok`, `missing` or
+`render drift`, per-tool counts of hub links and generated agents, and Orca's hook
+status. The `ai/` tree in this repository is the previous home of this content
+and is being retired; the linker no longer reads it.
 
 Development uses two public commands: `/develop-prepare` scopes features or bug
 fixes on `main`; an explicitly approved `/develop-deliver` transfers execution to
@@ -145,8 +196,9 @@ Review the summary, fix a failed component, and rerun with `--only`.
 | `install/` | Wizard helpers and auto-discovered component modules; [extension contract](install/README.md) |
 | `zsh/` | Shell startup, functions, aliases and optional completions |
 | `vim/`, `tmux/`, `emacs/` | Editor/multiplexer settings |
-| `ai/claude/`, `ai/codex/`, `ai/grok/` | Tool-specific resources and documentation |
-| `ai/shared/` | Canonical cross-tool skills, flattened by the sync helpers, and [workflow agents](ai/shared/agents/README.md) rendered per tool |
+| `agents/` | The hub agent renderer and Codex model check; [agent format and tiers](agents/README.md) |
+| `ai/claude/`, `ai/codex/`, `ai/grok/` | Legacy tool-specific resources, being moved into hubs |
+| `ai/shared/` | Legacy cross-tool skills and workflow agents, being moved into hubs |
 | `ai/shared/workflow/` | Issue tracking, evidence records and delivery helpers used by the develop skills |
 | `ai/memory/` | Optional local Life vault integration; [setup and operations](ai/memory/README.md) |
 
@@ -155,9 +207,8 @@ To add an application, add `install/modules/<name>.sh` implementing
 shared dependency/link/backup helpers. The wizard discovers the module without
 dispatcher edits. Keep authentication and machine-specific data out of Git.
 
-The optional private repository supplies shell configuration and
-`opencode/config.json` (private skill paths/tracking). It is not required for the
-public setup to work. Life memory defaults to `~/Documents/Life` on a new machine;
+The `private-config` component clones an optional private repository to
+`~/dotfiles-private`; list it in the hubs file to load it. Life memory defaults to `~/Documents/Life` on a new machine;
 existing configured vaults are reused. Dropbox, Obsidian and an off-device backup
 service are optional separate installations.
 

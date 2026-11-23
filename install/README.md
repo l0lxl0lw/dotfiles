@@ -32,8 +32,11 @@ Homebrew upgrade only if that package is installed by Homebrew.
 - `clone_plugin URL DESTINATION`: staged clone, preserving a failed installation's
   destination; existing repositories must match the URL. Updates are ff-only and
   reject dirty checkouts.
-- `sync_ai NAME CONFIG_DIRECTORY`: initializes selected config, then invokes the
-  existing Zsh synchronization adapter without interactive startup files.
+- `sync_hubs NAME`: for `claude`, `codex` or `opencode`, initializes that tool's
+  local settings file, then runs `hubs_sync --tool NAME` through
+  `install/ai-sync.zsh` without interactive startup files; `all` syncs every
+  installed tool. `orca_integrate` then lets Orca add its hooks and bundled skills,
+  resolving the CLI as `ORCA_CLI_COMMAND`, then PATH, then the app bundle.
 
 `ROOT`, `HOME`, `DRY_RUN`, and `MODE` (`install`/`update`) are available. Always quote
 paths. Every write/download must be guarded by `DRY_RUN` or routed through a helper.
