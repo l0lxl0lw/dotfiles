@@ -4,5 +4,5 @@ install_component() {
     say 'This avoids substituting an unrelated third-party package with the same name.'
     return 2
   fi
-  sync_ai grok "${GROK_HOME:-$HOME/.grok}"
+  sync_hubs grok
 }

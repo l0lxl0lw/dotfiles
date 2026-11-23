@@ -17,7 +17,7 @@ class InstallTest(unittest.TestCase):
         self.home = Path(self.tmp.name).resolve()
         self.repo = self.home / "dotfiles"
         self.repo.mkdir()
-        for name in ("install", "zsh", "vim", "tmux", "emacs"):
+        for name in ("install", "zsh", "vim", "tmux", "emacs", "agents"):
             shutil.copytree(ROOT / name, self.repo / name)
         shutil.copy2(ROOT / "deploy.sh", self.repo / "deploy.sh")
         # Read-only fixture sources; integrations only link to them.
@@ -26,6 +26,8 @@ class InstallTest(unittest.TestCase):
         self.bin.mkdir()
         self.env = {k: v for k, v in os.environ.items() if not k.startswith(("CODEX", "GROK", "XDG", "DOTFILES", "OPENCODE", "LIFE_MEMORY", "ZDOTDIR", "BACKUP"))}
         self.env.update(HOME=str(self.home), ROOT=str(self.repo), PATH=f"{self.bin}:/usr/bin:/bin:/usr/sbin:/sbin", PYTHONDONTWRITEBYTECODE="1")
+        # Never let a test reach the real Orca app through its bundle path.
+        self.env["ORCA_CLI_COMMAND"] = str(self.home / "no-orca")
         self.stub("xcode-select", "exit 0")
         self.stub("uname", 'case "$1" in -s) echo Darwin;; -m) echo arm64;; esac')
         self.stub("brew", 'echo "unexpected brew call" >&2; exit 99')
@@ -50,6 +52,29 @@ class InstallTest(unittest.TestCase):
 
     def manifests(self):
         return list((self.home / ".local/state/dotfiles/backups").glob("*/manifest.tsv"))
+
+    def make_hub(self, name, skill="hub-skill", agent="hub-agent", persona="Persona."):
+        """A hub under $HOME/<name> with one skill, one rendered agent and a persona, listed in the hubs file."""
+        hub = self.home / name
+        (hub / ".agents/skills" / skill).mkdir(parents=True)
+        (hub / ".agents/skills" / skill / "SKILL.md").write_text(f"---\nname: {skill}\ndescription: {skill}\n---\n")
+        (hub / ".claude").mkdir()
+        (hub / ".claude/skills").symlink_to("../.agents/skills", target_is_directory=True)
+        (hub / "agents/src").mkdir(parents=True)
+        (hub / "agents/src" / f"{agent}.md").write_text(f"---\nname: {agent}\ndescription: {agent}\ntier: fast\naccess: research\n---\n\nBody.\n")
+        (hub / "tiers.json").write_text('{"codex": {"fast": {"model": "gpt-6-luna"}}}')
+        (hub / "persona").mkdir()
+        (hub / "persona/global.md").write_text(persona + "\n")
+        subprocess.run([sys.executable, "-B", str(self.repo / "agents/render.py"), "--hub", str(hub)], check=True, capture_output=True)
+        hubs = self.home / ".config/dotfiles/hubs"
+        hubs.parent.mkdir(parents=True, exist_ok=True)
+        with hubs.open("a") as f:
+            f.write(str(hub) + "\n")
+        return hub
+
+    def orca_stub(self, log):
+        self.env["ORCA_CLI_COMMAND"] = str(self.bin / "orca")
+        self.stub("orca", f'printf \'%s\\n\' "$*" >> "{log}"; case "$1 $2 $3" in "agent hooks status") echo "claude: installed"; echo "codex: installed"; echo "opencode: installed";; esac; exit 0')
 
     def test_fresh_vim_and_idempotent_rerun(self):
         self.deploy("--only", "vim", answers="y\n")
@@ -158,7 +183,7 @@ class InstallTest(unittest.TestCase):
         self.deploy("--only", "codex", answers="y\nn\n")
         cfg = self.home / "account home/config.toml"
         self.assertIn("# >>> dotfiles managed >>>", cfg.read_text())
-        self.assertTrue((cfg.parent / "AGENTS.md").is_symlink())
+        self.assertFalse((cfg.parent / "AGENTS.md").exists(), "no hub, so no generated AGENTS.md")
         self.assertFalse((self.home / ".codex").exists())
         before = cfg.stat().st_mtime_ns
         self.deploy("--only", "codex", answers="y\n")
@@ -196,34 +221,91 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(dst.read_text(), "my rules")
         self.assertIn("action needed", proc.stdout)
 
-    def test_private_overlay_skills_and_agents_linked_and_pruned(self):
-        private = self.home / "dotfiles-private"
-        (private / ".agents/skills/overlay-skill").mkdir(parents=True)
-        (private / ".agents/skills/overlay-skill/SKILL.md").write_text("---\nname: overlay-skill\n---\n")
-        (private / ".claude").mkdir()
-        (private / ".claude/skills").symlink_to("../.agents/skills", target_is_directory=True)
-        (private / ".claude/agents").mkdir()
-        (private / ".claude/agents/overlay-agent.md").write_text("agent")
-        # A public agent name must not be shadowed by the overlay.
-        public_agent = next((ROOT / "ai/claude/agents").rglob("*.md")).relative_to(ROOT / "ai/claude/agents")
-        (private / ".claude/agents" / public_agent).parent.mkdir(parents=True, exist_ok=True)
-        (private / ".claude/agents" / public_agent).write_text("shadow")
+    def test_hub_skills_agents_and_persona_linked_and_pruned(self):
+        hub = self.make_hub("zubot", skill="hub-skill", agent="hub-agent", persona="Be warm.")
         (self.home / ".codex").mkdir()
         (self.home / ".claude/skills").mkdir(parents=True)
         stale = self.home / ".claude/skills/deleted-skill"
-        stale.symlink_to(private / ".claude/skills/deleted-skill")
+        stale.symlink_to(self.home / "dotfiles-private/.claude/skills/deleted-skill")
 
         sync = 'source "$HOME/dotfiles/zsh/functions.zsh"; claude_merge_config && codex_merge_config'
         for _ in range(2):
             proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
-        self.assertEqual(os.readlink(self.home / ".claude/skills/overlay-skill"), str(private / ".claude/skills/overlay-skill"))
-        self.assertEqual(os.readlink(self.home / ".codex/skills/overlay-skill"), str(private / ".agents/skills/overlay-skill"))
-        self.assertEqual(os.readlink(self.home / ".claude/agents/overlay-agent.md"), str(private / ".claude/agents/overlay-agent.md"))
-        self.assertTrue(os.readlink(self.home / ".claude/agents" / public_agent).startswith(str(self.repo)))
+        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
+        self.assertEqual(os.readlink(self.home / ".codex/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
+        self.assertEqual(os.readlink(self.home / ".claude/agents/hub-agent.md"), str(hub / ".claude/agents/hub-agent.md"))
+        self.assertTrue((self.home / ".codex/agents/hub-agent.toml").is_file())
+        self.assertIn("## zubot\n\nBe warm.", (self.home / ".claude/CLAUDE.md").read_text())
+        self.assertIn("Be warm.", (self.home / ".codex/AGENTS.md").read_text())
         self.assertFalse(stale.is_symlink())
         self.assertEqual(proc.stdout, "", "second sync should converge silently")
+
+        (self.home / ".config/dotfiles/hubs").write_text("")
+        proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertFalse((self.home / ".claude/skills/hub-skill").is_symlink())
+        self.assertFalse((self.home / ".codex/agents/hub-agent.toml").exists())
+        self.assertNotIn("Be warm.", (self.home / ".claude/CLAUDE.md").read_text())
+
+    def test_hubs_module_runs_hubs_sync_and_orca(self):
+        hub = self.make_hub("zubot")
+        log = self.home / "orca.log"
+        self.orca_stub(log)
+        (self.home / ".claude").mkdir()
+        (self.home / ".codex").mkdir()
+        proc = self.deploy("--only", "hubs", answers="y\n")
+        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
+        self.assertTrue((self.home / ".codex/agents/hub-agent.toml").is_file())
+        calls = log.read_text().splitlines()
+        self.assertIn("skills install --all", calls)
+        self.assertIn("agent hooks on", calls)
+        self.assertIn("hubs: completed", proc.stdout)
+
+    def test_hubs_module_without_orca_is_quiet(self):
+        self.make_hub("zubot")
+        (self.home / ".claude").mkdir()
+        proc = self.deploy("--only", "hubs", answers="y\n")
+        self.assertNotIn("orca", proc.stdout.lower())
+        self.assertIn("hubs: completed", proc.stdout)
+
+    def test_hubs_module_reports_orca_failure_without_aborting(self):
+        self.make_hub("zubot")
+        self.stub("orca", 'echo "boom" >&2; exit 1')
+        self.env["ORCA_CLI_COMMAND"] = str(self.bin / "orca")
+        (self.home / ".claude").mkdir()
+        proc = self.deploy("--only", "hubs", answers="y\n")
+        self.assertIn("hubs: completed", proc.stdout)
+        self.assertIn("orca", proc.stdout.lower())
+
+    def test_opencode_module_offers_brew_and_syncs(self):
+        self.make_hub("zubot")
+        self.stub("brew", 'echo "brew $*"; if [[ "$1" == install ]]; then printf "exit 0" > "$HOME/bin/opencode"; chmod +x "$HOME/bin/opencode"; fi')
+        proc = self.deploy("--only", "opencode", answers="y\ny\n")
+        self.assertIn("brew install --formula opencode", proc.stdout)
+        self.assertTrue((self.home / ".config/opencode/skills/hub-skill").is_symlink())
+        self.assertTrue((self.home / ".config/opencode/agents/hub-agent.md").is_file())
+        self.assertIn("Persona.", (self.home / ".config/opencode/AGENTS.md").read_text())
+
+    def test_doctor_lists_each_hub_state_and_render_drift(self):
+        hub = self.make_hub("zubot")
+        with (self.home / ".config/dotfiles/hubs").open("a") as f:
+            f.write(str(self.home / "absent") + "\n")
+        (hub / "agents/src/hub-agent.md").write_text("---\nname: hub-agent\ndescription: changed\ntier: fast\naccess: research\n---\n\nBody.\n")
+        log = self.home / "orca.log"
+        self.orca_stub(log)
+        proc = self.deploy("--doctor")
+        self.assertIn(f"{self.home / 'absent'}: missing", proc.stdout)
+        self.assertIn(f"{hub}: render drift", proc.stdout)
+        self.assertNotIn(f"{hub}: ok", proc.stdout)
+        self.assertIn("opencode: installed", proc.stdout)
+
+    def test_doctor_reports_no_drift_when_rendered(self):
+        hub = self.make_hub("zubot")
+        proc = self.deploy("--doctor")
+        self.assertNotIn("render drift", proc.stdout)
+        self.assertIn(f"{hub}: ok", proc.stdout)
 
     def test_claude_initial_settings_and_existing_settings_merge(self):
         self.stub("claude", "exit 0")

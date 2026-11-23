@@ -152,17 +152,49 @@ clone_plugin() {
     return 1
   fi
 }
-sync_ai() {
-  local name="$1" dir="$2"
-  check_parents "$dir/settings" || return $?
-  run mkdir -p "$dir"
+# sync_hubs <claude|codex|opencode|all>: prepare the tool's local settings file,
+# then link the active hubs into it through the same hubs_sync the shell
+# wrappers run. "all" syncs every installed tool.
+sync_hubs() {
+  local name="$1" dir
+  case "$name" in
+    claude) dir="$HOME/.claude";;
+    codex) dir="${CODEX_HOME:-$HOME/.codex}";;
+    opencode) dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode";;
+    grok) dir="${GROK_HOME:-$HOME/.grok}";;
+    all) dir="";;
+    *) die "Unknown sync target: $name";;
+  esac
+  if [[ -n "$dir" ]]; then
+    check_parents "$dir/settings" || return $?
+    run mkdir -p "$dir"
+  fi
   case "$name" in
     claude) prepare_settings "$dir/settings.json" "$ROOT/install/defaults/claude.json" || return $?;;
     codex) prepare_settings "$dir/config.toml" /dev/null || return $?;;
   esac
   run env DOTFILES_INSTALL=1 DOTFILES_INSTALL_ROOT="$ROOT" BACKUP_ROOT="$BACKUP_ROOT" \
     zsh -f "$ROOT/install/ai-sync.zsh" "$name"
-  say "$name: launch the app to sign in; restart existing sessions to reload configuration."
+  [[ "$name" == all ]] || say "$name: launch the app to sign in; restart existing sessions to reload configuration."
+}
+# The Orca CLI, if any: ORCA_CLI_COMMAND (the convention Orca's own skills use,
+# and the way tests keep away from the real app), else PATH, else the app bundle.
+orca_cli() {
+  local orca
+  if [[ -n "${ORCA_CLI_COMMAND:-}" ]]; then orca="$ORCA_CLI_COMMAND"
+  elif orca=$(command -v orca 2>/dev/null); then :
+  else orca=/Applications/Orca.app/Contents/Resources/bin/orca; fi
+  [[ -x "$orca" ]] || return 1
+  printf '%s\n' "$orca"
+}
+# Orca installs its own status hooks and bundled skills per agent it detects.
+# Run after the tools exist so OpenCode is detected too. Failures are reported,
+# never fatal: Orca is optional.
+orca_integrate() {
+  local orca
+  orca=$(orca_cli) || return 0
+  if ! run "$orca" skills install --all; then say "orca skills install failed; run it by hand after fixing Orca."; fi
+  if ! run "$orca" agent hooks on; then say "orca agent hooks on failed; run it by hand after fixing Orca."; fi
 }
 prepare_settings() {
   local dst="$1" seed="$2"
@@ -190,7 +222,7 @@ restore_backup() {
 doctor() {
   local exe pair
   say "Platform: $(uname -s) $(uname -m); repository: $ROOT"
-  for exe in git zsh vim tmux jq python3 claude codex grok gh; do
+  for exe in git zsh vim tmux jq python3 claude codex opencode grok gh; do
     if command -v "$exe" >/dev/null 2>&1; then say "$exe: $(command -v "$exe")"
     else say "$exe: missing (optional unless selected)"; fi
   done
@@ -202,16 +234,18 @@ doctor() {
   done
   say 'Authentication: run gh auth status; launch each selected assistant to verify provider access.'
   say 'Life memory: ~/.local/share/life-memory-venv/bin/python ~/dotfiles/ai/memory/memory.py doctor'
+  say '--- hubs'
+  DOTFILES_INSTALL_ROOT="$ROOT" zsh -f "$ROOT/install/ai-sync.zsh" doctor || true
 }
 usage() {
-  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,grok,private-config,life-memory] [--dry-run] [--update]'
+  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,opencode,hubs,grok,private-config,life-memory] [--dry-run] [--update]'
   say '       ./deploy.sh --doctor | --restore BACKUP_ID | --help'
   say 'All install/overwrite choices are interactive. Dry-run and doctor make no changes.'
 }
 sync_selection() {
   # Remember declined AI integrations so shell wrappers cannot enable them later.
   local id="$1" enabled="$2" dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync"
-  case "$id" in claude|codex|grok) ;; *) return 0;; esac
+  case "$id" in claude|codex|opencode|grok) ;; *) return 0;; esac
   (( DRY_RUN )) && return 0
   if [[ "$enabled" == yes ]]; then
     if [[ -f "$dir/$id" ]]; then rm -f "$dir/$id"; fi
@@ -253,7 +287,7 @@ main() {
   if [[ "$MODE" == update ]]; then
     say 'Update plugins and optionally selected Homebrew packages. Update dotfiles first with git pull --ff-only, then rerun this command.'
   fi
-  selected=(zsh vim tmux emacs claude codex grok private-config life-memory)
+  selected=(zsh vim tmux emacs claude codex opencode hubs grok private-config life-memory)
   for module in "$ROOT"/install/modules/*.sh; do
     id="${module##*/}"; id="${id%.sh}"
     [[ " ${selected[*]} " == *" $id "* ]] || selected+=("$id")

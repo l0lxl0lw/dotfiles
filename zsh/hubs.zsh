@@ -54,10 +54,27 @@ hubs_list() {
   done < "$file"
 }
 
-# Active hubs first, then the legacy roots: everything a managed link may
-# point into.
+# Hubs this machine has ever linked, so a hub dropped from the list still has
+# its links recognised as ours and cleaned up rather than orphaned.
+_hubs_seen_file() { print -r -- "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/hubs-seen" }
+_hubs_remember() {
+  local file seen hub
+  file=$(_hubs_seen_file)
+  mkdir -p "${file:h}"
+  [[ -f "$file" ]] && seen=$(<"$file") || seen=""
+  for hub in "$@"; do
+    [[ "$seen" == *"$hub"* ]] && (( ${${(f)seen}[(Ie)$hub]} )) && continue
+    print -r -- "$hub" >> "$file"
+  done
+}
+
+# Active hubs first, then hubs seen before, this checkout and the legacy
+# roots: everything a managed link may point into.
 _hubs_roots() {
+  local file
   hubs_list 2>/dev/null
+  file=$(_hubs_seen_file)
+  [[ -f "$file" ]] && cat "$file"
   print -rl -- "$_HUBS_DOTFILES" $_HUBS_LEGACY_ROOTS
 }
 
@@ -192,12 +209,55 @@ hubs_sync_instructions() {
     body+="## ${hub:t}"$'\n\n'"$(<"$hub/persona/global.md")"$'\n\n'
   done
   body="${body%%$'\n'##}"
+  # No hub contributes a persona: do not create instruction files for an empty
+  # block, but keep an existing block in step (emptied).
+  local create=1; [[ -n "$body" ]] || create=0
   _hubs_tool_on claude "$HOME/.claude" && files+=("$HOME/.claude/CLAUDE.md")
   _hubs_tool_on codex "${CODEX_HOME:-$HOME/.codex}" && files+=("${CODEX_HOME:-$HOME/.codex}/AGENTS.md")
   _hubs_tool_on opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode" && files+=("${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md")
   for file in "${files[@]}"; do
+    (( create )) || [[ -e "$file" || -L "$file" ]] || continue
     _hubs_splice_block "$file" "$beg" "$fin" "$body" || true
   done
+  return 0
+}
+
+# hubs_doctor: the hubs file, each hub's state and render drift, per-tool
+# counts of hub links and generated copies, and Orca's hook status.
+hubs_doctor() {
+  emulate -L zsh
+  setopt extended_glob
+  local file hub line tool dir n_links n_copies f orca
+  file=$(_hubs_file)
+  print -r -- "hubs file: $file$([[ -f "$file" ]] || print -r -- ' (absent)')"
+  if [[ -f "$file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%\#*}"; line="${line## }"; line="${line%% }"
+      [[ -n "$line" ]] || continue
+      hub="$line"; [[ "$hub" == '~' || "$hub" == '~/'* ]] && hub="$HOME${hub#\~}"; hub="${hub:a}"
+      if [[ ! -d "$hub" ]]; then print -r -- "  $hub: missing"; continue; fi
+      if [[ -d "$hub/agents/src" ]] && ! python3 -B "$_HUBS_DOTFILES/agents/render.py" --hub "$hub" --check >/dev/null 2>&1; then
+        print -r -- "  $hub: render drift (run agents/render.py --hub $hub)"
+      else
+        print -r -- "  $hub: ok"
+      fi
+    done < "$file"
+  fi
+  for tool dir in claude "$HOME/.claude" codex "${CODEX_HOME:-$HOME/.codex}" opencode "${XDG_CONFIG_HOME:-$HOME/.config}/opencode"; do
+    [[ -d "$dir" ]] || { print -r -- "  $tool: not installed"; continue }
+    n_links=0; n_copies=0
+    for f in "$dir"/skills/*(N@) "$dir"/agents/**/*(N@); do _agentcfg_is_managed "$f" && (( n_links++ )); done
+    for f in "$dir"/agents/*(N-.); do _hubs_is_generated "$f" && (( n_copies++ )); done
+    print -r -- "  $tool: $n_links hub links, $n_copies generated agents$([[ -d "$dir/skills/orca-cli" ]] && print -r -- ', orca-cli present')"
+  done
+  if [[ -n "${ORCA_CLI_COMMAND:-}" ]]; then orca="$ORCA_CLI_COMMAND"
+  elif ! orca=$(command -v orca 2>/dev/null); then orca=/Applications/Orca.app/Contents/Resources/bin/orca; fi
+  if [[ -x "$orca" ]]; then
+    print -r -- "  orca hooks:"
+    "$orca" agent hooks status 2>/dev/null | command grep -E '^(claude|codex|opencode):' | sed 's/^/    /'
+  else
+    print -r -- "  orca: not installed"
+  fi
   return 0
 }
 
@@ -225,6 +285,7 @@ hubs_sync() {
   done
   (( ${#hubs} )) || hubs=(${(f)"$(hubs_list)"})
   _HUBS_DRY=$dry; _HUBS_TOOLS=("${tools[@]}")
+  (( dry )) || _hubs_remember "${hubs[@]}"
   local -x CODEX_HOME="${codex_home:-${CODEX_HOME:-$HOME/.codex}}"
   [[ -n "$codex_home" && ! ${_HUBS_DRY:-0} -eq 1 ]] && mkdir -p "$codex_home"
   local claude_dir="$HOME/.claude" codex_dir="$CODEX_HOME"
