@@ -126,16 +126,12 @@ agents and the failure is reported.
 
 `./deploy.sh --doctor` prints the hubs file, each hub as `ok`, `missing` or
 `render drift`, per-tool counts of hub links and generated agents, and Orca's hook
-status. The `ai/` tree in this repository is the previous home of this content
-and is being retired; the linker no longer reads it.
+status. Skills, agents and personas live only in the hubs; this repository keeps
+just `ai/claude/hooks` (the status line) and `ai/codex/config.toml.managed`.
 
-Development uses two public commands: `/develop-prepare` scopes features or bug
-fixes on `main`; an explicitly approved `/develop-deliver` transfers execution to
-an Orca feature workspace for independent review, bounded repairs, commits and a
-PR with required CI passing. Both commands work the same from Claude Code
-or Codex, and a delivery can continue in another CLI when one runs out. See
-[the development workflow](ai/shared/skills/develop/README.md) for approval
-boundaries, main integration, recovery and switching CLIs.
+The development workflow (`/develop-prepare`, `/develop-deliver`) and every other
+shared skill now ship from the personal hub; see that hub's
+`.agents/skills/develop/README.md`.
 
 Declining an AI component disables its automatic catalog sync using a small marker
 under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A successful
@@ -202,9 +198,8 @@ Review the summary, fix a failed component, and rerun with `--only`.
 | `zsh/` | Shell startup, functions, aliases and optional completions |
 | `vim/`, `tmux/`, `emacs/` | Editor/multiplexer settings |
 | `agents/` | The hub agent renderer and Codex model check; [agent format and tiers](agents/README.md) |
-| `ai/claude/`, `ai/codex/`, `ai/grok/` | Legacy tool-specific resources, being moved into hubs |
-| `ai/shared/` | Legacy cross-tool skills and workflow agents, being moved into hubs |
-| `ai/shared/workflow/` | Issue tracking, evidence records and delivery helpers used by the develop skills |
+| `ai/claude/hooks/`, `ai/codex/config.toml.managed` | Status line and the Codex settings block the linker applies |
+| `ai/grok/` | Grok resources (Grok support is slated for removal) |
 | `ai/memory/` | Optional local Life vault integration; [setup and operations](ai/memory/README.md) |
 
 To add an application, add `install/modules/<name>.sh` implementing
@@ -221,9 +216,10 @@ service are optional separate installations.
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p '*test.py' -v
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s ai/shared/workflow/tests -p '*_test.py'
 zsh zsh/tests/codex_repo_skills_test.zsh
 zsh zsh/tests/agent_catalog_test.zsh
+zsh zsh/tests/hubs_list_test.zsh
+zsh zsh/tests/hubs_sync_test.zsh
 ```
 
 Installer tests use temporary homes, paths containing spaces and stubbed package

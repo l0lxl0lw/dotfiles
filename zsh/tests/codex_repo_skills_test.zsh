@@ -5,6 +5,10 @@ setopt err_return nounset pipe_fail
 repo_root=${0:A:h:h:h}
 test_tmp=$(mktemp -d "${TMPDIR:-/tmp}/codex-repo-skills-test.XXXXXX")
 trap 'command rm -rf -- "$test_tmp"' EXIT
+# Hermetic: the codex wrapper syncs hubs into $HOME, so never let it see the real one.
+mkdir -p "$test_tmp/home"
+export HOME="$test_tmp/home" XDG_CONFIG_HOME="$test_tmp/home/.config" XDG_STATE_HOME="$test_tmp/home/.local/state"
+unset HUBS_FILE
 
 # functions.zsh registers completions when sourced interactively.
 compdef() { :; }

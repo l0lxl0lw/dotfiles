@@ -391,15 +391,6 @@ _hubs_warn_unknown_codex_models() {
   return 0
 }
 
-# Legacy entry point used by codex_merge_config until hubs_sync replaces it:
-# the ai/shared/agents tree carries its tiers.json like a hub does.
-_codex_warn_unknown_tier_models() {
-  local cache="$1/models_cache.json"
-  [[ -f "$cache" ]] && (( $+commands[python3] )) || return 0
-  python3 -B "${_HUBS_DOTFILES:-$HOME/dotfiles}/agents/check_models.py" "$cache" /nonexistent "$HOME/dotfiles/ai/shared/agents" >&2
-  return 0
-}
-
 # Silent when there was nothing to do.
 _agentcfg_report() {
   (( _AGENTCFG_LINKED || _AGENTCFG_REMOVED || _AGENTCFG_SKIPPED )) && \
