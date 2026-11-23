@@ -350,22 +350,6 @@ class InstallTest(unittest.TestCase):
         proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
         self.assertEqual(proc.stdout + proc.stderr, "", "second sync should converge silently")
 
-    def test_life_memory_runs_setup_from_the_hub_that_has_it(self):
-        empty = self.home / "empty hub"
-        hub = self.home / "memory hub"
-        empty.mkdir()
-        (hub / "memory").mkdir(parents=True)
-        (hub / "memory/setup.py").write_text("")
-        (self.home / ".config/dotfiles").mkdir(parents=True)
-        (self.home / ".config/dotfiles/hubs").write_text(f"{empty}\n{hub}\n")
-        self.stub("python3.12", "exit 0")
-        proc = self.deploy("--dry-run", "--only", "life-memory")
-        self.assertIn(str(hub / "memory/setup.py"), proc.stdout + proc.stderr)
-
-    def test_life_memory_without_a_hub_says_so(self):
-        self.stub("python3.12", "exit 0")
-        proc = self.deploy("--dry-run", "--only", "life-memory")
-        self.assertIn("No listed hub provides memory/setup.py", proc.stdout + proc.stderr)
 
 if __name__ == "__main__":
     unittest.main()

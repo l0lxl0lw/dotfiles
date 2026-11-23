@@ -40,7 +40,6 @@ Python and Node are not needed to start the wizard. Linux is not supported by it
 | `hubs` | Links every active hub into every installed tool at once, then lets Orca install its hooks and bundled skills for the agents it detects |
 | `grok` | Configures an existing Grok CLI, respecting `GROK_HOME`; missing CLI is reported for manual installation because no verified package is registered |
 | `private-config` | Optionally clones a user-supplied private Git URL into `~/dotfiles-private` |
-| `life-memory` | Offers Python 3.12, isolated Basic Memory dependencies, vault/backup paths, selected-client hooks/MCP and optional launchd maintenance |
 
 Homebrew is offered only when a missing selected dependency needs it. Existing
 executables are reused. Declining a dependency skips the component. Ordinary
@@ -179,11 +178,6 @@ candidates are rejected by its CLI parser; an existing unrelated `[tui]` table
 may require manual reconciliation. Settings symlinks and symlinked parent
 directories require manual reconciliation rather than writes through them.
 
-Life memory has a separate content-addressed backup mechanism for changed JSON
-settings and its launchd definition under `~/.local/state/life-memory/config-backups`;
-the wizard obtains consent before running that setup. Native MCP registrations
-also prompt before changing existing client configuration. Memory setup refuses
-an existing OpenCode JSONC file rather than guessing how to merge comments.
 
 All mutating setup is interactive; there is no blanket `--yes` switch. EOF does
 not authorize replacement. Failed components produce a nonzero final status;
@@ -207,10 +201,7 @@ shared dependency/link/backup helpers. The wizard discovers the module without
 dispatcher edits. Keep authentication and machine-specific data out of Git.
 
 The `private-config` component clones an optional private repository to
-`~/dotfiles-private`; list it in the hubs file to load it. Life memory's code lives in the personal hub (`memory/`); the `life-memory` component
-runs that hub's `memory/setup.py`. It defaults to `~/Documents/Life` on a new machine;
-existing configured vaults are reused. Dropbox, Obsidian and an off-device backup
-service are optional separate installations.
+`~/dotfiles-private`; list it in the hubs file to load it.
 
 ## Verification
 

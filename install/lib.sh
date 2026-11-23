@@ -190,8 +190,6 @@ orca_cli() {
 # Orca installs its own status hooks and bundled skills per agent it detects.
 # Run after the tools exist so OpenCode is detected too. Failures are reported,
 # never fatal: Orca is optional.
-# hub_file <path>: <hub>/<path> from the first listed hub that has it; status 1 if none.
-hub_file() { DOTFILES_INSTALL_ROOT="$ROOT" zsh -f "$ROOT/install/ai-sync.zsh" hub-file "$1"; }
 orca_integrate() {
   local orca
   orca=$(orca_cli) || return 0
@@ -235,13 +233,11 @@ doctor() {
     else say "$dst: not managed by this installer"; fi
   done
   say 'Authentication: run gh auth status; launch each selected assistant to verify provider access.'
-  local memory_dir; memory_dir=$(hub_file memory/memory.py) && memory_dir="${memory_dir%/memory.py}"
-  say "Life memory: ~/.local/share/life-memory-venv/bin/python ${memory_dir:-<hub>/memory}/memory.py doctor"
   say '--- hubs'
   DOTFILES_INSTALL_ROOT="$ROOT" zsh -f "$ROOT/install/ai-sync.zsh" doctor || true
 }
 usage() {
-  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,opencode,hubs,grok,private-config,life-memory] [--dry-run] [--update]'
+  say 'Usage: ./deploy.sh [--only zsh,vim,tmux,emacs,claude,codex,opencode,hubs,grok,private-config] [--dry-run] [--update]'
   say '       ./deploy.sh --doctor | --restore BACKUP_ID | --help'
   say 'All install/overwrite choices are interactive. Dry-run and doctor make no changes.'
 }
@@ -290,7 +286,7 @@ main() {
   if [[ "$MODE" == update ]]; then
     say 'Update plugins and optionally selected Homebrew packages. Update dotfiles first with git pull --ff-only, then rerun this command.'
   fi
-  selected=(zsh vim tmux emacs claude codex opencode hubs grok private-config life-memory)
+  selected=(zsh vim tmux emacs claude codex opencode hubs grok private-config)
   for module in "$ROOT"/install/modules/*.sh; do
     id="${module##*/}"; id="${id%.sh}"
     [[ " ${selected[*]} " == *" $id "* ]] || selected+=("$id")
