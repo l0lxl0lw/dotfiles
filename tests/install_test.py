@@ -56,10 +56,8 @@ class InstallTest(unittest.TestCase):
     def make_hub(self, name, skill="hub-skill", agent="hub-agent", persona="Persona."):
         """A hub under $HOME/<name> with one skill, one rendered agent and a persona, listed in the hubs file."""
         hub = self.home / name
-        (hub / ".agents/skills" / skill).mkdir(parents=True)
-        (hub / ".agents/skills" / skill / "SKILL.md").write_text(f"---\nname: {skill}\ndescription: {skill}\n---\n")
-        (hub / ".claude").mkdir()
-        (hub / ".claude/skills").symlink_to("../.agents/skills", target_is_directory=True)
+        (hub / "skills" / skill).mkdir(parents=True)
+        (hub / "skills" / skill / "SKILL.md").write_text(f"---\nname: {skill}\ndescription: {skill}\n---\n")
         (hub / "agents/src").mkdir(parents=True)
         (hub / "agents/src" / f"{agent}.md").write_text(f"---\nname: {agent}\ndescription: {agent}\ntier: fast\naccess: research\n---\n\nBody.\n")
         (hub / "tiers.json").write_text('{"codex": {"fast": {"model": "gpt-6-luna"}}}')
@@ -234,8 +232,8 @@ class InstallTest(unittest.TestCase):
             proc = subprocess.run(["/bin/zsh", "-f", "-c", sync], env=self.env, text=True, capture_output=True)
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
-        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
-        self.assertEqual(os.readlink(self.home / ".codex/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
+        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / "skills/hub-skill"))
+        self.assertEqual(os.readlink(self.home / ".codex/skills/hub-skill"), str(hub / "skills/hub-skill"))
         self.assertEqual(os.readlink(self.home / ".claude/agents/hub-agent.md"), str(hub / ".claude/agents/hub-agent.md"))
         self.assertTrue((self.home / ".codex/agents/hub-agent.toml").is_file())
         self.assertIn("## zubot\n\nBe warm.", (self.home / ".claude/CLAUDE.md").read_text())
@@ -257,7 +255,7 @@ class InstallTest(unittest.TestCase):
         (self.home / ".claude").mkdir()
         (self.home / ".codex").mkdir()
         proc = self.deploy("--only", "hubs", answers="y\n")
-        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / ".agents/skills/hub-skill"))
+        self.assertEqual(os.readlink(self.home / ".claude/skills/hub-skill"), str(hub / "skills/hub-skill"))
         self.assertTrue((self.home / ".codex/agents/hub-agent.toml").is_file())
         calls = log.read_text().splitlines()
         self.assertIn("skills install --all", calls)
