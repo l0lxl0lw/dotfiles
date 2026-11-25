@@ -24,8 +24,8 @@ assert_link_to() {
 
 # One hub with a skill and a rendered worker, listed as the only active hub.
 local hub="$HOME/zubot"
-mkdir -p "$hub/.agents/skills/develop-deliver" "$hub/agents/src"
-print -- "---\nname: develop-deliver\ndescription: deliver\n---" > "$hub/.agents/skills/develop-deliver/SKILL.md"
+mkdir -p "$hub/skills/develop-deliver" "$hub/agents/src"
+print -- "---\nname: develop-deliver\ndescription: deliver\n---" > "$hub/skills/develop-deliver/SKILL.md"
 print -- "---\nname: develop-plan\ndescription: plan\ntier: fast\naccess: research\n---\n\nPlan.\n" > "$hub/agents/src/develop-plan.md"
 print -r -- '{"codex":{"fast":{"model":"gpt-6-luna"}}}' > "$hub/tiers.json"
 python3 -B "$repo_root/agents/render.py" --hub "$hub" >/dev/null
@@ -61,7 +61,7 @@ claude --agent "two words" >/dev/null 2>&1 || exit_code=$?
 (( exit_code == 7 )) || fail "claude wrapper returned $exit_code, expected 7"
 [[ "$(<"$report")" == $'--agent\ntwo words' ]] || fail "claude wrapper changed arguments"
 assert_link_to "$HOME/.claude/agents/develop-plan.md" "$hub/.claude/agents/develop-plan.md"
-assert_link_to "$HOME/.claude/skills/develop-deliver" "$hub/.agents/skills/develop-deliver"
+assert_link_to "$HOME/.claude/skills/develop-deliver" "$hub/skills/develop-deliver"
 
 # A declined Claude component still launches but performs no sync.
 command rm -rf -- "$HOME/.claude" "$report"

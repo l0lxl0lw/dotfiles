@@ -105,13 +105,24 @@ _hubs_roots() {
 }
 
 # hubs_sync_skills <dest-skills-dir> <hub>...
-# Link each hub's .agents/skills/<name> into the destination. Only
-# .agents/skills is scanned: a hub's .claude/skills is a symlink to it.
+# Link each hub's skills/<name> into the destination. Hub skills live in a
+# plain skills/ folder that no tool scans as a project folder, so starting
+# Claude or Codex inside a hub lists each skill once, from these links.
+# A hub without skills/ still falls back to the older .agents/skills layout.
 hubs_sync_skills() {
   emulate -L zsh
   setopt extended_glob
-  local dst="$1"; shift
-  _agentcfg_sync_skill_sources "$dst" "${@/%//.agents/skills}"
+  local dst="$1" hub
+  shift
+  local -a srcs
+  for hub in "$@"; do
+    if [[ -d "$hub/skills" ]]; then
+      srcs+=("$hub/skills")
+    else
+      srcs+=("$hub/.agents/skills")
+    fi
+  done
+  _agentcfg_sync_skill_sources "$dst" "${srcs[@]}"
 }
 
 # _hubs_link_tree <dest-dir> <subpath> <hub>...

@@ -93,7 +93,8 @@ A hub provides:
 <hub>/
   AGENTS.md, CLAUDE.md     entry points when a session starts inside the hub
   persona/global.md        what every tool should know about this hub everywhere
-  .agents/skills/<name>/   the skills; .claude/skills is a symlink to it
+  skills/<name>/           the skills (not .agents/skills or .claude/skills, which
+                           tools also load as project skills and would list twice)
   agents/src/<name>.md     one worker definition (name, description, tier, access)
   .claude/agents/          committed render for Claude Code, plus Claude-only agents
   .codex/agents/           committed render for Codex
@@ -130,7 +131,7 @@ just `ai/claude/hooks` (the status line) and `ai/codex/config.toml.managed`.
 
 The development workflow (`/develop-prepare`, `/develop-deliver`) and every other
 shared skill now ship from the personal hub; see that hub's
-`.agents/skills/develop/README.md`.
+`skills/develop/README.md`.
 
 Declining an AI component disables its automatic catalog sync using a small marker
 under `${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/disabled-sync/`. A successful
